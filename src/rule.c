@@ -1,0 +1,1080 @@
+
+/* C STD LIB */
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h> // for unhandled error printfs
+
+/* POSIX */
+#include <regex.h>
+
+#include <peggy/utils.h>
+#include <peggy/type.h>
+#include <peggy/rule.h>
+#include <peggy/parser.h>
+#include <peggy/token.h>
+#include <peggy/hash_map.h>
+
+/* PackratCache wrapper implementations */
+
+#define PACKRAT_CACHE_INIT_SIZE_OUTER 3
+#define PACKRAT_CACHE_INIT_SIZE_INNER 0
+
+int pToken_comp(pToken a, pToken b) {
+    return address_comp(a->string, b->string);
+}
+
+size_t pToken_hash(pToken a, size_t hash_size) {
+    return address_hash(a->string, hash_size);
+}
+
+/*
+// probably do not need
+bool PackratCache_in(PackratCache * cache, Token * tok);
+hash_map_err PackratCache_pop(PackratCache * cache, Token * tok, ASTNode ** node);
+hash_map_err PackratCache_remove(PackratCache * cache, Token * tok);
+void PackratCache_for_each(PackratCache * cache, int (*handle_item)(void * data, KEY_TYPE key, VALUE_TYPE value), void * data);
+*/
+hash_map_err PackratCache_init(PackratCache * cache) {
+    return HASH_MAP_INIT(pToken, pSAMap)(cache, PACKRAT_CACHE_INIT_SIZE_OUTER);
+}
+hash_map_err PackratCache_get(PackratCache * cache, Token * tok, ASTNode ** node) {
+    hash_map_err status = HM_SUCCESS;
+    SAMap * psamap; /* map tok->start : ASTNode * */
+    if ((status = cache->_class->get(cache, tok, &psamap))) { /* retrieves map tok->string : (map tok->start : ASTNode *) and checks status */
+        return status;
+    }
+    return psamap->_class->get(psamap, tok->start, node);
+}
+hash_map_err PackratCache_set(PackratCache * cache, Token * tok, ASTNode * node) {
+    SAMap * psamap; /* map tok->start : ASTNode * */
+    hash_map_err status = cache->_class->get(cache, tok, &psamap); /* retrieves map tok->string : (map tok->start : ASTNode *) and checks status */
+    switch (status) {
+        case HM_KEY_NOT_FOUND: { /* need to make a new SAMap and insert it*/
+            psamap = malloc(sizeof(*psamap));
+            if (!psamap) {
+                return HM_MALLOC_MAP_FAILURE;
+            }
+            HASH_MAP_INIT(size_t, pASTNode)(psamap, PACKRAT_CACHE_INIT_SIZE_INNER);
+            cache->_class->set(cache, tok, psamap);
+            /* psamap is now valid, fall through */
+        }
+            __attribute__((fallthrough));
+        case HM_SUCCESS: { /* psamap is valid, simply insert new size_t : ASTNode * into samap */
+            psamap->_class->set(psamap, tok->start, node);
+            break;
+        }
+        default: {
+            return status;
+        }
+    }
+    return status;
+}
+void PackratCache_clear_token(PackratCache * cache, Token * tok) { /* semantically clears out the cache for the particular string being parsed*/
+    SAMap * psamap;
+    hash_map_err status = cache->_class->get(cache, tok, &psamap);
+    if (status == HM_KEY_NOT_FOUND) {
+        return; /* no-op */
+    }
+    // psamap should be valid. get can only return HM_KEY_NOT_FOUND or HM_SUCCESS
+    psamap->_class->clear(psamap); /* clear the internal map. NOTE: this leaves all ASTNode *s in heap memory */
+    cache->_class->remove(cache, tok);
+}
+
+int PackratCache_clear_handle(void * data, Token * tok, SAMap * inner_map) {
+    inner_map->_class->clear(inner_map);
+    free(inner_map);
+    return 0;
+}
+void PackratCache_clear(PackratCache * cache) {
+    cache->_class->for_each(cache, &PackratCache_clear_handle, NULL);
+    cache->_class->clear(cache);
+}
+
+/* Rule implementations */
+
+/* Type system metadata for Rule */
+#define Rule_NAME "Rule"
+
+Type const Rule_TYPE = {._class = &Type_class,
+                        .type_name = Rule_NAME};
+/* END Type system metadata for Rule */
+
+/* for tracking rule IDs and equality */
+int rule_id = 0;
+
+struct RuleType Rule_class = RuleType_DEFAULT_INIT;
+
+/* id = -1 means none provided */
+Rule * Rule_new(int id) {
+    Rule * ret = malloc(sizeof(Rule));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (Rule) Rule_DEFAULT_INIT;
+    if (Rule_init(ret, id)) {
+        free(ret);
+        return NULL;
+    }
+    return ret;
+}
+
+/* id = -1 means none provided */
+err_type Rule_init(Rule * self, int id) {
+    self->id = id;
+    if (PackratCache_init(&self->cache_)) {
+        return PEGGY_FAILURE;
+    }
+    return PEGGY_SUCCESS;
+}
+
+void Rule_dest(Rule * self) {
+    PackratCache_clear(&(self->cache_));
+}
+
+void Rule_del(Rule * self) {
+    /* TODO: all children need to call a finalizer of some kind */
+    Rule_dest(self);
+    free(self);
+}
+
+err_type Rule_build(Rule * self, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    return PEGGY_NOT_IMPLEMENTED;
+}
+
+void Rule_cache_check_(Rule * self, Parser * parser, size_t token_key, ASTNode * result) {
+    if (!self->cache_.capacity) {
+        PackratCache_init(&(self->cache_));
+    }
+    Token * tok = NULL;
+    err_type status = parser->_class->get(parser, token_key, &tok);
+    if (!status) {
+        printf("unhandled error (%d) from token lookup in parser: Rule_cache_check_", status);
+    }
+    hash_map_err hm_status = PackratCache_set(&(self->cache_), tok, result);
+    if (!hm_status) {
+        printf("unhandled error (%d) while saving in cache in parser: Rule_cache_check_", hm_status);
+    }
+}
+
+ASTNode * Rule_check_cache_(Rule * self, Parser * parser, size_t token_key) {
+    if (!self->cache_.capacity) {
+        PackratCache_init(&(self->cache_));
+    }
+    Token * tok = NULL;
+    err_type status = parser->_class->get(parser, token_key, &tok);
+    if (!status) {
+        printf("unhandled error (%d) from token lookup in parser: Rule_check_cache_", status);
+    }
+    ASTNode * res = NULL;
+    hash_map_err hm_status = PackratCache_get(&(self->cache_), tok, &res);
+    if (!hm_status) {
+        printf("unhandled error (%d) while saving in cache in parser: Rule_cache_check_", hm_status);
+    }
+    if (res) { /* should be unnecessary as NULLs should never going into the cache */
+        parser->_class->seek(parser, res->ntokens, P_SEEK_CUR);
+    }
+    return res;
+}
+
+void Rule_clear_cache(Rule * self, Token * tok) {
+    PackratCache_clear_token(&(self->cache_), tok);
+}
+
+/* TODO: probably should change this so that Rule_check_rule_ output node is in arguments and ASTNode_fail becomes an error code */
+ASTNode * Rule_check_rule_(Rule * self, Parser * parser, size_t token_key, bool disable_cache_check) {
+    /* Not to be implemented */
+    return NULL;
+}
+
+/* user does not need to check if result is not ASTNode_fail if they use ASTNode_del function */
+/* TODO: probably should change this so that Rule_check output node is in arguments and ASTNode_fail becomes an error code */
+ASTNode * Rule_check(Rule * self, Parser * parser, bool disable_cache_check) {
+    size_t token_key = parser->_class->tell(parser);
+    ASTNode * res = NULL;
+    if (!disable_cache_check) {
+        res = self->_class->check_cache_(self, parser, token_key);
+        if (res) {
+            return res;
+        }
+    }
+    // check the rule and generate a node
+    res = self->_class->check_rule_(self, parser, token_key, disable_cache_check);
+    // cache the result
+    self->_class->cache_check_(self, parser, token_key, res);
+
+    /* TODO: log the result */
+
+    if (res == &ASTNode_fail) {
+        // reset the parser seek because the rule check failed
+        parser->_class->seek(parser, token_key, P_SEEK_SET);
+    }
+    return res;
+}
+
+/* ChainRule implementations */
+
+/* Type system metadata for ChainRule */
+#define ChainRule_NAME "ChainRule.Rule"
+//StructInfo ChainRule_INFO = {0};
+Type const ChainRule_TYPE = {//._info = &ChainRule_INFO,
+                               ._class = &Type_class,
+                               .type_name = ChainRule_NAME};
+/* END Type system metadata for ChainRule */
+
+struct ChainRuleType ChainRule_class = ChainRuleType_DEFAULT_INIT;
+
+ChainRule * ChainRule_new(rule_id_type id, size_t deps_size, Rule deps[deps_size]) {
+    ChainRule * ret = malloc(sizeof(ChainRule));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (ChainRule) ChainRule_DEFAULT_INIT;
+    if (ChainRule_init(ret, id, deps_size, deps)) {
+        free(ret);
+        return NULL;
+    }
+    return ret;
+}
+err_type ChainRule_init(ChainRule * self, rule_id_type id, size_t deps_size, Rule deps[deps_size]) {
+    self->_class->Rule_class.init(&(self->Rule), id);
+    self->deps_size = deps_size;
+    self->deps = deps;
+    return PEGGY_SUCCESS;
+}
+void ChainRule_dest(ChainRule * self) {
+    Rule_dest(&(self->Rule));
+}
+
+void ChainRule_del(ChainRule * self) {
+    ChainRule_dest(self);
+    free(self);
+}
+
+void ChainRule_as_Rule_del(Rule * chain_rule) {
+    ChainRule_del(DOWNCAST_P(chain_rule, Rule, ChainRule));
+}
+
+void ChainRule_clear_cache(Rule * chain_rule, Token * tok) {
+    ChainRule * self = DOWNCAST_P(chain_rule, Rule, ChainRule);
+    if (self->Rule.cache_._class->remove(&(self->Rule.cache_), tok) != HM_KEY_NOT_FOUND) {
+        for (size_t i = 0; i < self->deps_size; i++) {
+            (self->deps + i)->_class->clear_cache(self->deps + i, tok);
+        }
+    }
+}
+
+/* SequenceRule implementations */
+/* NOTE: was "And" in the python version */
+
+/* Type system metadata for SequenceRule */
+#define SequenceRule_NAME "SequenceRule.ChainRule.Rule"
+//StructInfo SequenceRule_INFO = {0};
+Type const SequenceRule_TYPE = {//._info = &SequenceRule_INFO,
+                       ._class = &Type_class,
+                       .type_name = SequenceRule_NAME
+                       };
+/* END Type system metadata for SequenceRule */
+
+struct SequenceRuleType SequenceRule_class = SequenceRuleType_DEFAULT_INIT;
+
+SequenceRule * SequenceRule_new(rule_id_type id, size_t deps_size, Rule deps[deps_size]) {
+    SequenceRule * ret = malloc(sizeof(SequenceRule));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (SequenceRule) SequenceRule_DEFAULT_INIT;
+    if (SequenceRule_init(ret, id, deps_size, deps)) {
+        free(ret);
+        return NULL;
+    }
+    return ret;
+}
+
+err_type SequenceRule_init(SequenceRule * self, rule_id_type id, size_t deps_size, Rule deps[deps_size]) {
+    self->_class->ChainRule_class.init(&(self->ChainRule), id, deps_size, deps);
+    return PEGGY_SUCCESS;
+}
+
+void SequenceRule_dest(SequenceRule * self) {
+    ChainRule_dest(&(self->ChainRule));
+}
+
+void SequenceRule_del(SequenceRule * self) {
+    SequenceRule_dest(self);
+    free(self);
+}
+
+void SequenceRule_as_ChainRule_del(ChainRule * sequence_chain) {
+    SequenceRule_del(DOWNCAST_P(sequence_chain, ChainRule, SequenceRule));
+}
+
+void SequenceRule_as_Rule_del(Rule * sequence_rule) {
+    SequenceRule_del(DOWNCAST_P(DOWNCAST_P(sequence_rule, Rule, ChainRule), ChainRule, SequenceRule));
+}
+
+err_type SequenceRule_build(Rule * sequence_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    SequenceRule * self = DOWNCAST_P(DOWNCAST_P(sequence_rule, Rule, ChainRule), ChainRule, SequenceRule);
+    /* TODO: requires a parser_generator API */
+    return PEGGY_NOT_IMPLEMENTED;
+}
+
+ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
+    SequenceRule * self = DOWNCAST_P(DOWNCAST_P(sequence_rule, Rule, ChainRule), ChainRule, SequenceRule);
+    ASTNode ** children = malloc(sizeof(ASTNode *) * self->ChainRule.deps_size);
+    if (!children) {
+        return &ASTNode_fail;
+    }
+    size_t nchildren = 0;
+    for (size_t i = 0; i < self->ChainRule.deps_size; i++) {
+        ASTNode * child_res = self->ChainRule.deps[i]._class->check(sequence_rule, parser, disable_cache_check);
+        if (child_res == &ASTNode_fail) {
+            free(children);
+            return child_res;
+        }
+        if (!is_skip_node(child_res)) {
+            children[nchildren++] = child_res;
+        }
+    }
+    size_t token_cur = parser->_class->tell(parser);
+    Token * cur = NULL;
+    err_type status = parser->_class->get(parser, token_cur, &cur);
+    if (status) {
+        printf("unhandled error (%d) in SequenceRule_check_rule_ getting current token from parser\n", status);
+    }
+    Token * start = NULL;
+    status = parser->_class->get(parser, token_key, &start);
+    if (status) {
+        printf("unhandled error (%d) in SequenceRule_check_rule_ getting starting token from parser\n", status);
+    }
+    return ASTNode_class.new(sequence_rule, token_key, token_cur - token_key, cur->start - start->start, nchildren, children);
+}
+
+/* ChoiceRule implementations */
+
+/* Type system metadata for ChoiceRule */
+#define ChoiceRule_NAME "ChoiceRule.ChainRule.Rule"
+//StructInfo ChoiceRule_INFO = {0};
+Type const ChoiceRule_TYPE = {//._info = &ChoiceRule_INFO,
+                            ._class = &Type_class,
+                            .type_name = ChoiceRule_NAME
+                            };
+/* END Type system metadata for ChoiceRule */
+
+struct ChoiceRuleType ChoiceRule_class = ChoiceRuleType_DEFAULT_INIT;
+
+ChoiceRule * ChoiceRule_new(rule_id_type id, size_t deps_size, Rule deps[deps_size]) {
+    ChoiceRule * ret = malloc(sizeof(*ret));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (ChoiceRule) ChoiceRule_DEFAULT_INIT;
+    if (ChoiceRule_init(ret, id, deps_size, deps)) {
+        free(ret);
+        return NULL;
+    }
+    return ret;
+}
+
+err_type ChoiceRule_init(ChoiceRule * self, rule_id_type id, size_t deps_size, Rule deps[deps_size]) {
+    self->_class->ChainRule_class.init(&(self->ChainRule), id, deps_size, deps);
+    return PEGGY_SUCCESS;
+}
+
+void ChoiceRule_dest(ChoiceRule * self) {
+    ChainRule_dest(&(self->ChainRule));
+}
+
+void ChoiceRule_del(ChoiceRule * self) {
+    ChoiceRule_dest(self);
+    free(self);
+}
+
+void ChoiceRule_as_ChainRule_del(ChainRule * choice_chain) {
+    ChoiceRule_del(DOWNCAST_P(choice_chain, ChainRule, ChoiceRule));
+}
+
+void ChoiceRule_as_Rule_del(Rule * choice_rule) {
+    ChoiceRule_del(DOWNCAST_P(DOWNCAST_P(choice_rule, Rule, ChainRule), ChainRule, ChoiceRule));
+}
+
+err_type ChoiceRule_build(Rule * choice_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    ChoiceRule * self = DOWNCAST_P(DOWNCAST_P(choice_rule, Rule, ChainRule), ChainRule, ChoiceRule);
+    /* TODO: requires parser_generator API */
+    return PEGGY_NOT_IMPLEMENTED;
+}
+
+ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
+    ChoiceRule * self = DOWNCAST_P(DOWNCAST_P(choice_rule, Rule, ChainRule), ChainRule, ChoiceRule);
+    for (size_t i = 0; i < self->ChainRule.deps_size; i++) {
+        ASTNode * child_res = self->ChainRule.deps[i]._class->check(choice_rule, parser, disable_cache_check);
+        if (child_res != &ASTNode_fail) {
+            return child_res;
+        }
+    }
+    return &ASTNode_fail;
+}
+
+/* LiteralRule implementations */
+
+/* Type system metadata for LiteralRule */
+#define LiteralRule_NAME "LiteralRule.Rule"
+//StructInfo LiteralRule_INFO = {0};
+Type const LiteralRule_TYPE = {//._info = &LiteralRule_INFO,
+                            ._class = &Type_class,
+                            .type_name = LiteralRule_NAME
+                            };
+/* END Type system metadata for LiteralRule */
+
+struct LiteralRuleType LiteralRule_class = LiteralRuleType_DEFAULT_INIT;
+
+LiteralRule * LiteralRule_new(rule_id_type id, regex_t regex) {
+    LiteralRule * ret = malloc(sizeof(*ret));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (LiteralRule) LiteralRule_DEFAULT_INIT;
+    if (LiteralRule_init(ret, id, regex)) {
+        free(ret);
+        ret = NULL;
+    }
+    return ret;
+}
+
+err_type LiteralRule_init(LiteralRule * self, rule_id_type id, regex_t regex) {
+    self->_class->Rule_class.init(&(self->Rule), id);
+    return PEGGY_SUCCESS;
+}
+
+void LiteralRule_dest(LiteralRule * self) {
+    Rule_dest(&(self->Rule));
+}
+
+void LiteralRule_del(LiteralRule * self) {
+    LiteralRule_dest(self);
+    free(self);
+}
+
+void LiteralRule_as_Rule_del(Rule * literal_rule) {
+    LiteralRule_del(DOWNCAST_P(literal_rule, Rule, LiteralRule));
+}
+
+err_type LiteralRule_build(Rule * literal_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    LiteralRule * self = DOWNCAST_P(literal_rule, Rule, LiteralRule);
+    /* TODO: requires parser_generator API */
+    return PEGGY_NOT_IMPLEMENTED;
+}
+
+ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
+    LiteralRule * self = DOWNCAST_P(literal_rule, Rule, LiteralRule);
+    Token * tok = NULL;
+    err_type status = parser->_class->get(parser, token_key, &tok);
+    if (status) {
+        printf("unhandled error (%d) in LiteralRule_check_rule_ getting current token from parser\n", status);
+    }
+    if (tok->_class->len(tok) == 0) {
+        return &ASTNode_fail;
+    }
+    /* TODO: requires regex API development */
+    return &ASTNode_fail;
+}
+
+/* NamedProduction implementations */
+
+/* Type system metadata for NamedProduction */
+#define NamedProduction_NAME "NamedProduction.Rule"
+//StructInfo NamedProduction_INFO = {0};
+Type const NamedProduction_TYPE = {//._info = &NamedProduction_INFO,
+                            ._class = &Type_class,
+                            .type_name = NamedProduction_NAME
+                            };
+/* END Type system metadata for NamedProduction */
+
+struct NamedProductionType NamedProduction_class = NamedProductionType_DEFAULT_INIT;
+
+NamedProduction * NamedProduction_new(rule_id_type id) {
+    NamedProduction * ret = malloc(sizeof(*ret));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (NamedProduction) NamedProduction_DEFAULT_INIT;
+    if (NamedProduction_init(ret, id)) {
+        free(ret);
+        ret = NULL;
+    }
+    return ret;
+}
+
+err_type NamedProduction_init(NamedProduction * self, rule_id_type id) {
+    self->_class->Rule_class.init(&(self->Rule), id);
+    return PEGGY_SUCCESS;
+}
+
+void NamedProduction_dest(NamedProduction * self) {
+    Rule_dest(&(self->Rule));
+}
+
+void NamedProduction_del(NamedProduction * self) {
+    NamedProduction_dest(self);
+    free(self);
+}
+
+void NamedProduction_as_Rule_del(Rule * named_production_rule) {
+    NamedProduction_del(DOWNCAST_P(named_production_rule, Rule, NamedProduction));
+}
+
+err_type NamedProduction_build(Rule * named_production, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    NamedProduction * self = DOWNCAST_P(named_production, Rule, NamedProduction);
+    /* TODO: requires parser_generator API */
+    return PEGGY_NOT_IMPLEMENTED;
+}
+
+/* DerivedRule implementations */
+
+/* Type system metadata for DerivedRule */
+#define DerivedRule_NAME "Rule.DerivedRule"
+//StructInfo DerivedRule_INFO = {0};
+Type const DerivedRule_TYPE = {//._info = &DerivedRule_INFO,
+                            ._class = &Type_class,
+                            .type_name = DerivedRule_NAME
+                            };
+/* END Type system metadata for DerivedRule */
+
+struct DerivedRuleType DerivedRule_class = DerivedRuleType_DEFAULT_INIT;
+
+DerivedRule * DerivedRule_new(rule_id_type id, Rule * rule) {
+    DerivedRule * ret = malloc(sizeof(*ret));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (DerivedRule) DerivedRule_DEFAULT_INIT;
+    if (DerivedRule_init(ret, id, rule)) {
+        free(ret);
+        ret = NULL;
+    }
+    return ret;
+}
+
+err_type DerivedRule_init(DerivedRule * self, rule_id_type id, Rule * rule) {
+    self->_class->Rule_class.init(&(self->Rule), id);
+    self->rule = rule;
+    return PEGGY_SUCCESS;
+}
+
+void DerivedRule_dest(DerivedRule * self) {
+    Rule_dest(&(self->Rule));
+}
+
+void DerivedRule_del(DerivedRule * self) {
+    DerivedRule_dest(self);
+    free(self);
+}
+
+void DerivedRule_as_Rule_del(Rule * derived_rule) {
+    DerivedRule_del(DOWNCAST_P(derived_rule, Rule, DerivedRule));
+}
+
+void DerivedRule_clear_cache(Rule * derived_rule, Token * tok) {
+    DerivedRule * self = DOWNCAST_P(derived_rule, Rule, DerivedRule);
+    if (derived_rule->cache_._class->remove(&(derived_rule->cache_), tok) != HM_KEY_NOT_FOUND) {
+        self->rule->_class->clear_cache(self->rule, tok);
+    }
+}
+
+/* ListRule implementations */
+
+/* Type system metadata for ListRule */
+#define ListRule_NAME "ListRule.DerivedRule.Rule"
+//StructInfo ListRule_INFO = {0};
+Type const ListRule_TYPE = {//._info = &ListRule_INFO,
+                            ._class = &Type_class,
+                            .type_name = ListRule_NAME
+                            };
+/* END Type system metadata for ListRule */
+
+struct ListRuleType ListRule_class = ListRuleType_DEFAULT_INIT;
+
+ListRule * ListRule_new(rule_id_type id, Rule * rule, Rule * delim) {
+    ListRule * ret = malloc(sizeof(*ret));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (ListRule) ListRule_DEFAULT_INIT;
+    if (ListRule_init(ret, id, rule, delim)) {
+        free(ret);
+        ret = NULL;
+    }
+    return ret;
+}
+err_type ListRule_init(ListRule * self, rule_id_type id, Rule * rule, Rule * delim) {
+    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
+    self->delim = delim;
+    return PEGGY_SUCCESS;
+}
+void ListRule_dest(ListRule * self) {
+    DerivedRule_dest(&(self->DerivedRule));
+}
+void ListRule_del(ListRule * self) {
+    ListRule_dest(self);
+    free(self);
+}
+void ListRule_as_DerivedRule_del(DerivedRule * list_rule) {
+    ListRule_del(DOWNCAST_P(list_rule, DerivedRule, ListRule));
+}
+void ListRule_as_Rule_del(Rule * list_rule) {
+    ListRule_del(DOWNCAST_P(DOWNCAST_P(list_rule, Rule, DerivedRule), DerivedRule, ListRule));
+}
+err_type ListRule_build(Rule * list_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    /* TODO: requires parser_generator API */
+    return PEGGY_NOT_IMPLEMENTED;
+}
+ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
+    ListRule * self = DOWNCAST_P(DOWNCAST_P(list_rule, Rule, DerivedRule), DerivedRule, ListRule);
+    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser, disable_cache_check);
+    if (node == &ASTNode_fail) {
+        return node;
+    }
+    // TODO: when stack is available, replace with stack API
+    size_t capacity = 3; // MAGIC_NUMBER. Frequently only one will ever be found but 2x will be common. Avoid realloc
+    ASTNode ** node_list = malloc(sizeof(*node_list) * capacity);
+    if (!node_list) {
+        return &ASTNode_fail;
+    }
+    size_t node_list_length = 0;
+    node_list[node_list_length++] = node;
+    while (true) { 
+        ASTNode * delim = self->delim->_class->check(self->delim, parser, disable_cache_check);
+        if (delim == &ASTNode_fail) {
+            break;
+        }
+        if (node_list_length >= capacity - 1) { // realloc more space. Always make sure it can handle a delim and node in one pass
+            size_t new_capacity = 4 * capacity + 1; // because of above comment, it should always have odd capacity
+            ASTNode ** new_node_list = realloc(node_list, sizeof(*node_list) * new_capacity);
+            if (!new_node_list) {
+                free(node_list);
+                return &ASTNode_fail;
+            }
+            node_list = new_node_list;
+            capacity = new_capacity;
+        }
+        node_list[node_list_length++] = delim; // append delimiter to node_list
+        node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser, disable_cache_check);
+        if (node == &ASTNode_fail) {
+            parser->_class->seek(parser, -delim->ntokens, P_SEEK_CUR);
+            break;
+        }
+        node_list[node_list_length++] = node;
+    }
+    size_t cur_token_key = parser->_class->tell(parser);
+    Token * token_cur = NULL;
+    err_type status = parser->_class->get(parser, token_key, &token_cur);
+    if (status) {
+        printf("unhandled error (%d) in ListRule_check_rule_ getting current token from parser\n", status);
+    }
+    Token * token_start = NULL;
+    status = parser->_class->get(parser, token_key, &token_start);
+    if (status) {
+        printf("unhandled error (%d) in ListRule_check_rule_ getting starting token from parser\n", status);
+    }
+    return ASTNode_class.new(list_rule, token_key, cur_token_key - token_key, token_cur->start - token_start->start, node_list_length, node_list);
+}
+void ListRule_clear_cache(Rule * list_rule, Token * tok) {
+    ListRule * self = DOWNCAST_P(DOWNCAST_P(list_rule, Rule, DerivedRule), DerivedRule, ListRule); // not used here
+    if (list_rule->cache_._class->remove(&(list_rule->cache_), tok) != HM_KEY_NOT_FOUND) {
+        self->delim->_class->clear_cache(self->delim, tok);
+        self->DerivedRule.rule->_class->clear_cache(self->DerivedRule.rule, tok);
+    }
+}
+
+/* RepeatRule implementations */
+
+/* Type system metadata for RepeatRule */
+#define RepeatRule_NAME "RepeatRule.DerivedRule.Rule"
+//StructInfo RepeatRule_INFO = {0};
+Type const RepeatRule_TYPE = {//._info = &RepeatRule_INFO,
+                            ._class = &Type_class,
+                            .type_name = RepeatRule_NAME
+                            };
+/* END Type system metadata for RepeatRule */
+
+struct RepeatRuleType RepeatRule_class = RepeatRuleType_DEFAULT_INIT;
+
+RepeatRule * RepeatRule_new(rule_id_type id, Rule * rule, size_t min_rep, size_t max_rep) {
+    RepeatRule * ret = malloc(sizeof(*ret));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (RepeatRule) RepeatRule_DEFAULT_INIT;
+    if (RepeatRule_init(ret, id, rule, min_rep, max_rep)) {
+        free(ret);
+        ret = NULL;
+    }
+    return ret;
+}
+err_type RepeatRule_init(RepeatRule * self, rule_id_type id, Rule * rule, size_t min_rep, size_t max_rep) {
+    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
+    self->min_rep = min_rep;
+    self->max_rep = max_rep;
+    return PEGGY_SUCCESS;
+}
+void RepeatRule_dest(RepeatRule * self) {
+    DerivedRule_dest(&(self->DerivedRule));
+}
+void RepeatRule_del(RepeatRule * self) {
+    RepeatRule_dest(self);
+    free(self);
+}
+void RepeatRule_as_DerivedRule_del(DerivedRule * repeat_rule) {
+    RepeatRule_del(DOWNCAST_P(repeat_rule, DerivedRule, RepeatRule));
+}
+void RepeatRule_as_Rule_del(Rule * repeat_rule) {
+    RepeatRule_del(DOWNCAST_P(DOWNCAST_P(repeat_rule, Rule, DerivedRule), DerivedRule, RepeatRule));
+}
+err_type RepeatRule_build(Rule * repeat_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    RepeatRule * self = DOWNCAST_P(DOWNCAST_P(repeat_rule, Rule, DerivedRule), DerivedRule, RepeatRule);
+    /* TODO: requires parser_generator API */
+    return PEGGY_NOT_IMPLEMENTED;
+}
+ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
+    RepeatRule * self = DOWNCAST_P(DOWNCAST_P(repeat_rule, Rule, DerivedRule), DerivedRule, RepeatRule);
+    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser, disable_cache_check);
+    // TODO: when stack implementation is available, replace
+    size_t capacity = 0;
+    ASTNode ** node_list = NULL;
+    size_t node_list_length = 0;
+
+    while (node != &ASTNode_fail) {
+        if (node_list_length == capacity) { // realloc more space
+            size_t new_capacity = (2 * capacity + 3);
+            ASTNode ** new_node_list = realloc(node_list, sizeof(*new_node_list) * new_capacity);
+            if (!new_node_list) {
+                free(node_list); // will work if node_list is NULL as well                
+                return &ASTNode_fail;
+            }
+            node_list = new_node_list;
+            capacity = new_capacity;
+        }
+        node_list[node_list_length++] = node; // append node
+        node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser, disable_cache_check);        
+    }
+    if (node_list_length < self->min_rep || (self->max_rep && node_list_length > self->max_rep)) {
+        free(node_list);
+        return &ASTNode_fail;
+    }
+
+    size_t cur_token_key = parser->_class->tell(parser);
+    Token * token_cur = NULL;
+    err_type status = parser->_class->get(parser, token_key, &token_cur);
+    if (status) {
+        printf("unhandled error (%d) in RepeatRule_check_rule_ getting current token from parser\n", status);
+    }
+    Token * token_start = NULL;
+    status = parser->_class->get(parser, token_key, &token_start);
+    if (status) {
+        printf("unhandled error (%d) in RepeatRule_check_rule_ getting starting token from parser\n", status);
+    }
+    return ASTNode_class.new(repeat_rule, token_key, cur_token_key - token_key, token_cur->start - token_start->start, node_list_length, node_list);
+}
+
+/* OptionalRule implementations */
+
+/* Type system metadata for OptionalRule */
+#define OptionalRule_NAME "OptionalRule.DerivedRule.Rule"
+//StructInfo OptionalRule_INFO = {0};
+Type const OptionalRule_TYPE = {//._info = &OptionalRule_INFO,
+                            ._class = &Type_class,
+                            .type_name = OptionalRule_NAME
+                            };
+/* END Type system metadata for OptionalRule */
+
+struct OptionalRuleType OptionalRule_class = OptionalRuleType_DEFAULT_INIT;
+
+OptionalRule * OptionalRule_new(rule_id_type id, Rule * rule) {
+    OptionalRule * ret = malloc(sizeof(*ret));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (OptionalRule) OptionalRule_DEFAULT_INIT;
+    if (OptionalRule_init(ret, id, rule)) {
+        free(ret);
+        ret = NULL;
+    }
+    return ret;
+}
+err_type OptionalRule_init(OptionalRule * self, rule_id_type id, Rule * rule) {
+    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
+    return PEGGY_SUCCESS;
+}
+void OptionalRule_dest(OptionalRule * self) {
+    DerivedRule_dest(&(self->DerivedRule));
+}
+void OptionalRule_del(OptionalRule * self) {
+    OptionalRule_dest(self);
+    free(self);
+}
+void OptionalRule_as_DerivedRule_del(DerivedRule * optional_rule) {
+    OptionalRule_del(DOWNCAST_P(optional_rule, DerivedRule, OptionalRule));
+}
+void OptionalRule_as_Rule_del(Rule * optional_rule) {
+    OptionalRule_del(DOWNCAST_P(DOWNCAST_P(optional_rule, Rule, DerivedRule), DerivedRule, OptionalRule));
+}
+err_type OptionalRule_build(Rule * optional_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    OptionalRule * self = DOWNCAST_P(DOWNCAST_P(optional_rule, Rule, DerivedRule), DerivedRule, OptionalRule);
+    /* TODO: requires parser_generator API */
+    return PEGGY_NOT_IMPLEMENTED;
+}
+ASTNode * OptionalRule_check_rule_(Rule * optional_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
+    OptionalRule * self = DOWNCAST_P(DOWNCAST_P(optional_rule, Rule, DerivedRule), DerivedRule, OptionalRule);
+    ASTNode ** node_list = NULL;
+    size_t node_list_length = 0;
+    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser, disable_cache_check);
+    if (node != &ASTNode_fail) {
+        node_list = malloc(sizeof(*node_list));
+        if (!node_list) {
+            return &ASTNode_fail;
+        }
+        node_list[node_list_length++] = node;
+    }
+    return ASTNode_class.new(optional_rule, token_key, node->ntokens, node->str_length, node_list_length, node_list);
+}
+
+/* NegativeLookahead implementations */
+
+/* Type system metadata for NegativeLookahead */
+#define NegativeLookahead_NAME "NegativeLookahead.DerivedRule.Rule"
+//StructInfo NegativeLookahead_INFO = {0};
+Type const NegativeLookahead_TYPE = {//._info = &NegativeLookahead_INFO,
+                            ._class = &Type_class,
+                            .type_name = NegativeLookahead_NAME
+                            };
+/* END Type system metadata for NegativeLookahead */
+
+struct NegativeLookaheadType NegativeLookahead_class = NegativeLookaheadType_DEFAULT_INIT;
+
+NegativeLookahead * NegativeLookahead_new(rule_id_type id, Rule * rule) {
+    NegativeLookahead * ret = malloc(sizeof(*ret));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (NegativeLookahead) NegativeLookahead_DEFAULT_INIT;
+    if (NegativeLookahead_init(ret, id, rule)) {
+        free(ret);
+        ret = NULL;
+    }
+    return ret;
+}
+err_type NegativeLookahead_init(NegativeLookahead * self, rule_id_type id, Rule * rule) {
+    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
+    return PEGGY_SUCCESS;
+}
+void NegativeLookahead_dest(NegativeLookahead * self) {
+    DerivedRule_dest(&(self->DerivedRule));
+}
+void NegativeLookahead_del(NegativeLookahead * self) {
+    NegativeLookahead_dest(self);
+    free(self);
+}
+void NegativeLookahead_as_DerivedRule_del(DerivedRule * negative_lookahead) {
+    NegativeLookahead_del(DOWNCAST_P(negative_lookahead, DerivedRule, NegativeLookahead));
+}
+void NegativeLookahead_as_Rule_del(Rule * negative_lookahead) {
+    NegativeLookahead_del(DOWNCAST_P(DOWNCAST_P(negative_lookahead, Rule, DerivedRule), DerivedRule, NegativeLookahead));
+}
+err_type NegativeLookahead_build(Rule * negative_lookahead, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    NegativeLookahead * self = DOWNCAST_P(DOWNCAST_P(negative_lookahead, Rule, DerivedRule), DerivedRule, NegativeLookahead);
+    /* TODO: requires parser_generator API */
+    return PEGGY_NOT_IMPLEMENTED;
+}
+ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * parser, size_t token_key, bool disable_cache_check) {
+    NegativeLookahead * self = DOWNCAST_P(DOWNCAST_P(negative_lookahead, Rule, DerivedRule), DerivedRule, NegativeLookahead);
+    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser, disable_cache_check);
+    if (node == &ASTNode_fail) {
+        return &ASTNode_lookahead;
+    }
+    parser->_class->seek(parser, token_key, P_SEEK_SET);
+    return &ASTNode_fail;
+}
+/* PositiveLookahead implementations */
+
+/* Type system metadata for PositiveLookahead */
+#define PositiveLookahead_NAME "PositiveLookahead.DerivedRule.Rule"
+//StructInfo PositiveLookahead_INFO = {0};
+Type const PositiveLookahead_TYPE = {//._info = &PositiveLookahead_INFO,
+                            ._class = &Type_class,
+                            .type_name = PositiveLookahead_NAME
+                            };
+/* END Type system metadata for PositiveLookahead */
+
+struct PositiveLookaheadType PositiveLookahead_class = PositiveLookaheadType_DEFAULT_INIT;
+
+PositiveLookahead * PositiveLookahead_new(rule_id_type id, Rule * rule) {
+    PositiveLookahead * ret = malloc(sizeof(*ret));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (PositiveLookahead) PositiveLookahead_DEFAULT_INIT;
+    if (PositiveLookahead_init(ret, id, rule)) {
+        free(ret);
+        ret = NULL;
+    }
+    return ret;
+}
+err_type PositiveLookahead_init(PositiveLookahead * self, rule_id_type id, Rule * rule) {
+    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
+    return PEGGY_SUCCESS;
+}
+void PositiveLookahead_dest(PositiveLookahead * self) {
+    DerivedRule_dest(&(self->DerivedRule));
+}
+void PositiveLookahead_del(PositiveLookahead * self) {
+    PositiveLookahead_dest(self);
+    free(self);
+}
+void PositiveLookahead_as_DerivedRule_del(DerivedRule * positive_lookahead) {
+    PositiveLookahead_del(DOWNCAST_P(positive_lookahead, DerivedRule, PositiveLookahead));
+}
+void PositiveLookahead_as_Rule_del(Rule * positive_lookahead) {
+    PositiveLookahead_del(DOWNCAST_P(DOWNCAST_P(positive_lookahead, Rule, DerivedRule), DerivedRule, PositiveLookahead));
+}
+err_type PositiveLookahead_build(Rule * positive_lookahead, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    PositiveLookahead * self = DOWNCAST_P(DOWNCAST_P(positive_lookahead, Rule, DerivedRule), DerivedRule, PositiveLookahead);
+    /* TODO: requires parser_generator API */
+    return PEGGY_NOT_IMPLEMENTED;
+}
+ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser, size_t token_key, bool disable_cache_check) {
+    PositiveLookahead * self = DOWNCAST_P(DOWNCAST_P(positive_lookahead, Rule, DerivedRule), DerivedRule, PositiveLookahead);
+    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser, disable_cache_check);
+    if (node != &ASTNode_fail) {
+        parser->_class->seek(parser, token_key, P_SEEK_SET);
+        return &ASTNode_lookahead;
+    }
+    return node;
+}
+
+/* AnonymousProduction implementations */
+
+/* Type system metadata for AnonymousProduction */
+#define AnonymousProduction_NAME "AnonymousProduction.DerivedRule.Rule"
+//StructInfo AnonymousProduction_INFO = {0};
+Type const AnonymousProduction_TYPE = {//._info = &AnonymousProduction_INFO,
+                            ._class = &Type_class,
+                            .type_name = AnonymousProduction_NAME
+                            };
+/* END Type system metadata for AnonymousProduction */
+
+struct AnonymousProductionType AnonymousProduction_class = AnonymousProductionType_DEFAULT_INIT;
+
+AnonymousProduction * AnonymousProduction_new(rule_id_type id, Rule * rule) {
+    AnonymousProduction * ret = malloc(sizeof(*ret));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (AnonymousProduction) AnonymousProduction_DEFAULT_INIT;
+    if (AnonymousProduction_init(ret, id, rule)) {
+        free(ret);
+        ret = NULL;
+    }
+    return ret;
+}
+
+err_type AnonymousProduction_init(AnonymousProduction * self, rule_id_type id, Rule * rule) {
+    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
+    return PEGGY_SUCCESS;
+}
+void AnonymousProduction_dest(AnonymousProduction * self) {
+    DerivedRule_dest(&(self->DerivedRule));
+}
+void AnonymousProduction_del(AnonymousProduction * self) {
+    AnonymousProduction_dest(self);
+    free(self);
+}
+void AnonymousProduction_as_DerivedRule_del(DerivedRule * anonymous_production) {
+    AnonymousProduction_del(DOWNCAST_P(anonymous_production, DerivedRule, AnonymousProduction));
+}
+void AnonymousProduction_as_Rule_del(Rule * anonymous_production) {
+    AnonymousProduction_del(DOWNCAST_P(DOWNCAST_P(anonymous_production, Rule, DerivedRule), DerivedRule, AnonymousProduction));
+}
+err_type AnonymousProduction_build(Rule * anonymous_production, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    AnonymousProduction * self = DOWNCAST_P(DOWNCAST_P(anonymous_production, Rule, DerivedRule), DerivedRule, AnonymousProduction);
+    /* TODO */
+    return PEGGY_NOT_IMPLEMENTED;
+}
+
+/* Production implementations */
+
+ASTNode * build_action_default(Parser * parser, ASTNode * node) {
+    return node;
+}
+
+/* Type system metadata for AnonymousProduction */
+#define Production_NAME "Produciton.AnonymousProduction.DerivedRule.Rule"
+//StructInfo AnonymousProduction_INFO = {0};
+Type const Production_TYPE = {//._info = &AnonymousProduction_INFO,
+                            ._class = &Type_class,
+                            .type_name = Production_NAME
+                            };
+/* END Type system metadata for AnonymousProduction */
+
+struct ProductionType Production_class = ProductionType_DEFAULT_INIT;
+
+Production * Production_new(rule_id_type id, Rule * rule, build_action_ftype build_action) {
+    Production * ret = malloc(sizeof(*ret));
+    if (!ret) {
+        return NULL;
+    }
+    *ret = (Production) Production_DEFAULT_INIT;
+    if (Production_init(ret, id, rule, build_action)) {
+        free(ret);
+        ret = NULL;
+    }
+    return ret;
+}
+err_type Production_init(Production * self, rule_id_type id, Rule * rule, build_action_ftype build_action) {
+    self->_class->AnonymousProduction_class.init(&(self->AnonymousProduction), id, rule);
+    self->build_action = build_action;
+    return PEGGY_SUCCESS;
+}
+void Production_dest(Production * self) {
+    AnonymousProduction_dest(&(self->AnonymousProduction));
+}
+void Production_del(Production * self) {
+    Production_dest(self);
+    free(self);
+}
+void Production_as_AnonymousProduction_del(AnonymousProduction * production) {
+    Production_del(DOWNCAST_P(production, AnonymousProduction, Production));
+}
+void Production_as_DerivedRule_del(DerivedRule * production) {
+    Production_del(DOWNCAST_P(DOWNCAST_P(production, DerivedRule, AnonymousProduction), AnonymousProduction, Production));
+}
+void Production_as_Rule_del(Rule * production) {
+    Production_del(DOWNCAST_P(DOWNCAST_P(DOWNCAST_P(production, Rule, DerivedRule), DerivedRule, AnonymousProduction), AnonymousProduction, Production));
+}
+err_type Production_build(Rule * production, ParserGenerator * pg, char * buffer, size_t buffer_size) {
+    Production * self = DOWNCAST_P(DOWNCAST_P(DOWNCAST_P(production, Rule, DerivedRule), DerivedRule, AnonymousProduction), AnonymousProduction, Production);
+    /* TODO */
+    return PEGGY_NOT_IMPLEMENTED;
+}
+char const * UNESCAPED_RULES[2] = {
+    "Production",
+    "LiteralRule",
+};
+ASTNode * Production_check_rule_(Rule * production, Parser * parser, size_t token_key, bool disable_cache_check) {
+    Production * self = DOWNCAST_P(DOWNCAST_P(DOWNCAST_P(production, Rule, DerivedRule), DerivedRule, AnonymousProduction), AnonymousProduction, Production);
+    ASTNode * node = self->AnonymousProduction.DerivedRule.rule->_class->check(self->AnonymousProduction.DerivedRule.rule, parser, disable_cache_check);
+    if (node != &ASTNode_fail) {
+        if (!is_skip_node(node)) {
+            if (!isinstance((Type *)node->rule, 2, UNESCAPED_RULES)) {
+                node->_class->init(node, production, node->token_key, node->ntokens, node->str_length, node->nchildren, node->children);
+            } else {
+                ASTNode ** node_list = malloc(sizeof(*node_list));
+                if (!node_list) {
+                    return &ASTNode_fail;
+                }
+                node_list[0] = node;
+                node = ASTNode_class.new(production, node->token_key, node->ntokens, node->str_length, 1, node_list);
+            }
+        }
+        return self->build_action(parser, node);
+    }
+    return node;
+}

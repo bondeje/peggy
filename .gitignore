@@ -1,3 +1,14 @@
+# development areas
+workbench/
+test_files/
+obj/
+bin/
+.deps/
+.vscode/
+
+# development files
+main.c
+
 # Prerequisites
 *.d
 
