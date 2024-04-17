@@ -56,8 +56,8 @@
  * 
  */
 
-#ifndef HASH_MAP_TYPE_H
-#define HASH_MAP_TYPE_H
+#ifndef HASH_MAP_H
+#define HASH_MAP_H
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -90,7 +90,7 @@ size_t address_hash(void const * val, size_t bin_size);
 int address_comp(void const * a, void const * b);
 void hm_print_error_message(hash_map_err status);
 
-#endif // HASH_MAP_TYPE_H
+#endif // HASH_MAP_H
 
 /* generate the implementation */
 #if defined(KEY_TYPE) && defined(VALUE_TYPE)
@@ -143,8 +143,8 @@ typedef struct CAT(HASH_COMBO, _Type) {
 } CAT(HASH_COMBO, _Type);
 
 struct HASH_MAP_TYPE {
-    HASH_PAIR ** bins;
     CAT(HASH_COMBO, _Type) const * _class;
+    HASH_PAIR ** bins;
     size_t capacity;
     size_t fill;
 };
