@@ -102,6 +102,7 @@ LiteralRule * ipv4_to_init[] = {
 
 bool ipv4_initialized = false;
 
+/*
 // not necessary to call. See note above ipv4_to_init
 err_type ipv4_init(void) {
     err_type status = PEGGY_SUCCESS;
@@ -126,7 +127,7 @@ void ipv4_clear_token(Token * tok) {
         PackratCache_clear_token(&ipv4rules[i]->cache_, tok);
     }
 }
-
+*/
 void ipv4_dest(void) {
     printf("tearing down ipv4\n");
     err_type status = PEGGY_SUCCESS;

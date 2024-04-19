@@ -17,6 +17,9 @@ typedef struct ipv4Parser ipv4Parser;
 									.loc_ = 0, \
 									.tokens_length = 0, \
 									.tokens_capacity = 0, \
+									.node_list = NULL, \
+									.node_list_length = 0, \
+									.node_list_capacity = 0, \
 									.disable_cache_check = false, \
 									.ast = NULL \
 								} \
@@ -28,7 +31,7 @@ struct ipv4Parser {
 } ipv4;
 
 err_type ipv4Parser_init(ipv4Parser * parser, char const * string, size_t string_length) {
-	printf("in ipv4Parser_init\n");
+	//printf("in ipv4Parser_init\n");
 	parser->Parser._class->init(&(parser->Parser), string, string, 
 		string_length, &(ipv4_token.AnonymousProduction.DerivedRule.Rule), 
 		&(ipv4_ipv4.AnonymousProduction.DerivedRule.Rule), 0, 0, false, NULL);
@@ -41,7 +44,7 @@ void ipv4Parser_dest(ipv4Parser * parser) {
 }
 
 void ipv4Parser_parse(Parser * self) {
-	printf("in ipv4Parser_parse\n");
+	//printf("in ipv4Parser_parse\n");
     self->ast = self->root_rule->_class->check(self->root_rule, self, false);
     if (self->ast == &ASTNode_fail) {
         printf("\nPARSING FAILED\n"); /* TODO: include longest_rule information when available */

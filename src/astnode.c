@@ -46,7 +46,7 @@ err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntok
     return PEGGY_SUCCESS;
 }
 void ASTNode_dest(ASTNode * self) { 
-    // no-op. ASTNode does not own anything contents that need to be destroyed
+    // no-op. ASTNode does not own any contents that need to be destroyed. children are owned externally
 }
 void ASTNode_del(ASTNode * self) { 
     if (self != &ASTNode_fail) {

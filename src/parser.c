@@ -32,7 +32,7 @@ err_type Parser_init(Parser * self, char const * name,
                          Rule * root_rule, unsigned int line_offset, 
                          unsigned int col_offset, bool lazy_parse, 
                          char const * log_file) {
-    printf("in Parser_init\n");
+    //printf("in Parser_init\n");
     self->name = name;
     self->token_rule = token_rule;
     self->root_rule = root_rule;
@@ -50,6 +50,7 @@ err_type Parser_init(Parser * self, char const * name,
     self->tokens_length = 1;
 
     /* allocate node_list */
+    // oh boy, do I hate this, but it eliminates memory leaks. at least until I can make a nice arena allocator
     self->node_list = malloc(sizeof(*self->node_list) * PARSER_DEFAULT_NNODES);
     if (!self->node_list) {
         free(self->tokens);
@@ -59,6 +60,7 @@ err_type Parser_init(Parser * self, char const * name,
     self->node_list_capacity = PARSER_DEFAULT_NNODES;
 
     self->log_file = log_file;
+    self->disable_cache_check = false;
     /* TODO: log_buffer needed if log_file is not NULL */
     if (!lazy_parse) {
         self->_class->parse(self);
@@ -66,8 +68,9 @@ err_type Parser_init(Parser * self, char const * name,
     return PEGGY_SUCCESS;
 }
 void Parser_dest(Parser * self) {
-    printf("\ncleaning up Parser\n");
+    //printf("\ncleaning up Parser\n");
     /* clear out the ASTNodes */
+    // oh boy, do I hate this, but it eliminates memory leaks. at least until I can make a nice arena allocator
     for (size_t i = 0; i < self->node_list_length; i++) {
         if (self->node_list[i]->children) {
             free(self->node_list[i]->children);
@@ -77,26 +80,32 @@ void Parser_dest(Parser * self) {
         self->node_list[i]->_class->del(self->node_list[i]);
     }
     free(self->node_list);
-    self->node_list = NULL;    
+    self->node_list = NULL;  
+    self->node_list_length = 0;
+    self->node_list_capacity = 0;  
+    self->ast = NULL;
     
     //printf("clearing log_buffer\n");
     if (self->log_buffer) {
         free(self->log_buffer);
+        self->log_buffer = NULL;
         self->log_buffer_length = 0;
     }
 
     // clear up the PackratCache's maintained for this set of tokens
+    // do not necessarily have to nullify them. don't free them.
     self->root_rule->_class->clear_cache(self->root_rule, self->tokens);
     self->token_rule->_class->clear_cache(self->token_rule, self->tokens);
 
     /* clear the token list */
-    printf("cleaning up tokens\n");
+    //printf("cleaning up tokens\n");
     if (self->tokens_capacity) {
         free(self->tokens);
         self->tokens = 0;
         self->tokens_length = 0;
         self->tokens_capacity = 0;
     }
+    self->loc_ = 0;
 }
 void Parser_del(Parser * self) {
     Parser_dest(self);
@@ -154,7 +163,7 @@ void Parser_get_line_col_end(Parser * self, Token * tok, unsigned int * line_out
     *line_out = line;
 }
 void Parser_gen_final_token_(Parser * self, ASTNode * node, Token * tok) {
-    printf("gen final token\n");
+    //printf("gen final token\n");
     /* TODO: when "longest_rule" is implemented, clear it */
     Token * final = self->tokens + self->tokens_length - 1;
     size_t end = final->end;
@@ -169,7 +178,7 @@ void Parser_gen_final_token_(Parser * self, ASTNode * node, Token * tok) {
     Token_class.init(tok, final->string, start, end, line, col);
 }
 void Parser_skip_token(Parser * self, ASTNode * node) {
-    printf("Parser_skip_token\n");
+    //printf("Parser_skip_token\n");
     Token new_final = (Token) Token_DEFAULT_INIT;
     self->_class->gen_final_token_(self, node, &new_final);
     /* overwrite final token */
@@ -194,7 +203,7 @@ err_type Parser_extend_tokens_(Parser * self) {
     return PEGGY_SUCCESS;
 }
 err_type Parser_add_token(Parser * self, ASTNode * node) {
-    printf("Parser_add_token\n");
+    //printf("Parser_add_token\n");
     Token new_final = Token_DEFAULT_INIT;
     self->_class->gen_final_token_(self, node, &new_final);
     /* extend self->tokens if necessary */
@@ -206,9 +215,9 @@ err_type Parser_add_token(Parser * self, ASTNode * node) {
     }
     /* "append" new_final */
     memcpy(self->tokens + self->tokens_length, &new_final, sizeof(Token));
-    printf("\nnew token added: ");
-    Token_print(self->tokens + self->tokens_length - 1);
-    printf("\n\n");
+    //printf("\nnew token added: ");
+    //Token_print(self->tokens + self->tokens_length - 1);
+    //printf("\n\n");
     self->tokens_length++;
     return PEGGY_SUCCESS;
 }
@@ -225,7 +234,7 @@ err_type Parser_extend_nodes_(Parser * self) {
     return PEGGY_SUCCESS;
 }
 err_type Parser_add_node(Parser * self, ASTNode * node) {
-    printf("registering a new node with Parser\n");
+    //printf("registering a new node with Parser\n");
     if (self->node_list_length >= self->node_list_capacity) {
         err_type status = Parser_extend_nodes_(self);
         if (status) {
@@ -236,20 +245,20 @@ err_type Parser_add_node(Parser * self, ASTNode * node) {
     return PEGGY_SUCCESS;
 }
 bool Parser_gen_next_token_(Parser * self) {
-    printf("generating next token\n");
+    //printf("generating next token\n");
     self->disable_cache_check = true;
     ASTNode * result = self->token_rule->_class->check(self->token_rule, self, self->disable_cache_check);
     
     Token * final = self->tokens + self->tokens_length - 1;
     if (final->_class->len(final)) {
-        printf("disabling cache check\n");
+        //printf("disabling cache check\n");
         self->disable_cache_check = false;
     }
     return result != &ASTNode_fail;
 }
 err_type Parser_get(Parser * self, size_t key, Token ** tok) {
     if (!self->disable_cache_check) {
-        printf("getting token %zu / %zu from Parser\n", key, self->tokens_length);
+        //printf("getting token %zu / %zu from Parser\n", key, self->tokens_length);
         while (key >= self->tokens_length - 1) {
             Token * final = self->tokens + self->tokens_length - 1;
             //printf("final start-end: %zu - %zu\n", final->start, final->end);
@@ -264,7 +273,7 @@ err_type Parser_get(Parser * self, size_t key, Token ** tok) {
     }
     if (key < self->tokens_length) {
         *tok = self->tokens + key;
-        printf("got token %zu of %zu!\n", key, self->tokens_length);
+        //printf("got token %zu of %zu!\n", key, self->tokens_length);
         return PEGGY_SUCCESS;
     }
     return PEGGY_INDEX_OUT_OF_BOUNDS;
@@ -300,7 +309,7 @@ ASTNode * skip_token(Parser * parser, ASTNode * node) {
 }
 
 ASTNode * token_action(Parser * parser, ASTNode * node) {
-    printf("token action\n");
+    //printf("token action\n");
     if (node != &ASTNode_fail) {
         if (is_skip_node(node)) {
             parser->_class->skip_token(parser, node);

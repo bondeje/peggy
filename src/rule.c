@@ -69,7 +69,7 @@ hash_map_err PackratCache_set(PackratCache * cache, Token * tok, ASTNode * node)
     }
     return HM_SUCCESS;
 }
-/*
+
 int PackratCache_handle_ASTNode(void * data, size_t loc, ASTNode * node) {
     if (node->children) {
         free(node->children);
@@ -79,9 +79,9 @@ int PackratCache_handle_ASTNode(void * data, size_t loc, ASTNode * node) {
     node->_class->del(node);
     return 0;
 }
-*/
+
 void PackratCache_clear_token(PackratCache * cache, Token * tok) { /* semantically clears out the cache for the particular string being parsed*/
-    printf("clearing token\n");
+    //printf("clearing token\n");
 
     if (!cache->capacity) {
         return;
@@ -93,26 +93,14 @@ void PackratCache_clear_token(PackratCache * cache, Token * tok) { /* semantical
         return; // no-op
     }
     // psamap should be valid. get can only return HM_KEY_NOT_FOUND or HM_SUCCESS
+
+    /* clear out ASTNodes *. cannot use this. causes use after free issues */
+    //psamap->_class->for_each(psamap, &PackratCache_handle_ASTNode, NULL);
+
     psamap->_class->dest(psamap); // clear the internal map. NOTE: this leaves all ASTNode *s in heap memory 
     free(psamap); // the psamap was allocated
     //printf("done clearing token\n");
     
-    /*
-    if (!cache->capacity) {
-        return;
-    }
-    SAMap * psamap;
-    hash_map_err status = cache->_class->get(cache, tok, &psamap);
-    //psamap->_class->for_each(psamap, &PackratCache_handle_ASTNode, NULL); // trying to clear out ASTNodes
-    if (status == HM_KEY_NOT_FOUND) {
-        return; // no-op
-    }
-    // psamap should be valid. get can only return HM_KEY_NOT_FOUND or HM_SUCCESS
-    psamap->_class->dest(psamap); // clear the internal map. NOTE: this leaves all ASTNode *s in heap memory 
-    free(psamap); // the psamap was allocated
-    cache->_class->remove(cache, tok);
-    //printf("done clearing token\n");
-    */
 }
 
 int PackratCache_clear_handle(void * data, Token * tok, SAMap * inner_map) {
@@ -167,7 +155,7 @@ err_type Rule_init(Rule * self, int id) {
 }
 
 void Rule_dest(Rule * self) {
-    printf("destroying rule id %d\n", self->id);
+    //printf("destroying rule id %d\n", self->id);
     PackratCache_dest(&(self->cache_));
 }
 
@@ -182,7 +170,7 @@ err_type Rule_build(Rule * self, ParserGenerator * pg, char * buffer, size_t buf
 }
 
 void Rule_cache_check_(Rule * self, Parser * parser, size_t token_key, ASTNode * result) {
-    printf("caching result for rule id %d with token starting at %zu\n", self->id, token_key);
+    //printf("caching result for rule id %d with token starting at %zu\n", self->id, token_key);
     if (!self->cache_.capacity) {
         PackratCache_init(&(self->cache_));
     }
@@ -198,7 +186,7 @@ void Rule_cache_check_(Rule * self, Parser * parser, size_t token_key, ASTNode *
 }
 
 ASTNode * Rule_check_cache_(Rule * self, Parser * parser, size_t token_key) {
-    printf("checking cache\n");
+    //printf("checking cache\n");
     if (!self->cache_.capacity) {
         return NULL; // cache is empty, cannot possibly find a result
     }
@@ -222,9 +210,9 @@ ASTNode * Rule_check_cache_(Rule * self, Parser * parser, size_t token_key) {
 }
 
 void Rule_clear_cache(Rule * self, Token * tok) {
-    printf("clearing token from rule cache with id: %d:", self->id);
-    Token_print(tok);
-    printf("\n");
+    //printf("clearing token from rule cache with id: %d:", self->id);
+    //Token_print(tok);
+    //printf("\n");
     PackratCache_clear_token(&(self->cache_), tok);
 }
 
@@ -237,13 +225,13 @@ ASTNode * Rule_check_rule_(Rule * self, Parser * parser, size_t token_key, bool 
 /* user does not need to check if result is not ASTNode_fail if they use ASTNode_del function */
 /* TODO: probably should change this so that Rule_check output node is in arguments and ASTNode_fail becomes an error code */
 ASTNode * Rule_check(Rule * self, Parser * parser, bool disable_cache_check) {
-    printf("checking Rule id: %d %s\n", self->id, disable_cache_check ? "(cache_check disabled)" : "");
+    //printf("checking Rule id: %d %s\n", self->id, disable_cache_check ? "(cache_check disabled)" : "");
     size_t token_key = parser->_class->tell(parser);
     ASTNode * res = NULL;
     if (!disable_cache_check) {
         res = self->_class->check_cache_(self, parser, token_key);
         if (res) {
-            printf("successfully retrieved from cache\n");
+            //printf("successfully retrieved from cache\n");
             return res;
         }
     }
@@ -255,11 +243,11 @@ ASTNode * Rule_check(Rule * self, Parser * parser, bool disable_cache_check) {
     /* TODO: log the result */
 
     if (res == &ASTNode_fail) {
-        printf("rule %d failed!\n", self->id);
+        //printf("rule %d failed!\n", self->id);
         // reset the parser seek because the rule check failed
         parser->_class->seek(parser, token_key, P_SEEK_SET);
     } else {
-        printf("rule %d passed!\n", self->id);
+        //printf("rule %d passed!\n", self->id);
     }
     return res;
 }
@@ -374,7 +362,7 @@ err_type SequenceRule_build(Rule * sequence_rule, ParserGenerator * pg, char * b
 }
 
 ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
-    printf("checking sequence rule. id: %d\n", sequence_rule->id);
+    //printf("checking sequence rule. id: %d\n", sequence_rule->id);
     SequenceRule * self = DOWNCAST_P(DOWNCAST_P(sequence_rule, Rule, ChainRule), ChainRule, SequenceRule);
     ASTNode ** children = malloc(sizeof(ASTNode *) * self->ChainRule.deps_size);
     if (!children) {
@@ -462,7 +450,7 @@ err_type ChoiceRule_build(Rule * choice_rule, ParserGenerator * pg, char * buffe
 }
 
 ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
-    printf("checking choice rule. id: %d\n", choice_rule->id);
+    //printf("checking choice rule. id: %d\n", choice_rule->id);
     ChoiceRule * self = DOWNCAST_P(DOWNCAST_P(choice_rule, Rule, ChainRule), ChainRule, ChoiceRule);
     for (size_t i = 0; i < self->ChainRule.deps_size; i++) {
         ASTNode * child_res = self->ChainRule.deps[i]->_class->check(self->ChainRule.deps[i], parser, disable_cache_check);
@@ -500,7 +488,7 @@ LiteralRule * LiteralRule_new(rule_id_type id, char const * regex_s) {
 }
 
 err_type LiteralRule_compile_regex(LiteralRule * self) {
-    printf("compiling regex %s\n", self->regex_s);
+    //printf("compiling regex %s\n", self->regex_s);
     if (regcomp(&(self->regex), self->regex_s, REG_EXTENDED)) {
         return PEGGY_REGEX_FAILURE;
     }
@@ -519,7 +507,7 @@ err_type LiteralRule_init(LiteralRule * self, rule_id_type id, char const * rege
 }
 
 void LiteralRule_dest(LiteralRule * self) {
-    printf("freeing regex data\n");
+    //printf("freeing regex data\n");
     regfree(&(self->regex));
     self->compiled = false;
     Rule_dest(&(self->Rule));
@@ -546,7 +534,7 @@ err_type LiteralRule_build(Rule * literal_rule, ParserGenerator * pg, char * buf
 
 ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
     LiteralRule * self = DOWNCAST_P(literal_rule, Rule, LiteralRule);
-    printf("checking literal rule. id: %d, %s %s\n", literal_rule->id, self->regex_s, parser->disable_cache_check ? "cache check disabled" : "");
+    //printf("checking literal rule. id: %d, %s %s\n", literal_rule->id, self->regex_s, parser->disable_cache_check ? "cache check disabled" : "");
     err_type status = PEGGY_SUCCESS;
     if (!self->compiled) {
         if ((status = LiteralRule_compile_regex(self))) {
@@ -571,7 +559,7 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t t
         // the regex succeed to match
         parser->_class->seek(parser, 1, P_SEEK_CUR);
         size_t length = self->match[0].rm_eo - self->match[0].rm_so;
-        printf("LiteralRule regex matched with length %zu!\n", length);
+        //printf("LiteralRule regex matched with length %zu!\n", length);
         ASTNode * res = ASTNode_class.new(literal_rule, token_key, length ? 1 : 0, length, 0, NULL);
         parser->_class->add_node(parser, res);
         return res;
@@ -731,7 +719,7 @@ err_type ListRule_build(Rule * list_rule, ParserGenerator * pg, char * buffer, s
     return PEGGY_NOT_IMPLEMENTED;
 }
 ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
-    printf("checking list rule. id: %d\n", list_rule->id);
+    //printf("checking list rule. id: %d\n", list_rule->id);
     ListRule * self = DOWNCAST_P(DOWNCAST_P(list_rule, Rule, DerivedRule), DerivedRule, ListRule);
     ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser, disable_cache_check);
     if (node == &ASTNode_fail) {
@@ -844,7 +832,7 @@ err_type RepeatRule_build(Rule * repeat_rule, ParserGenerator * pg, char * buffe
     return PEGGY_NOT_IMPLEMENTED;
 }
 ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
-    printf("checking repeat rule. id: %d\n", repeat_rule->id);
+    //printf("checking repeat rule. id: %d\n", repeat_rule->id);
     RepeatRule * self = DOWNCAST_P(DOWNCAST_P(repeat_rule, Rule, DerivedRule), DerivedRule, RepeatRule);
     ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser, disable_cache_check);
     // TODO: when stack implementation is available, replace
@@ -935,7 +923,7 @@ err_type OptionalRule_build(Rule * optional_rule, ParserGenerator * pg, char * b
     return PEGGY_NOT_IMPLEMENTED;
 }
 ASTNode * OptionalRule_check_rule_(Rule * optional_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
-    printf("checking optional rule. id: %d\n", optional_rule->id);
+    //printf("checking optional rule. id: %d\n", optional_rule->id);
     OptionalRule * self = DOWNCAST_P(DOWNCAST_P(optional_rule, Rule, DerivedRule), DerivedRule, OptionalRule);
     ASTNode ** node_list = NULL;
     size_t node_list_length = 0;
@@ -1000,7 +988,7 @@ err_type NegativeLookahead_build(Rule * negative_lookahead, ParserGenerator * pg
     return PEGGY_NOT_IMPLEMENTED;
 }
 ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * parser, size_t token_key, bool disable_cache_check) {
-    printf("checking negative lookahead rule. id: %d\n", negative_lookahead->id);
+    //printf("checking negative lookahead rule. id: %d\n", negative_lookahead->id);
     NegativeLookahead * self = DOWNCAST_P(DOWNCAST_P(negative_lookahead, Rule, DerivedRule), DerivedRule, NegativeLookahead);
     ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser, disable_cache_check);
     if (node == &ASTNode_fail) {
@@ -1057,7 +1045,7 @@ err_type PositiveLookahead_build(Rule * positive_lookahead, ParserGenerator * pg
     return PEGGY_NOT_IMPLEMENTED;
 }
 ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser, size_t token_key, bool disable_cache_check) {
-    printf("checking positive lookahead rule. id: %d\n", positive_lookahead->id);
+    //printf("checking positive lookahead rule. id: %d\n", positive_lookahead->id);
     PositiveLookahead * self = DOWNCAST_P(DOWNCAST_P(positive_lookahead, Rule, DerivedRule), DerivedRule, PositiveLookahead);
     ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser, disable_cache_check);
     if (node != &ASTNode_fail) {
@@ -1182,7 +1170,7 @@ Type const * PRODUCTION_UNESCAPED_RULES[2] = {
     &LiteralRule_TYPE,
 };
 ASTNode * Production_check_rule_(Rule * production, Parser * parser, size_t token_key, bool disable_cache_check) {
-    printf("checking production rule. id: %d\n", production->id);
+    //printf("checking production rule. id: %d\n", production->id);
     Production * self = DOWNCAST_P(DOWNCAST_P(DOWNCAST_P(production, Rule, DerivedRule), DerivedRule, AnonymousProduction), AnonymousProduction, Production);
     
     ASTNode * node = self->AnonymousProduction.DerivedRule.rule->_class->check(self->AnonymousProduction.DerivedRule.rule, parser, disable_cache_check);
@@ -1192,7 +1180,13 @@ ASTNode * Production_check_rule_(Rule * production, Parser * parser, size_t toke
             //printf("is not skip node\n");
             if (!isinstance((Type *)node->rule->_class->_class, 2, PRODUCTION_UNESCAPED_RULES)) {
                 //printf("is not unescaped instance\n");
+
+                // pretty sure this is causing my leak
                 node->_class->init(node, production, node->token_key, node->ntokens, node->str_length, node->nchildren, node->children);
+                //ASTNode * old_node = node;
+                //node = ASTNode_class.new(production, old_node->token_key, old_node->ntokens, old_node->str_length, old_node->nchildren, old_node->children);
+                //old_node->nchildren = 0;
+                //old_node->children = NULL; // necessary so that I don't accidentally free the children twice or access after free
             } else {
                 //printf("is unescaped instance\n");
                 ASTNode ** node_list = malloc(sizeof(*node_list));

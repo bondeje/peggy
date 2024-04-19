@@ -51,7 +51,7 @@ bool isinstance(Type const * type, unsigned short ntypes, Type const * types[nty
         unsigned char len = (unsigned char)(strchr(types[i]->type_name, '.') - types[i]->type_name);
         memcpy((void *) buffer, types[i]->type_name, len);
         buffer[len] = '\0';
-        printf("checking if %s is instance of %s\n", type->type_name, buffer);
+        //printf("checking if %s is instance of %s\n", type->type_name, buffer);
         if (strstr(type->type_name, buffer)) {
             return true;
         }
