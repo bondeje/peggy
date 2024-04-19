@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h> // for Token_print only
 
 #include <peggy/utils.h>
 #include <peggy/type.h>
@@ -24,6 +25,7 @@ err_type Token_init(Token * self, char const * string, size_t start, size_t end,
     self->coords.line = line;
     memcpy((void *)&(self->string), (void *)&string, sizeof(string));
     memcpy((void *)&(self->start), (void *)&start, sizeof(start));
+    self->end = end;
     return PEGGY_SUCCESS;
 }
 void Token_del(Token * self) {
@@ -65,4 +67,13 @@ bool Token_equal_value(Token * self, Token * other) {
         i++;
     }
     return true;
+}
+
+void Token_print(Token * self) {
+    char const * start = self->string + self->start;
+    char const * end = self->string + self->end;
+    while (start != end) {
+        printf("%c", *start);
+        start++;
+    }
 }

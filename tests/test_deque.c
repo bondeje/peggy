@@ -56,15 +56,81 @@ void print_cstring_deque(DEQUE(cstring) * deque) {
 }
 
 void test_cstring_deque(void) {
+    DEQUE(cstring) deque;
+    DEQUE_INIT(cstring)(&deque);
+
+    for (size_t i = 0; i < N_STRINGS; i++) {
+        if (i & 1) {
+            printf("adding '%s' to front of deque\n", strings[i]);
+            deque._class->push_front(&deque, strings[i]);
+        } else {
+            printf("adding '%s' to back of deque\n", strings[i]);
+            deque._class->push(&deque, strings[i]);
+        }
+    }
+    print_cstring_deque(&deque);
+    size_t j = 0;
+    while (deque._class->len(&deque)) {
+        cstring out;
+        if (j & 1) {
+            deque._class->pop_front(&deque, &out);
+            printf("popped '%s' from front deque\n", out);
+        } else {
+            deque._class->pop(&deque, &out);
+            printf("popped '%s' from back of deque\n", out);
+        }
+        
+        j++;
+        if (j == N_STRINGS / 2) {
+            printf("\ncurrent contents:\n");
+            print_cstring_deque(&deque);
+        }
+    }
+    printf("\nfinal contents:\n");
+    print_cstring_deque(&deque);
     
 }
 
 void test_size_t_deque(void) {
-    
+    DEQUE(size_t) deque;
+    DEQUE_INIT(size_t)(&deque);
+
+    for (size_t i = 0; i < N_SIZE_T; i++) {
+        if (i & 1) {
+            printf("adding '%zu' to front of deque\n", values[i]);
+            deque._class->push_front(&deque, values[i]);
+        } else {
+            printf("adding '%zu' to back of deque\n", values[i]);
+            deque._class->push(&deque, values[i]);
+        }
+    }
+    print_size_t_deque(&deque);
+    size_t j = 0;
+    while (deque._class->len(&deque)) {
+        size_t out;
+        if (j & 1) {
+            deque._class->pop_front(&deque, &out);
+            printf("popped '%zu' from front deque\n", out);
+        } else {
+            deque._class->pop(&deque, &out);
+            printf("popped '%zu' from back of deque\n", out);
+        }
+        
+        j++;
+        if (j == N_SIZE_T / 2) {
+            printf("\ncurrent contents:\n");
+            print_size_t_deque(&deque);
+        }
+    }
+    printf("\nfinal contents:\n");
+    print_size_t_deque(&deque);
 }
 
 int main(void) {
     printf("built!\n");
+
+    test_cstring_deque();
+    test_size_t_deque();
 
     return 0;
 }

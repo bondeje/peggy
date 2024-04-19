@@ -58,6 +58,7 @@ struct ASTNodeIterator {
 #define ASTNodeType_DEFAULT_INIT {._class = &ASTNode_TYPE,\
                                     .new = &ASTNode_new,\
                                     .init = &ASTNode_init,\
+                                    .dest = &ASTNode_dest, \
                                     .del = &ASTNode_del,\
                                     .iter = &ASTNode_iter, \
                                     .reverse = &ASTNode_reverse, \
@@ -70,6 +71,7 @@ extern struct ASTNodeType {
     Type const * _class;
     ASTNode * (*new)(Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]);
     err_type (*init)(ASTNode * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]);
+    void (*dest)(ASTNode * self);
     void (*del)(ASTNode * self);
     err_type (*iter)(ASTNode * self, ASTNodeIterator * node_iter);
     err_type (*reverse)(ASTNode * self, ASTNodeIterator * node_iter);
@@ -80,6 +82,7 @@ extern struct ASTNodeType {
 
 ASTNode * ASTNode_new(Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]);
 err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]);
+void ASTNode_dest(ASTNode * self);
 void ASTNode_del(ASTNode * self);
 err_type ASTNode_iter(ASTNode * self, ASTNodeIterator * node_iter);
 err_type ASTNode_reverse(ASTNode * self, ASTNodeIterator * node_iter);

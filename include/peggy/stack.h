@@ -95,7 +95,9 @@ static err_type CAT(STACK_TYPE, _peek)(STACK_TYPE * stack, ELEMENT_TYPE * value)
     if (!stack->fill) {
         return PEGGY_EMPTY_STACK;
     }
-    memcpy((void *)value, (void *)(stack->bins + stack->fill - 1), sizeof(ELEMENT_TYPE));
+    if (value) {
+        memcpy((void *)value, (void *)(stack->bins + stack->fill - 1), sizeof(ELEMENT_TYPE));
+    }
     return PEGGY_SUCCESS;
 }
 static err_type CAT(STACK_TYPE, _push)(STACK_TYPE * stack, ELEMENT_TYPE value) {

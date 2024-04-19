@@ -7,7 +7,7 @@
 #include <peggy/type.h>
 
 #define Token_DEFAULT_INIT {._class = &Token_class, \
-                           .id = Token_DEFAULT_ID}
+                           }
 #define TokenType_DEFAULT_INIT {._class = &Token_TYPE,\
                                .new = &Token_new,\
                                .init = &Token_init,\
@@ -58,5 +58,6 @@ int Token_str(Token * self, char * buffer, size_t buf_size);
 err_type Token_get(Token * self, size_t key, char * chr); /* retrieves just a single character so it acts like a string object */
 bool Token_equal(Token * self, Token * other);
 bool Token_equal_value(Token * self, Token * other);
+void Token_print(Token * self);
 
 #endif // PEGGY_TOKEN_H

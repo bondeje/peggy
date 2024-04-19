@@ -105,7 +105,9 @@ static err_type CAT(DEQUE_TYPE, _pop)(DEQUE_TYPE * deque, ELEMENT_TYPE * value) 
     node->prev = NULL;
     node->next = NULL;
     deque->fill--;
-    memcpy((void *)value, (void *)(&(node->value)), sizeof(ELEMENT_TYPE));
+    if (value) {
+        memcpy((void *)value, (void *)(&(node->value)), sizeof(ELEMENT_TYPE));
+    }
     free(node);
     return PEGGY_SUCCESS;
 }
@@ -148,7 +150,9 @@ static err_type CAT(DEQUE_TYPE, _pop_front)(DEQUE_TYPE * deque, ELEMENT_TYPE * v
     node->prev = NULL;
     node->next = NULL;
     deque->fill--;
-    memcpy((void *)value, (void *)(&(node->value)), sizeof(ELEMENT_TYPE));
+    if (value) {
+        memcpy((void *)value, (void *)(&(node->value)), sizeof(ELEMENT_TYPE));
+    }
     free(node);
     return PEGGY_SUCCESS;
 }

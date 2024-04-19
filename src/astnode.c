@@ -45,8 +45,12 @@ err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntok
     self->ntokens = ntokens;
     return PEGGY_SUCCESS;
 }
+void ASTNode_dest(ASTNode * self) { 
+    // no-op. ASTNode does not own anything contents that need to be destroyed
+}
 void ASTNode_del(ASTNode * self) { 
     if (self != &ASTNode_fail) {
+        ASTNode_dest(self);
         free(self);
     }
 }

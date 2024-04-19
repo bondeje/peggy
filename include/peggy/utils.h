@@ -22,6 +22,8 @@
 #define MAXIMUM_(A, B) ((A) < (B) ? (B) : (A))
 #define MAXIMUM(A, B) MAXIMUM_(A, B)
 
+#define DEBUG_ASSERT(X, ...) assert((X) || !printf(__VA_ARGS__))
+
 /*
 typedef struct StructInfo {
     char const * const * const attrs;
@@ -39,6 +41,7 @@ typedef enum err_type {
     PEGGY_MALLOC_PAIR_FAILURE,
     PEGGY_EMPTY_STACK,
     PEGGY_EMPTY_DEQUE,
+    PEGGY_REGEX_FAILURE
 } err_type;
 
 typedef enum iter_status {

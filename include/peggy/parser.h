@@ -23,6 +23,7 @@ typedef enum seek_origin {
 } seek_origin;
 
 #define PARSER_DEFAULT_NTOKENS (4096 / sizeof(Token))
+#define PARSER_DEFAULT_NNODES (4096 / sizeof(ASTNode *))
 
 /* Parser definitions and declarations */
 
@@ -30,6 +31,7 @@ typedef enum seek_origin {
                              .token_rule = NULL, \
                              .root_rule = NULL, \
                              .tokens = NULL, \
+                             .node_list = NULL, \
                              .name = "", \
                              .log_buffer = NULL, \
                              .log_buffer_length = 0, \
@@ -37,6 +39,8 @@ typedef enum seek_origin {
                              .loc_ = 0, \
                              .tokens_length = 0, \
                              .tokens_capacity = 0, \
+                             .node_list_length = 0, \
+                             .node_list_capacity = 0, \
                              .disable_cache_check = false, \
                              .ast = NULL \
                              }
@@ -53,6 +57,7 @@ typedef enum seek_origin {
                                 .gen_final_token_ = &Parser_gen_final_token_, \
                                 .skip_token = &Parser_skip_token, \
                                 .add_token = &Parser_add_token, \
+                                .add_node = &Parser_add_node, \
                                 .gen_next_token_ = &Parser_gen_next_token_, \
                                 .get = &Parser_get, \
                                 .get_tokens = &Parser_get_tokens, \
@@ -68,6 +73,7 @@ struct Parser {
     Rule * token_rule;
     Rule * root_rule;
     Token * tokens; /* only going to have a simple array */
+    ASTNode ** node_list; /* fucking stupid...need an arena allocator in an AST object */
     char const * name; /* usually file name */
     char * log_buffer; 
     size_t log_buffer_length; 
@@ -75,6 +81,8 @@ struct Parser {
     size_t loc_; /* location in token stream */
     size_t tokens_length;
     size_t tokens_capacity;
+    size_t node_list_length;
+    size_t node_list_capacity;
     bool disable_cache_check;
     ASTNode * ast;
 };
@@ -100,6 +108,7 @@ extern struct ParserType {
     void (*gen_final_token_)(Parser * parser, ASTNode * node, Token * tok);
     void (*skip_token)(Parser * parser, ASTNode * node);
     err_type (*add_token)(Parser * parser, ASTNode * node);
+    err_type (*add_node)(Parser * parser, ASTNode * node);
     bool (*gen_next_token_)(Parser * parser);
     err_type (*get)(Parser * parser, size_t key, Token ** tok);
     Token * (*get_tokens)(Parser * parser, ASTNode * node, size_t * ntokens);
@@ -107,6 +116,8 @@ extern struct ParserType {
     err_type (*traverse)(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
     void (*print_ast)(Parser * parser, char * buffer, size_t buffer_size);
 } Parser_class;
+
+extern Type const Parser_TYPE;
 
 Parser * Parser_new(char const * name, char const * string, size_t string_length, Rule * token_rule, 
                     Rule * root_rule, unsigned int line_offset, unsigned intcol_offset, 
@@ -126,11 +137,16 @@ void Parser_get_line_col_end(Parser * parser, Token * tok, unsigned int * line_o
 void Parser_gen_final_token_(Parser * parser, ASTNode * node, Token * tok);
 void Parser_skip_token(Parser * parser, ASTNode * node);
 err_type Parser_add_token(Parser * parser, ASTNode * node);
+err_type Parser_add_node(Parser * parser, ASTNode * node);
 bool Parser_gen_next_token_(Parser * parser);
 err_type Parser_get(Parser * parser, size_t key, Token ** tok);
 Token * Parser_get_tokens(Parser * parser, ASTNode * node, size_t * ntokens);
 void Parser_parse(Parser * parser);
 err_type Parser_traverse(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
 void Parser_print_ast(Parser * parser, char * buffer, size_t buffer_size);
+
+// use in e.g. WHITESPACE or comments
+ASTNode * skip_token(Parser * parser, ASTNode * node);
+ASTNode * token_action(Parser * parser, ASTNode * node);
 
 #endif // PEGGY_PARSER_H

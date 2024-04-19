@@ -49,6 +49,7 @@ void Type_del(Type * self);
 
 extern Type Type_class;
 
-bool isinstance(Type const * type, unsigned short ntypes, char const * types[ntypes]);
+//bool isinstance(Type const * type, unsigned short ntypes, char const * types[ntypes]);
+bool isinstance(Type const * type, unsigned short ntypes, Type const * types[ntypes]);
 
 #endif // PEGGY_TYPE_H

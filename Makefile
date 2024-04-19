@@ -1,13 +1,17 @@
 CC = gcc
 
+# for <regex.h>
 LIBS = 
+ifeq ($(OS), Windows_NT)
+	LIBS = -lregex
+endif
 ifeq ($(NDEBUG), 1)
 else
 	CFLAGS += -g 
 	ifneq ($(OS),Windows_NT)
 # sanitizer options are not available on Windows
-		CFLAGS += -fsanitize=address,undefined
-		LIBS = -lubsan -lasan
+#		CFLAGS += -fsanitize=address,undefined
+#		LIBS = -lubsan -lasan
 	endif
 endif
 INC_DIR = include

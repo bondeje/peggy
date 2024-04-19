@@ -56,15 +56,62 @@ void print_cstring_stack(STACK(cstring) * stack) {
 }
 
 void test_cstring_stack(void) {
-    
+    STACK(cstring) stack;
+    STACK_INIT(cstring)(&stack, 0);
+
+    for (size_t i = 0; i < N_STRINGS; i++) {
+        printf("adding '%s' to back of stack\n", strings[i]);
+        stack._class->push(&stack, strings[i]);
+    }
+    assert(stack.fill == N_STRINGS);
+    print_cstring_stack(&stack);
+    size_t j = 0;
+    while (stack._class->len(&stack)) {
+        cstring out;
+        stack._class->pop(&stack, &out);
+        printf("popped '%s' from back of stack\n", out);
+        
+        j++;
+        if (j == N_STRINGS / 2) {
+            printf("\ncurrent contents:\n");
+            print_cstring_stack(&stack);
+        }
+    }
+    printf("\nfinal contents:\n");
+    print_cstring_stack(&stack);
 }
 
 void test_size_t_stack(void) {
-    
+    STACK(size_t) stack;
+    STACK_INIT(size_t)(&stack, 0);
+
+    for (size_t i = 0; i < N_SIZE_T; i++) {
+        printf("adding '%zu' to back of stack\n", values[i]);
+        stack._class->push(&stack, values[i]);
+    }
+    assert(stack.fill == N_SIZE_T);
+    print_size_t_stack(&stack);
+    size_t j = 0;
+    while (stack._class->len(&stack)) {
+        size_t out;
+        stack._class->pop(&stack, &out);
+        printf("popped '%zu' from back of stack\n", out);
+        
+        j++;
+        if (j == N_SIZE_T / 2) {
+            printf("\ncurrent contents:\n");
+            print_size_t_stack(&stack);
+        }
+    }
+    printf("\nfinal contents:\n");
+    print_size_t_stack(&stack);
 }
 
 int main(void) {
     printf("built!\n");
+
+    test_cstring_stack();
+    test_size_t_stack();
 
     return 0;
 }
