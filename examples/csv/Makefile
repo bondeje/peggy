@@ -1,5 +1,5 @@
 CC = gcc
-NAME = ipv4
+NAME = csv
 PKG_PATH = ../../
 PKG_RETURN = examples/$(NAME)
 SLIB = libpeggy.a

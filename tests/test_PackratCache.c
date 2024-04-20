@@ -160,8 +160,8 @@ void print_tokens(void) {
 }
 
 int main(void) {
-    printf("Tokens:\n");
-    print_tokens();
+    //printf("Tokens:\n");
+    //print_tokens();
     test_init_dest();
     test_set_get();
     return 0;

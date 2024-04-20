@@ -16,15 +16,13 @@ typedef enum ipv4rule {
 } ipv4rule;
 
 extern char const * ipv4rule_names[NRULES];
-extern Rule * ipv4rules[NRULES];
+//extern Rule * ipv4rules[NRULES]; // probably don't need this
 
-extern LiteralRule ipv4_octet;
-extern LiteralRule ipv4_period;
 extern Production ipv4_token;
 extern Production ipv4_ipv4;
 
-err_type ipv4_init(void);
-void ipv4_clear_token(Token * tok);
+//err_type ipv4_init(void);
+//void ipv4_clear_token(Token * tok);
 void ipv4_dest(void);
 
 #endif

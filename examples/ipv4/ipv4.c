@@ -47,11 +47,17 @@ void ipv4Parser_parse(Parser * self) {
 	//printf("in ipv4Parser_parse\n");
     self->ast = self->root_rule->_class->check(self->root_rule, self, false);
     if (self->ast == &ASTNode_fail) {
-        printf("\nPARSING FAILED\n"); /* TODO: include longest_rule information when available */
+        printf("parsing failed, no matches found\n\n"); /* TODO: include longest_rule information when available */
     } else if (self->ast->ntokens < self->tokens_length - 1) {
-        printf("\ntokens remaining...failed?\n");
+        printf("parsing failed to tokenize input\n\n");
     } else {
-        printf("\nPARSING SUCCESSFUL\n");
+		size_t n_list_el = self->ast->_class->len(self->ast);
+		if (n_list_el == 7) {
+			printf("parsing succeeds, valid IPV4\n\n");
+		} else {
+			printf("invalid IPV4 address. expecting format [0-255].[0-255].[0-255].[0-255], but found %zu octets\n\n", (n_list_el + 1) / 2);
+		}
+        
     }
     /* TODO: logging */
 }

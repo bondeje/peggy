@@ -42,7 +42,7 @@ COMPILE_SRC :=
 SRCS := $(shell find $(SRC_DIR) -name '*.c')
 OBJS := $(addprefix $(OBJ_DIR)/,$(SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(OBJ_SUFFIX)))
 
-all: build_hierarchy dynamic_lib $(BIN_DIR)/$(STATIC_LIB_FILE) main.exe
+all: build_hierarchy dynamic_lib $(BIN_DIR)/$(STATIC_LIB_FILE) #main.exe
 
 build_hierarchy: $(DEP_DIR) $(OBJ_DIR) $(BIN_DIR)
 
