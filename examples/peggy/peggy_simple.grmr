@@ -1,0 +1,6 @@
+// peggen.grmr
+/* I am the very model of a modern major general */
+
+whitespace(skip_token):
+    "([[:space:]]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+" // includes C-style comments as whitespace
+

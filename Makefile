@@ -1,13 +1,9 @@
 CC = gcc
 
-# for <regex.h>
 LIBS = 
-ifeq ($(OS), Windows_NT)
-	LIBS = -lregex
-endif
 ifeq ($(NDEBUG), 1)
 else
-	CFLAGS += -g 
+	CFLAGS += -g3
 	ifneq ($(OS),Windows_NT)
 # sanitizer options are not available on Windows
 #		CFLAGS += -fsanitize=address,undefined
@@ -42,7 +38,7 @@ COMPILE_SRC :=
 SRCS := $(shell find $(SRC_DIR) -name '*.c')
 OBJS := $(addprefix $(OBJ_DIR)/,$(SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(OBJ_SUFFIX)))
 
-all: build_hierarchy dynamic_lib $(BIN_DIR)/$(STATIC_LIB_FILE) #main.exe
+all: build_hierarchy dynamic_lib $(BIN_DIR)/$(STATIC_LIB_FILE) main.exe
 
 build_hierarchy: $(DEP_DIR) $(OBJ_DIR) $(BIN_DIR)
 

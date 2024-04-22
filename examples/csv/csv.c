@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "csv.h"
+#include "csvparser.h"
 
 ASTNode * handle_csv(Parser * parser, ASTNode * node) {
     node = NULL;

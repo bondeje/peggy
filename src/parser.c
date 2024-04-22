@@ -120,8 +120,10 @@ size_t Parser_tell(Parser * self) {
     return self->loc_;
 }
 void Parser_seek(Parser * self, long long loc, seek_origin origin) {
+    //printf("seeking from %zu, offset %llu (origin %d) to ", self->loc_, loc, origin);
     if (origin == P_SEEK_SET) {
         self->loc_ = loc;
+        //printf("%zu\n", self->loc_);
         return;
     }
     size_t N = self->tokens[self->tokens_length - 1].end;
@@ -138,6 +140,7 @@ void Parser_seek(Parser * self, long long loc, seek_origin origin) {
     if (self->loc_ > N) {
         self->loc_ = N;
     }
+    //printf("%zu\n", self->loc_);
 }
 void Parser_log(Parser * self, size_t loc, Rule * rule, ASTNode * result) {
     /* TODO */
@@ -178,7 +181,7 @@ void Parser_gen_final_token_(Parser * self, ASTNode * node, Token * tok) {
     Token_class.init(tok, final->string, start, end, line, col);
 }
 void Parser_skip_token(Parser * self, ASTNode * node) {
-    //printf("Parser_skip_token\n");
+    //sprintf("Parser_skip_token\n");
     Token new_final = (Token) Token_DEFAULT_INIT;
     self->_class->gen_final_token_(self, node, &new_final);
     /* overwrite final token */
@@ -203,21 +206,24 @@ err_type Parser_extend_tokens_(Parser * self) {
     return PEGGY_SUCCESS;
 }
 err_type Parser_add_token(Parser * self, ASTNode * node) {
-    //printf("Parser_add_token\n");
+    //printf("Parser_add_token");
     Token new_final = Token_DEFAULT_INIT;
     self->_class->gen_final_token_(self, node, &new_final);
+    //Token_print(&new_final);
+    //printf("\n");
     /* extend self->tokens if necessary */
     if (self->tokens_length == self->tokens_capacity) {
         err_type status = Parser_extend_tokens_(self);
         if (status) {
+            //printf("failed to extend tokens list\n");
             return status;
         }
     }
     /* "append" new_final */
     memcpy(self->tokens + self->tokens_length, &new_final, sizeof(Token));
-    //printf("\nnew token added: ");
-    //Token_print(self->tokens + self->tokens_length - 1);
-    //printf("\n\n");
+    printf("new token added: ");
+    Token_print(self->tokens + self->tokens_length - 1);
+    printf("\n");
     self->tokens_length++;
     return PEGGY_SUCCESS;
 }
@@ -283,7 +289,7 @@ Token * Parser_get_tokens(Parser * self, ASTNode * node, size_t * ntokens) {
     return self->tokens + node->token_key;
 }
 void Parser_parse(Parser * self) {
-    printf("in Parser_parse\n");
+    //printf("in Parser_parse\n");
     self->ast = self->root_rule->_class->check(self->root_rule, self, false);
     if (self->ast == &ASTNode_fail) {
         printf("parsing failed\n"); /* TODO: include longest_rule information when available */
@@ -305,15 +311,20 @@ void Parser_print_ast(Parser * self, char * buffer, size_t buffer_size) {
 
 // use in e.g. WHITESPACE or comments
 ASTNode * skip_token(Parser * parser, ASTNode * node) {
-    return make_skip_node(node);
+    //printf("executing skip_token action\n");
+    node = make_skip_node(node);
+    //printf("is_skip_node: %s\n", is_skip_node(node) ? "True" : "False");
+    return node;
 }
 
 ASTNode * token_action(Parser * parser, ASTNode * node) {
     //printf("token action\n");
     if (node != &ASTNode_fail) {
         if (is_skip_node(node)) {
+            //printf("node is skip_node\n");
             parser->_class->skip_token(parser, node);
         } else {
+            //printf("node is not skip_node\n");
             parser->_class->add_token(parser, node);
         }
         // need to back up one token in order to ensure not erroneously moving the parser location forward

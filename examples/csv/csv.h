@@ -3,6 +3,6 @@
 
 #include <peggy/parser.h>
 
-ASTNode * handle_csv(Parser * parser, ASTNode * );
+ASTNode * handle_csv(Parser * parser, ASTNode * node);
 
 #endif // CSV_H
