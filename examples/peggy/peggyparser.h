@@ -40,7 +40,7 @@ typedef enum peggyrule {
     STRING_LITERAL,
     CHOICE_LITERALS,
     TERMINAL,
-    CHOICE_EXPRESSION,
+    CHOICE_EXPR,
     CHOICE_TERM_NONTERM_CHOICE_EXPR,
     BASE_RULE,
     CHOICE_POSI_NEGA,
@@ -49,6 +49,7 @@ typedef enum peggyrule {
     LOOKAHEAD_RULE,// = 40
     LIST_PERIOD_LOOKAHEAD,
     LIST_RULE,
+    DIGIT_SEQ_RE,
     DIGIT_SEQ,
     REPEAT_PARAMS,
     REPEAT_OPS,

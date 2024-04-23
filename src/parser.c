@@ -190,13 +190,13 @@ void Parser_skip_token(Parser * self, ASTNode * node) {
 }
 err_type Parser_extend_tokens_(Parser * self) {
     /* how far have we progressed already? */
-    Token * final = self->tokens + self->tokens_length - 1;
+    //Token * final = self->tokens + self->tokens_length - 1;
     /* set a default expansion */
     size_t new_capacity = (self->tokens_capacity == 0) ? PARSER_DEFAULT_NTOKENS :  (self->tokens_capacity * 2);
     /* estimate how many more tokens I need to allocate */
-    if (final->start > 0) {
-        new_capacity = 1 + (size_t) (((1.0 * final->end) / final->start) * self->tokens_length);
-    }
+//    if (final->start > 0) {
+//        new_capacity = 1 + (size_t) (((1.0 * final->end) / final->start) * self->tokens_length);
+//    }
     Token * new_tokens = realloc(self->tokens, sizeof(Token) * new_capacity);
     if (!new_tokens) {
         return PEGGY_MALLOC_FAILURE;
@@ -221,7 +221,7 @@ err_type Parser_add_token(Parser * self, ASTNode * node) {
     }
     /* "append" new_final */
     memcpy(self->tokens + self->tokens_length, &new_final, sizeof(Token));
-    printf("new token added: ");
+    printf("new token added(%zu/%zu): ", self->tokens_length - 1, self->tokens_capacity);
     Token_print(self->tokens + self->tokens_length - 1);
     printf("\n");
     self->tokens_length++;

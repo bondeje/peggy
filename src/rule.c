@@ -1149,7 +1149,7 @@ ASTNode * build_action_default(Parser * parser, ASTNode * node) {
 }
 
 /* Type system metadata for AnonymousProduction */
-#define Production_NAME "Produciton.AnonymousProduction.DerivedRule.Rule"
+#define Production_NAME "Production.AnonymousProduction.DerivedRule.Rule"
 //StructInfo AnonymousProduction_INFO = {0};
 Type const Production_TYPE = {//._info = &AnonymousProduction_INFO,
                             ._class = &Type_class,
