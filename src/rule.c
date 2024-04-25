@@ -553,7 +553,7 @@ err_type LiteralRule_build(Rule * literal_rule, ParserGenerator * pg, char * buf
 
 ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t token_key, bool disable_cache_check) {
     LiteralRule * self = DOWNCAST_P(literal_rule, Rule, LiteralRule);
-    //printf("checking literal rule. id: %d, %s %s, token: ", literal_rule->id, self->regex_s, parser->disable_cache_check ? "cache check disabled" : "");
+    //printf("checking literal rule. id: %d, %s %s\n", literal_rule->id, self->regex_s, parser->disable_cache_check ? "cache check disabled" : "");
     err_type status = PEGGY_SUCCESS;
     if (!self->compiled) {
         if ((status = LiteralRule_compile_regex(self))) {
@@ -567,7 +567,7 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t t
     //printf("\n");
     if (status) {
         //printf("failed to get token_key %zu from parser tokens list of length %zu\n", token_key, parser->tokens_length);
-        printf("unhandled error (%d) in LiteralRule_check_rule_ getting current token from parser\n", status);
+        printf("unhandled error (%d) in LiteralRule_check_rule_ (id = %d) getting current token %zu from parser\n", status, literal_rule->id, token_key);
     }
     // since the parser->_class->get might have triggered
     //if (!parser->disable_cache_check) { // 

@@ -3,7 +3,10 @@ workbench/
 test_files/
 obj/
 bin/
-examples/peggy/backup
+examples/peggy/backup/
+src/backup/
+include/backup/
+backup/
 .deps/
 .vscode/
 

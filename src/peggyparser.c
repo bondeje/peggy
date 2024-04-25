@@ -974,7 +974,7 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
     //size_t n_lits = (node->children[2]->nchildren + 1) / 2;
     Token ** toks = parser->_class->Parser_class.get_tokens(&parser->Parser, node->children[2], &ntokens);
     arg.len = toks[ntokens-1]->end - toks[0]->start;
-    arg.len = 2 * arg.len + 6; // *2 since that is the longest that also escapes every character and +3 for surrounding "^()"
+    arg.len = 4 * arg.len + 6; // *4 since that is the longest that also escapes every character and include '|' separator and +3 for surrounding "^()"
     arg.str = malloc(sizeof(char) * arg.len); 
     size_t written = 0;
     arg.str[written++] = '"';
@@ -993,6 +993,9 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
 
         memcpy((void*)(arg.str + written), (void*)re, length);
         written += length;
+        if (i < node->children[2]->nchildren - 2) {
+            arg.str[written++] = '|';
+        }
     }
     arg.str[written++] = ')';
     arg.str[written++] = '"';

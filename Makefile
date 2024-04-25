@@ -1,55 +1,21 @@
-CC = gcc
+include environment.mk
 
-LIBS = 
-ifeq ($(NDEBUG), 1)
-else
-	CFLAGS += -g3
-	ifneq ($(OS),Windows_NT)
-# sanitizer options are not available on Windows
-#		CFLAGS += -fsanitize=address,undefined
-#		LIBS = -lubsan -lasan
-	endif
-endif
-INC_DIR = include
-OBJ_DIR = obj
-SRC_DIR = src
-LIB_DIR = lib
-BIN_DIR = bin
-DEP_DIR := .deps
-PKG_NAME = peggy
-STATIC_LIB_FILE := lib$(PKG_NAME).a
-
-
-OBJ_SUFFIX = .o
-SRC_SUFFIX = .c
-HDR_SUFFIX = .h
-DEP_SUFFIX = .d
-
-CFLAGS += -Wall -pedantic -Werror -Wextra -std=c99 -fPIC 
-CLIBFLAGS = $(CFLAGS) -c
-CFLAGS += -Wno-unused -Wno-unused-parameter
-
-IFLAGS := -I$(INC_DIR)
-
-DEPFLAGS = -MMD -MP -MF 
-
-COMPILE_SRC := 
-
-MAIN_SRCS = src/peggy.c src/peggyparser.c
-LIB_SRCS = src/astnode.c src/hash_map.c src/parser.c src/rule.c src/token.c src/type.c src/utils.c
-LIB_OBJS := $(addprefix $(OBJ_DIR)/,$(LIB_SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(OBJ_SUFFIX)))
-
-all: build_hierarchy dynamic_lib $(BIN_DIR)/$(STATIC_LIB_FILE) main.exe
+all: build_hierarchy dynamic_lib static_lib main
+	@echo environment: $(UNAME)
+	@echo architecture: $(UNAME_P)
+	@echo sanitize: $(SANITIZE)
+	@echo no debug: $(NDEBUG)
 
 build_hierarchy: $(DEP_DIR) $(OBJ_DIR) $(BIN_DIR)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEP_DIR)/%.d | $(DEP_DIR)
-	$(CC) -MT $@ $(DEPFLAGS) $(DEP_DIR)/$*.Td $(CLIBFLAGS) $(IFLAGS) -c $< -o $@
-	mv -f $(DEP_DIR)/$*.Td $(DEP_DIR)/$*.d && touch $@
+$(OBJ_DIR)/%$(OBJ_SUFFIX): $(SRC_DIR)/%$(SRC_SUFFIX)
+$(OBJ_DIR)/%$(OBJ_SUFFIX): $(SRC_DIR)/%$(SRC_SUFFIX) $(DEP_DIR)/%$(DEP_SUFFIX) | $(DEP_DIR)
+	$(CC) -MT $@ $(DEPFLAGS) $(DEP_DIR)/$*$(TEMP_DEP_SUFFIX) $(CLIBFLAGS) $(IFLAGS) -c $< -o $@
+	mv -f $(DEP_DIR)/$*$(TEMP_DEP_SUFFIX) $(DEP_DIR)/$*$(DEP_SUFFIX) && touch $@
 
-$(BIN_DIR)/$(STATIC_LIB_FILE): $(LIB_OBJS)
-	$(AR) r $@ $(LIB_OBJS)
+static_lib: $(LIB_OBJS)
+	$(AR) r $(STATIC_LIB_FILE) $(LIB_OBJS)
+	mv -f $(STATIC_LIB_FILE) $(BIN_DIR)/$(STATIC_LIB_FILE)
 
 dynamic_lib:
 
@@ -59,12 +25,19 @@ $(OBJ_DIR): ; @mkdir -p $@
 
 $(BIN_DIR): ; @mkdir -p $@
 
-DEPFILES := $(addprefix $(DEP_DIR)/, $(LIB_SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(DEP_SUFFIX)))
+DEPFILES := $(addprefix $(DEP_DIR)/, $(ALL_SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(DEP_SUFFIX)))
 $(DEPFILES):
 
-# DELETE THIS
-main.exe: workbench/main.c $(BIN_DIR)/$(STATIC_LIB_FILE)
-	$(CC) $(CFLAGS) $(IFLAGS) workbench/main.c -L$(BIN_DIR) -o $(BIN_DIR)/$@ -l:$(STATIC_LIB_FILE) $(LIBS)
+main: $(MAIN_SRCS) static_lib
+	$(CC) $(CFLAGS) $(IFLAGS) $(MAIN_SRCS) -L$(BIN_DIR) -o $(BIN_DIR)/$(EXE) -l:$(STATIC_LIB_FILE) $(LIBS)
+
+reset:
+	rm -r $(DEP_DIR)
+	rm -r $(OBJ_DIR)
+	rm -r $(BIN_DIR)
+
+uname:
+	@echo $(UNAME)
 
 # must be at least after the initial, default target; otherwise last
 include $(wildcard $(DEPFILES))

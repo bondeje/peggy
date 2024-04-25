@@ -1,28 +1,23 @@
-CC = gcc
-NAME = peggy
-PKG_PATH = ../../
+include ../../environment.mk
+
+EXAMPLE_NAME = peggy
+GRAMMAR = $(EXAMPLE_NAME).grmr
+PKG_PATH = ../..
 PKG_RETURN = examples/$(NAME)
-SLIB = libpeggy.a
-SLIB_PATH = ../../bin
-CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -std=c99
-IFLAGS = -I../../include
-NDEBUG = 
-LIBS = 
-ifeq ($(OS), Windows_NT)
-	LIBS = -lregex
-endif
-ifeq ($(NDEBUG), 1)
-else
-	CFLAGS += -g3
-	ifneq ($(OS),Windows_NT)
-# sanitizer options are not available on Windows
-#		CFLAGS += -fsanitize=address,undefined
-#		LIBS = -lubsan -lasan
-	endif
-endif
+PEGGY_IFLAGS = -I../../include
+PARSER_SRC := $(PKG_NAME)parser$(SRC_SUFFIX)
+PARSER_INC := $(PKG_NAME)parser$(HDR_SUFFIX)
+EXPORT_SRC = $(EXAMPLE_NAME)$(SRC_SUFFIX)
 
-$(SLIB):
-	cd $(PKG_PATH) && $(MAKE) all && cd $(PKG_RETURN)
+all:
+	$(PKG_PATH)/$(BIN_DIR)/$(EXE) $(GRAMMAR)
+	$(COPY) $(PKG_PATH)/$(SRC_DIR)/$(PARSER_SRC) $(PARSER_SRC)
+	$(COPY) $(PKG_PATH)/$(INC_DIR)/$(PARSER_INC) $(PARSER_INC)
+	$(CC) $(CFLAGS) $(PEGGY_IFLAGS) $(PARSER_SRC) $(EXPORT_SRC) -o $(EXAMPLE_NAME)$(EXE_EXT) -L$(PKG_PATH)/$(BIN_DIR) -l:$(STATIC_LIB_FILE) $(LIBS)
 
-all: $(SLIB)
-	$(CC) $(CFLAGS) $(IFLAGS) $(NAME)parser.c $(NAME).c -o $(NAME)parser.exe -L$(SLIB_PATH) -l:$(SLIB) $(LIBS)
+clean:
+	rm $(PARSER_SRC)
+	rm $(PARSER_INC)
+	rm $(EXAMPLE_NAME)$(EXE_EXT)
+	rm $(EXAMPLE_NAME)$(HDR_SUFFIX)
+	rm $(EXAMPLE_NAME)$(SRC_SUFFIX)
