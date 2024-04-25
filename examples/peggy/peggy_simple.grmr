@@ -1,5 +1,9 @@
 // peggen.grmr
 /* I am the very model of a modern major general */
+export:
+    peggy_
+import:
+    peggyparser
 
 whitespace(skip_token):
     "([[:space:]]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+" // includes C-style comments as whitespace
@@ -11,17 +15,16 @@ regex_literal:
     "^\"((\\\\\")|[^\"])*\""
 
 punctuator:
-    '!','|', ',', '?', '.', '&', ':', '+', '*', '(', ')', '{', '}' // to include '/' in the future for a proper "first_choice"
+    '!' | '|' | ',' | '?' | '.' | '&' | ':' | '+' | '*' | '(' | ')' | '{' | '}' // to include '/' in the future for a proper "first_choice"
 
 keyword:
-    'import', 'export', 'punctuator', 'keyword', 'token', 'root'
+    'import' | 'export' | 'punctuator' | 'keyword' | 'token'
 
 identifier:
-    "^[A-Za-z0-9_]+"
+    "[A-Za-z0-9_]+"
 
 token:
     whitespace | string_literal | regex_literal | punctuator | keyword | identifier
-
 
 nonws_printable:
     "[^[:space:]]+"
@@ -37,7 +40,7 @@ base_rule:
 
 lookahead_rule(simplify_rule):
     ('&' | '!')?, base_rule
-/*
+
 list_rule(simplify_rule):
     '.'.lookahead_rule
 
@@ -54,8 +57,8 @@ choice(simplify_rule):
     '|'.sequence
 
 special_production:
-      ('token' | 'root'), ':', choice 
-    | ('punctuator' | 'keyword'), ':', ','.string_literal
+      'token', ':', choice 
+    | ('punctuator' | 'keyword'), ':', '|'.string_literal
 
 transform_functions:
     ','.nonws_printable
@@ -66,6 +69,6 @@ production:
 config: 
     ('import' | 'export'), ':', nonws_printable
 
-peggy:
+peggy(handle_peggy):
     (config | special_production | production)+
-*/
+/**/

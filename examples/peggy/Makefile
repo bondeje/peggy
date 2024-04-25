@@ -25,4 +25,4 @@ $(SLIB):
 	cd $(PKG_PATH) && $(MAKE) all && cd $(PKG_RETURN)
 
 all: $(SLIB)
-	$(CC) $(CFLAGS) $(IFLAGS) $(NAME)parser.c $(NAME).c -o $(NAME).exe -L$(SLIB_PATH) -l:$(SLIB) $(LIBS)
+	$(CC) $(CFLAGS) $(IFLAGS) $(NAME)parser.c $(NAME).c -o $(NAME)parser.exe -L$(SLIB_PATH) -l:$(SLIB) $(LIBS)

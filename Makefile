@@ -35,8 +35,9 @@ DEPFLAGS = -MMD -MP -MF
 
 COMPILE_SRC := 
 
-SRCS := $(shell find $(SRC_DIR) -name '*.c')
-OBJS := $(addprefix $(OBJ_DIR)/,$(SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(OBJ_SUFFIX)))
+MAIN_SRCS = src/peggy.c src/peggyparser.c
+LIB_SRCS = src/astnode.c src/hash_map.c src/parser.c src/rule.c src/token.c src/type.c src/utils.c
+LIB_OBJS := $(addprefix $(OBJ_DIR)/,$(LIB_SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(OBJ_SUFFIX)))
 
 all: build_hierarchy dynamic_lib $(BIN_DIR)/$(STATIC_LIB_FILE) main.exe
 
@@ -47,8 +48,8 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEP_DIR)/%.d | $(DEP_DIR)
 	$(CC) -MT $@ $(DEPFLAGS) $(DEP_DIR)/$*.Td $(CLIBFLAGS) $(IFLAGS) -c $< -o $@
 	mv -f $(DEP_DIR)/$*.Td $(DEP_DIR)/$*.d && touch $@
 
-$(BIN_DIR)/$(STATIC_LIB_FILE): $(OBJS)
-	$(AR) r $@ $(OBJS)
+$(BIN_DIR)/$(STATIC_LIB_FILE): $(LIB_OBJS)
+	$(AR) r $@ $(LIB_OBJS)
 
 dynamic_lib:
 
@@ -58,7 +59,7 @@ $(OBJ_DIR): ; @mkdir -p $@
 
 $(BIN_DIR): ; @mkdir -p $@
 
-DEPFILES := $(addprefix $(DEP_DIR)/, $(SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(DEP_SUFFIX)))
+DEPFILES := $(addprefix $(DEP_DIR)/, $(LIB_SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(DEP_SUFFIX)))
 $(DEPFILES):
 
 # DELETE THIS

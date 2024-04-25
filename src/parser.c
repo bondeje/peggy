@@ -12,7 +12,7 @@ Type const Parser_TYPE = {._class = &Type_class,
 
 struct ParserType Parser_class = ParserType_DEFAULT_INIT;
 
-Parser * Parser_new(char const * name, char const * string, size_t string_length, Rule * token_rule, 
+Parser * Parser_new(char const * name, size_t name_length, char const * string, size_t string_length, Rule * token_rule, 
                     Rule * root_rule, unsigned int line_offset, 
                     unsigned int col_offset, bool lazy_parse, 
                     char const * log_file) {
@@ -20,40 +20,51 @@ Parser * Parser_new(char const * name, char const * string, size_t string_length
     if (!parser) {
         return NULL;
     }
-    if (Parser_init(parser, name, string, string_length, token_rule, root_rule, line_offset, 
+    if (Parser_init(parser, name, name_length, string, string_length, token_rule, root_rule, line_offset, 
                     col_offset, lazy_parse, log_file)) {
         free(parser);
         return NULL;
     }
     return parser;
 }
-err_type Parser_init(Parser * self, char const * name, 
+err_type Parser_init(Parser * self, char const * name, size_t name_length,
                          char const * string, size_t string_length, Rule * token_rule, 
                          Rule * root_rule, unsigned int line_offset, 
                          unsigned int col_offset, bool lazy_parse, 
                          char const * log_file) {
     //printf("in Parser_init\n");
     self->name = name;
+    self->name_length = name_length;
     self->token_rule = token_rule;
     self->root_rule = root_rule;
     self->loc_ = 0;
-    self->tokens = malloc(sizeof(Token) * PARSER_DEFAULT_NTOKENS);
+    self->tokens = malloc(sizeof(*self->tokens) * PARSER_DEFAULT_NTOKENS);
     if (!self->tokens) {
         return PEGGY_MALLOC_FAILURE;
     }
     self->tokens_capacity = PARSER_DEFAULT_NTOKENS;
-    memcpy((void*)self->tokens, (void *)&((Token)Token_DEFAULT_INIT), sizeof(Token));
-    if (Token_init(self->tokens, string, 0, string_length, line_offset, col_offset)) {
+    self->tokens_length = 0;
+    // tokens_gc is always of length/capacity 1 less than self->tokens
+    self->tokens_gc = NULL;
+    self->tokens_gc_capacity = 0;
+    self->tokens_gc_length = 0;
+
+    // initialize first token
+    Token * final_token = Token_new(string, 0, string_length, line_offset, col_offset);
+    if (!final_token) {
+        free(self->tokens_gc);
         free(self->tokens);
-        return PEGGY_FAILURE;
+        return PEGGY_MALLOC_FAILURE;
     }
-    self->tokens_length = 1;
+    self->tokens[self->tokens_length++] = final_token;
 
     /* allocate node_list */
     // oh boy, do I hate this, but it eliminates memory leaks. at least until I can make a nice arena allocator
     self->node_list = malloc(sizeof(*self->node_list) * PARSER_DEFAULT_NNODES);
     if (!self->node_list) {
+        free(self->tokens_gc);
         free(self->tokens);
+        free(final_token);
         return PEGGY_MALLOC_FAILURE;
     }
     self->node_list_length = 0;
@@ -94,16 +105,28 @@ void Parser_dest(Parser * self) {
 
     // clear up the PackratCache's maintained for this set of tokens
     // do not necessarily have to nullify them. don't free them.
-    self->root_rule->_class->clear_cache(self->root_rule, self->tokens);
-    self->token_rule->_class->clear_cache(self->token_rule, self->tokens);
+    self->root_rule->_class->clear_cache(self->root_rule, self->tokens[0]);
+    self->token_rule->_class->clear_cache(self->token_rule, self->tokens[0]);
 
     /* clear the token list */
     //printf("cleaning up tokens\n");
     if (self->tokens_capacity) {
+        for (size_t i = 0; i < self->tokens_length; i++) {
+            self->tokens[i]->_class->del(self->tokens[i]);
+        }
         free(self->tokens);
-        self->tokens = 0;
+        self->tokens = NULL;
         self->tokens_length = 0;
         self->tokens_capacity = 0;
+    }
+    if (self->tokens_gc_capacity) {
+        for (size_t i = 0; i < self->tokens_gc_length; i++) {
+            self->tokens_gc[i]->_class->del(self->tokens_gc[i]);
+        }
+        free(self->tokens_gc);
+        self->tokens_gc = NULL;
+        self->tokens_gc_length = 0;
+        self->tokens_gc_capacity = 0;
     }
     self->loc_ = 0;
 }
@@ -126,7 +149,7 @@ void Parser_seek(Parser * self, long long loc, seek_origin origin) {
         //printf("%zu\n", self->loc_);
         return;
     }
-    size_t N = self->tokens[self->tokens_length - 1].end;
+    size_t N = self->tokens[self->tokens_length - 1]->end;
     if (origin == P_SEEK_CUR) {
         if (loc < 0 && self->loc_ < (size_t)-loc) {
             self->loc_ = 0;
@@ -165,10 +188,11 @@ void Parser_get_line_col_end(Parser * self, Token * tok, unsigned int * line_out
     *col_out = col;
     *line_out = line;
 }
-void Parser_gen_final_token_(Parser * self, ASTNode * node, Token * tok) {
+Token * Parser_gen_final_token_(Parser * self, ASTNode * node) {
     //printf("gen final token\n");
     /* TODO: when "longest_rule" is implemented, clear it */
-    Token * final = self->tokens + self->tokens_length - 1;
+    // tok and final may refer to the same token (in the case of Parser_skip_token)
+    Token * final = self->tokens[self->tokens_length - 1];
     size_t end = final->end;
     final->end = final->start + node->str_length;
     size_t start = final->end;
@@ -176,17 +200,38 @@ void Parser_gen_final_token_(Parser * self, ASTNode * node, Token * tok) {
     unsigned int col;
 
     /* initialize tok */
-    self->_class->get_line_col_end(self, final, &line, &col); // set token coordinates
+    self->_class->get_line_col_end(self, final, &line, &col); // get token coordinates
     /* override const in initializing "tok" */
-    Token_class.init(tok, final->string, start, end, line, col);
+    return final->_class->new(final->string, start, end, line, col);
 }
-void Parser_skip_token(Parser * self, ASTNode * node) {
+err_type Parser_extend_tokens_gc_(Parser * self) {
+    /* set a default expansion */
+    size_t new_capacity = (self->tokens_gc_capacity == 0) ? PARSER_DEFAULT_NTOKENS :  (self->tokens_gc_capacity * 2);
+    Token ** new_tokens_gc = realloc(self->tokens_gc, sizeof(Token *) * new_capacity);
+    if (!new_tokens_gc) {
+        return PEGGY_MALLOC_FAILURE;
+    }
+    self->tokens_gc = new_tokens_gc;
+    self->tokens_gc_capacity = new_capacity;
+    return PEGGY_SUCCESS;
+}
+err_type Parser_skip_token(Parser * self, ASTNode * node) {
     //sprintf("Parser_skip_token\n");
-    Token new_final = (Token) Token_DEFAULT_INIT;
-    self->_class->gen_final_token_(self, node, &new_final);
-    /* overwrite final token */
-    Token * final = self->tokens + self->tokens_length - 1;
-    memcpy(final, &new_final, sizeof(Token));
+    Token * new_final = self->_class->gen_final_token_(self, node);
+    if (!new_final) {
+        return PEGGY_MALLOC_FAILURE;
+    }
+    /* swap new final token for old final token and delete the old one */
+    size_t index = self->tokens_length - 1;
+    if (self->tokens_gc_length == self->tokens_gc_capacity) {
+        err_type status = Parser_extend_tokens_gc_(self);
+        if (status) {
+            return status;
+        }
+    }
+    self->tokens_gc[self->tokens_gc_length++] = self->tokens[index]; // move the current final token to garbage collection
+    self->tokens[index] = new_final; // append new final token to the active tokens list
+    return PEGGY_SUCCESS;
 }
 err_type Parser_extend_tokens_(Parser * self) {
     /* how far have we progressed already? */
@@ -197,7 +242,7 @@ err_type Parser_extend_tokens_(Parser * self) {
 //    if (final->start > 0) {
 //        new_capacity = 1 + (size_t) (((1.0 * final->end) / final->start) * self->tokens_length);
 //    }
-    Token * new_tokens = realloc(self->tokens, sizeof(Token) * new_capacity);
+    Token ** new_tokens = realloc(self->tokens, sizeof(Token *) * new_capacity);
     if (!new_tokens) {
         return PEGGY_MALLOC_FAILURE;
     }
@@ -207,10 +252,10 @@ err_type Parser_extend_tokens_(Parser * self) {
 }
 err_type Parser_add_token(Parser * self, ASTNode * node) {
     //printf("Parser_add_token");
-    Token new_final = Token_DEFAULT_INIT;
-    self->_class->gen_final_token_(self, node, &new_final);
-    //Token_print(&new_final);
-    //printf("\n");
+    Token * new_final = self->_class->gen_final_token_(self, node);
+    if (!new_final) {
+        return PEGGY_MALLOC_FAILURE;
+    }
     /* extend self->tokens if necessary */
     if (self->tokens_length == self->tokens_capacity) {
         err_type status = Parser_extend_tokens_(self);
@@ -219,12 +264,11 @@ err_type Parser_add_token(Parser * self, ASTNode * node) {
             return status;
         }
     }
-    /* "append" new_final */
-    memcpy(self->tokens + self->tokens_length, &new_final, sizeof(Token));
-    printf("new token added(%zu/%zu): ", self->tokens_length - 1, self->tokens_capacity);
-    Token_print(self->tokens + self->tokens_length - 1);
-    printf("\n");
-    self->tokens_length++;
+    // append new token
+    self->tokens[self->tokens_length++] = new_final;
+    //printf("new token added(%zu/%zu): ", self->tokens_length, self->tokens_capacity);
+    //Token_print(self->tokens[self->tokens_length - 2]);
+    //printf("\n");
     return PEGGY_SUCCESS;
 }
 err_type Parser_extend_nodes_(Parser * self) {
@@ -255,7 +299,7 @@ bool Parser_gen_next_token_(Parser * self) {
     self->disable_cache_check = true;
     ASTNode * result = self->token_rule->_class->check(self->token_rule, self, self->disable_cache_check);
     
-    Token * final = self->tokens + self->tokens_length - 1;
+    Token * final = self->tokens[self->tokens_length - 1];
     if (final->_class->len(final)) {
         //printf("disabling cache check\n");
         self->disable_cache_check = false;
@@ -266,7 +310,7 @@ err_type Parser_get(Parser * self, size_t key, Token ** tok) {
     if (!self->disable_cache_check) {
         //printf("getting token %zu / %zu from Parser\n", key, self->tokens_length);
         while (key >= self->tokens_length - 1) {
-            Token * final = self->tokens + self->tokens_length - 1;
+            Token * final = self->tokens[self->tokens_length - 1];
             //printf("final start-end: %zu - %zu\n", final->start, final->end);
             //printf("final: %p\n", (void *)final);
             //printf("final->_class: %p\n", (void *)final->_class);
@@ -278,13 +322,13 @@ err_type Parser_get(Parser * self, size_t key, Token ** tok) {
         }
     }
     if (key < self->tokens_length) {
-        *tok = self->tokens + key;
+        *tok = self->tokens[key];
         //printf("got token %zu of %zu!\n", key, self->tokens_length);
         return PEGGY_SUCCESS;
     }
     return PEGGY_INDEX_OUT_OF_BOUNDS;
 }
-Token * Parser_get_tokens(Parser * self, ASTNode * node, size_t * ntokens) {
+Token ** Parser_get_tokens(Parser * self, ASTNode * node, size_t * ntokens) {
     *ntokens = node->ntokens;
     return self->tokens + node->token_key;
 }

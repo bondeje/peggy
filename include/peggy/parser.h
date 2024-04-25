@@ -72,15 +72,19 @@ struct Parser {
     struct ParserType const * _class;
     Rule * token_rule;
     Rule * root_rule;
-    Token * tokens; /* only going to have a simple array */
+    Token ** tokens; /* only going to have a simple array */
+    Token ** tokens_gc;
     ASTNode ** node_list; /* fucking stupid...need an arena allocator in an AST object */
     char const * name; /* usually file name */
     char * log_buffer; 
     size_t log_buffer_length; 
     char const * log_file;
     size_t loc_; /* location in token stream */
+    size_t name_length;
     size_t tokens_length;
     size_t tokens_capacity;
+    size_t tokens_gc_length;
+    size_t tokens_gc_capacity;
     size_t node_list_length;
     size_t node_list_capacity;
     bool disable_cache_check;
@@ -89,11 +93,11 @@ struct Parser {
 
 extern struct ParserType {
     Type const * _class;
-    Parser * (*new)(char const * name, char const * string, size_t string_length, Rule * token_rule, 
+    Parser * (*new)(char const * name, size_t name_length, char const * string, size_t string_length, Rule * token_rule, 
                     Rule * root_rule, unsigned int line_offset, 
                     unsigned int col_offset, bool lazy_parse, 
                     char const * log_file);
-    err_type (*init)(Parser * parser, char const * name, 
+    err_type (*init)(Parser * parser, char const * name, size_t name_length, 
                          char const * string, size_t string_length, Rule * token_rule, 
                          Rule * root_rule, unsigned int line_offset, 
                          unsigned int col_offset, bool lazy_parse, 
@@ -105,13 +109,13 @@ extern struct ParserType {
     void (*log)(Parser * parser, size_t loc, Rule * rule, ASTNode * result);
     void (*log_check_fail_)(Parser * parser, size_t loc, Rule * rule);
     void (*get_line_col_end)(Parser * parser, Token * tok, unsigned int * line_out, unsigned int * col_out);
-    void (*gen_final_token_)(Parser * parser, ASTNode * node, Token * tok);
-    void (*skip_token)(Parser * parser, ASTNode * node);
+    Token * (*gen_final_token_)(Parser * parser, ASTNode * node);
+    err_type (*skip_token)(Parser * parser, ASTNode * node);
     err_type (*add_token)(Parser * parser, ASTNode * node);
     err_type (*add_node)(Parser * parser, ASTNode * node);
     bool (*gen_next_token_)(Parser * parser);
     err_type (*get)(Parser * parser, size_t key, Token ** tok);
-    Token * (*get_tokens)(Parser * parser, ASTNode * node, size_t * ntokens);
+    Token ** (*get_tokens)(Parser * parser, ASTNode * node, size_t * ntokens);
     void (*parse)(Parser * parser);
     err_type (*traverse)(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
     void (*print_ast)(Parser * parser, char * buffer, size_t buffer_size);
@@ -119,10 +123,10 @@ extern struct ParserType {
 
 extern Type const Parser_TYPE;
 
-Parser * Parser_new(char const * name, char const * string, size_t string_length, Rule * token_rule, 
+Parser * Parser_new(char const * name, size_t name_length, char const * string, size_t string_length, Rule * token_rule, 
                     Rule * root_rule, unsigned int line_offset, unsigned intcol_offset, 
                     bool lazy_parse, char const * log_file);
-err_type Parser_init(Parser * parser, char const * name, 
+err_type Parser_init(Parser * parser, char const * name, size_t name_length,
                          char const * string, size_t string_length, Rule * token_rule, 
                          Rule * root_rule, unsigned int line_offset, 
                          unsigned int col_offset, bool lazy_parse, 
@@ -134,13 +138,13 @@ void Parser_seek(Parser * parser, long long loc, seek_origin origin);
 void Parser_log(Parser * parser, size_t loc, Rule * rule, ASTNode * result);
 void Parser_log_check_fail_(Parser * parser, size_t loc, Rule * rule);
 void Parser_get_line_col_end(Parser * parser, Token * tok, unsigned int * line_out, unsigned int * col_out);
-void Parser_gen_final_token_(Parser * parser, ASTNode * node, Token * tok);
-void Parser_skip_token(Parser * parser, ASTNode * node);
+Token * Parser_gen_final_token_(Parser * parser, ASTNode * node);
+err_type Parser_skip_token(Parser * parser, ASTNode * node);
 err_type Parser_add_token(Parser * parser, ASTNode * node);
 err_type Parser_add_node(Parser * parser, ASTNode * node);
 bool Parser_gen_next_token_(Parser * parser);
 err_type Parser_get(Parser * parser, size_t key, Token ** tok);
-Token * Parser_get_tokens(Parser * parser, ASTNode * node, size_t * ntokens);
+Token ** Parser_get_tokens(Parser * parser, ASTNode * node, size_t * ntokens);
 void Parser_parse(Parser * parser);
 err_type Parser_traverse(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
 void Parser_print_ast(Parser * parser, char * buffer, size_t buffer_size);

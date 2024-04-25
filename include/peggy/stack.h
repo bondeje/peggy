@@ -103,7 +103,7 @@ static err_type CAT(STACK_TYPE, _peek)(STACK_TYPE * stack, ELEMENT_TYPE * value)
 static err_type CAT(STACK_TYPE, _push)(STACK_TYPE * stack, ELEMENT_TYPE value) {
     err_type status = PEGGY_SUCCESS;
     if (stack->fill == stack->capacity) {
-        if (status = CAT(STACK_TYPE, _resize)(stack, stack->capacity * STACK_DEFAULT_SCALE)) {
+        if ((status = CAT(STACK_TYPE, _resize)(stack, stack->capacity * STACK_DEFAULT_SCALE))) {
             return status;
         }
     }
@@ -136,7 +136,9 @@ static err_type CAT(STACK_TYPE, _set)(STACK_TYPE * stack, size_t key, ELEMENT_TY
     return PEGGY_INDEX_OUT_OF_BOUNDS;
 }
 static void CAT(STACK_TYPE, _dest)(STACK_TYPE * stack) {
-    free(stack->bins);
+    if (stack->bins) {
+        free(stack->bins);
+    }
     stack->bins = NULL;
     stack->capacity = 0;
     stack->fill = 0;

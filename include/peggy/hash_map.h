@@ -277,7 +277,7 @@ static hash_map_err CAT(HASH_COMBO, _get)(HASH_MAP_TYPE * map, KEY_TYPE key, VAL
 }
 
 static bool CAT(HASH_COMBO, _in)(HASH_MAP_TYPE * map, KEY_TYPE key) {
-    return CAT(HASH_COMBO, _get_pair)(map, key, NULL) == HM_SUCCESS;
+    return CAT(HASH_COMBO, _get_pair)(map, key, NULL) != NULL;
 }
 
 static hash_map_err CAT(HASH_COMBO, _set)(HASH_MAP_TYPE * map, KEY_TYPE key, VALUE_TYPE value) {
@@ -285,7 +285,7 @@ static hash_map_err CAT(HASH_COMBO, _set)(HASH_MAP_TYPE * map, KEY_TYPE key, VAL
     HASH_PAIR * pair = CAT(HASH_COMBO, _get_pair)(map, key, NULL);
     if (pair) { /* key-value pair already exists, overwriting value */
         //printf("overwriting existing value\n");
-        memcpy(&(pair->value), &value, sizeof(VALUE_TYPE));
+        memmove(&(pair->value), &value, sizeof(VALUE_TYPE));
         return HM_SUCCESS;
     } else {
         //printf("found open key-value pair\n");

@@ -1,7 +1,7 @@
 #include <peggy/utils.h>
 
 // variadic is a list of Rule *
-#define SEQUENCE_RULE(IDENTIFIER, ENUM_IDENTIFIER, ...) \
+#define SEQUENCERULE(IDENTIFIER, ENUM_IDENTIFIER, ...) \
 SequenceRule IDENTIFIER = { \
         ._class = &SequenceRule_class, \
         .ChainRule = { \
@@ -17,7 +17,7 @@ SequenceRule IDENTIFIER = { \
 }
 
 // variadic is a list of Rule *
-#define CHOICE_RULE(IDENTIFIER, ENUM_IDENTIFIER, ...) \
+#define CHOICERULE(IDENTIFIER, ENUM_IDENTIFIER, ...) \
 ChoiceRule IDENTIFIER = { \
     ._class = &ChoiceRule_class, \
     .ChainRule = { \
@@ -32,7 +32,7 @@ ChoiceRule IDENTIFIER = { \
     } \
 }
 
-#define LITERAL_RULE(IDENTIFIER, ENUM_IDENTIFIER, REGEX) \
+#define LITERALRULE(IDENTIFIER, ENUM_IDENTIFIER, REGEX) \
 LiteralRule IDENTIFIER = { \
     ._class = &LiteralRule_class, \
     .Rule = { \
@@ -44,7 +44,7 @@ LiteralRule IDENTIFIER = { \
     .compiled = false \
 }
 
-#define LIST_RULE(IDENTIFIER, ENUM_IDENTIFIER, pRULE_DELIM, pRULE_ELEMENT) \
+#define LISTRULE(IDENTIFIER, ENUM_IDENTIFIER, pRULE_DELIM, pRULE_ELEMENT) \
 ListRule IDENTIFIER = { \
     ._class = &ListRule_class, \
     .DerivedRule = { \
@@ -59,7 +59,7 @@ ListRule IDENTIFIER = { \
     .delim = pRULE_DELIM \
 }
 
-#define REPEAT_RULE_5(IDENTIFIER, ENUM_IDENTIFIER, pRULE, MIN_REP, MAX_REP) \
+#define REPEATRULE_5(IDENTIFIER, ENUM_IDENTIFIER, pRULE, MIN_REP, MAX_REP) \
 RepeatRule IDENTIFIER = { \
     ._class = &RepeatRule_class, \
     .DerivedRule = { \
@@ -74,11 +74,11 @@ RepeatRule IDENTIFIER = { \
     .min_rep = MIN_REP, \
     .max_rep = MAX_REP \
 }
-#define REPEAT_RULE_4(IDENTIFIER, ENUM_IDENTIFIER, pRULE, MIN_REP) REPEAT_RULE_5(IDENTIFIER, ENUM_IDENTIFIER, pRULE, MIN_REP, 0)
-#define REPEAT_RULE_3(IDENTIFIER, ENUM_IDENTIFIER, pRULE) REPEAT_RULE_5(IDENTIFIER, ENUM_IDENTIFIER, pRULE, 0, 0)
-#define REPEAT_RULE(...) CAT(REPEAT_RULE_, VARIADIC_SIZE(__VA_ARGS__))(__VA_ARGS__)
+#define REPEATRULE_4(IDENTIFIER, ENUM_IDENTIFIER, pRULE, MIN_REP) REPEATRULE_5(IDENTIFIER, ENUM_IDENTIFIER, pRULE, MIN_REP, 0)
+#define REPEATRULE_3(IDENTIFIER, ENUM_IDENTIFIER, pRULE) REPEATRULE_5(IDENTIFIER, ENUM_IDENTIFIER, pRULE, 0, 0)
+#define REPEATRULE(...) CAT(REPEATRULE_, VARIADIC_SIZE(__VA_ARGS__))(__VA_ARGS__)
 
-#define OPTIONAL_RULE(IDENTIFIER, ENUM_IDENTIFIER, pRULE) \
+#define OPTIONALRULE(IDENTIFIER, ENUM_IDENTIFIER, pRULE) \
 OptionalRule IDENTIFIER = { \
     ._class = &OptionalRule_class, \
     .DerivedRule = { \
@@ -92,7 +92,7 @@ OptionalRule IDENTIFIER = { \
     } \
 }
 
-#define NEGATIVE_LOOKAHEAD(IDENTIFIER, ENUM_IDENTIFIER, pRULE) \
+#define NEGATIVELOOKAHEAD(IDENTIFIER, ENUM_IDENTIFIER, pRULE) \
 NegativeLookahead IDENTIFIER = { \
     ._class = &NegativeLookahead_class, \
     .DerivedRule = { \
@@ -106,7 +106,7 @@ NegativeLookahead IDENTIFIER = { \
     } \
 }
 
-#define POSITIVE_LOOKAHEAD(IDENTIFIER, ENUM_IDENTIFIER, pRULE) \
+#define POSITIVELOOKAHEAD(IDENTIFIER, ENUM_IDENTIFIER, pRULE) \
 PositiveLookahead IDENTIFIER = { \
     ._class = &PositiveLookahead_class, \
     .DerivedRule = { \
@@ -120,7 +120,7 @@ PositiveLookahead IDENTIFIER = { \
     } \
 }
 
-#define ANONYMOUS_PRODUCTION(IDENTIFIER, ENUM_IDENTIFIER, pRULE) \
+#define ANONYMOUSPRODUCTION(IDENTIFIER, ENUM_IDENTIFIER, pRULE) \
 AnonymousProduction IDENTIFIER = { \
     ._class = &AnonymousProduction_class, \
     .DerivedRule = {\

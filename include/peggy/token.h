@@ -31,7 +31,7 @@ typedef struct TokenCoords {
 struct Token {
     struct TokenCoords coords;
     struct TokenType * _class;
-    char const * const string; /* the string of which Token is a substring. This is not modifiable so that it can be safely hashed */
+    char const * const string; /* the string of which Token is a substring. This is not modifiable so that it can be safely hashed. It is NOT null terminated */
     size_t const start; /* the start of the token in the string. This is not modifiable so that it can be safely hashed */
     size_t end; /* 1 after the final character in the token */
 };

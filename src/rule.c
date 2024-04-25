@@ -1,3 +1,8 @@
+/**
+ * High level TODO: 
+ *      in each case of adding a new node, there is a separate line of allocating a new node within a *_check_rule_ and then notifying the parser, which holes the AST. I think the *_check_rule_ should request a new ASTNode from the parser which internally makes and stores a node. The rules should not be responsible for making new ASTNodes if the Parser is the one to manage it. This is needed anyway when the arena allocation for ASTNodes is done anyway
+*/
+
 
 /* C STD LIB */
 #include <stddef.h>
@@ -402,9 +407,6 @@ ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t
         printf("unhandled error (%d) in SequenceRule_check_rule_ getting starting token from parser\n", status);
     }
     ASTNode * res = ASTNode_class.new(sequence_rule, token_key, token_cur - token_key, cur->start - start->start, nchildren, children);
-    //if (res) {
-    //    printf("sequence rule (%d) check passed (%zu\n", sequence_rule->id, self->ChainRule.deps_size);
-    //}
     parser->_class->add_node(parser, res);
     return res;
 }
