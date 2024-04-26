@@ -50,7 +50,7 @@ endif
 ifneq ($(origin NDEBUG), undefined)
 	CFLAGS += -DNDEBUG
 else
-	CFLAGS += -g3
+	CFLAGS += -g3 -pg
 	ifeq (, $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
 	ifneq ($(origin SANITIZE), undefined)
 # sanitizer options are not available on Windows and a separate flag is necessary so that I can 

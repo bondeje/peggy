@@ -16,3 +16,12 @@ clean:
 	rm -f $(EXAMPLE_NAME)$(EXE_EXT)
 	rm -f $(EXAMPLE_NAME)$(HDR_SUFFIX)
 	rm -f $(EXAMPLE_NAME)$(SRC_SUFFIX)
+
+# run timing tests
+CSV_DIR = sample_files
+ALL_CSVS := $(shell find $(CSV_DIR) -name '*.csv')
+test_times: all
+	./$(EXAMPLE_NAME)$(EXE_EXT) --timeit $(ALL_CSVS)
+
+test_one: all
+	./$(EXAMPLE_NAME)$(EXE_EXT) sample_files/0131072.csv

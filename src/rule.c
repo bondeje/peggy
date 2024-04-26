@@ -22,7 +22,7 @@
 /* PackratCache wrapper implementations */
 
 #define PACKRAT_CACHE_INIT_SIZE_OUTER 3
-#define PACKRAT_CACHE_INIT_SIZE_INNER 0
+#define PACKRAT_CACHE_INIT_SIZE_INNER 127
 
 int pToken_comp(pToken a, pToken b) {
     return address_comp(a->string, b->string);
@@ -193,6 +193,7 @@ void Rule_cache_check_(Rule * self, Parser * parser, size_t token_key, ASTNode *
 }
 
 ASTNode * Rule_check_cache_(Rule * self, Parser * parser, size_t token_key) {
+    //return NULL; // turn off caching
     //printf("checking cache\n");
     if (!self->cache_.capacity) {
         return NULL; // cache is empty, cannot possibly find a result
@@ -580,7 +581,7 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t t
         // the regex succeed to match
         parser->_class->seek(parser, 1, P_SEEK_CUR);
         size_t length = self->match[0].rm_eo - self->match[0].rm_so;
-        //printf("LiteralRule regex matched with length %zu!\n", length);
+        //printf("LiteralRule (id %d) regex matched with length %zu!\n", literal_rule->id, length);
         ASTNode * res = ASTNode_class.new(literal_rule, token_key, length ? 1 : 0, length, 0, NULL);
         parser->_class->add_node(parser, res);
         return res;

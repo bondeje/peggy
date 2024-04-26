@@ -176,7 +176,7 @@ void Parser_get_line_col_end(Parser * self, Token * tok, unsigned int * line_out
     char const * end = tok->string + tok->end;
     unsigned int line = tok->coords.line;
     char const * chr = strchr(start, '\n');
-    while (chr) {
+    while (chr && chr < end) {
         line++;
         start = chr + 1;
         chr = strchr(start, '\n');

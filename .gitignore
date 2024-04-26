@@ -1,6 +1,8 @@
 # development areas
 workbench/
 test_files/
+linear_files/
+samples_files/
 obj/
 bin/
 examples/peggy/backup/
@@ -10,6 +12,8 @@ backup/
 old/
 .deps/
 .vscode/
+profile.txt
+gmon.out
 
 # development files
 main.c

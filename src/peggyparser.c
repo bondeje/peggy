@@ -984,7 +984,9 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
     arg.str[written++] = '^';
     arg.str[written++] = '(';
 
-    for (size_t i = 0; i < node->children[2]->nchildren; i+=2) {
+    size_t N = node->children[2]->nchildren;
+
+    for (size_t i = 0; i < N; i+=2) {
         handle_string_literal(parser, node->children[2]->children[i], parent_id);
 
         PeggyString str_lit_name = get_string_from_parser(parser, node->children[2]->children[i]);
@@ -996,7 +998,7 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
 
         memcpy((void*)(arg.str + written), (void*)re, length);
         written += length;
-        if (i < node->children[2]->nchildren - 2) {
+        if (N > 1 && i < N - 2) {
             arg.str[written++] = '|';
         }
     }

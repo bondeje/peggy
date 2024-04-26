@@ -2,7 +2,7 @@ include environment.mk
 
 all: build_hierarchy dynamic_lib static_lib main
 	@echo environment: $(UNAME)
-	@echo architecture: $(UNAME_P)
+	@echo architecture: $(UNAME_M)
 	@echo sanitize: $(SANITIZE)
 	@echo no debug: $(NDEBUG)
 

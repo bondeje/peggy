@@ -69,10 +69,11 @@ typedef enum hash_map_err {
     HM_SUCCESS = 0,
     HM_KEY_NOT_FOUND,
     HM_MALLOC_MAP_FAILURE,
-    HM_MALLOC_PAIR_FAILURE
+    HM_MALLOC_PAIR_FAILURE,
+    HM_INSERTION_FAILURE
 } hash_map_err;
 
-#define HASH_DEFAULT_SIZE 17
+#define HASH_DEFAULT_SIZE 127
 
 /* sentinel */
 #define HASH_PAIR_REMOVED ((void *)1)
@@ -98,7 +99,7 @@ void hm_print_error_message(hash_map_err status);
 #if defined(KEY_TYPE) && defined(VALUE_TYPE)
 
 #ifndef HASH_FILL_RESIZE_RATIO
-#define HASH_FILL_RESIZE_RATIO 2 / 5
+#define HASH_FILL_RESIZE_RATIO 1 / 5
 #endif
 
 #define HASH_COMBO CAT3(KEY_TYPE, _, VALUE_TYPE)
@@ -182,41 +183,97 @@ static hash_map_err CAT(HASH_COMBO, _insert)(HASH_MAP_TYPE * map, HASH_PAIR * pa
             return status;
         }
     }
-    size_t bin = HASH_FUNC(pair->key, map->capacity);
+    size_t bin_start = HASH_FUNC(pair->key, map->capacity);
+    
+    HASH_PAIR ** bins = map->bins;
+    if (*(bins + bin_start)) {
+        HASH_PAIR ** bin_begin = bins + bin_start;
+        HASH_PAIR ** bin = bin_begin + 1;
+        HASH_PAIR ** bin_cap = bins + map->capacity;
+        if (bin == bin_cap) {
+            bin = bins;
+        }
+        
+        while (*bin != NULL && bin != bin_begin) {
+            if (++bin == bin_cap) {
+                bin = bins;
+            }
+        }
+        if (bin == bin_begin) {
+            return HM_INSERTION_FAILURE;
+        }
+        bins = bin;
+    } else {
+        bins = bins + bin_start;
+    }
+    *bins = pair;
+    
+    /*
     HASH_PAIR * p;
-    while ((p = map->bins[bin], p) && (p != HASH_PAIR_REMOVED)) {
-        if (++bin == map->capacity) {
-            bin = 0;
+    while ((p = bins[bin_start], p) && (p != HASH_PAIR_REMOVED)) {
+        if (++bin_start == map->capacity) {
+            bin_start = 0;
         }
     }
+    
     //printf("inserting pair at %p\n", (void *)(map->bins + bin));
-    map->bins[bin] = pair;
+    bins[bin_start] = pair;
+    */
     map->fill++;
     return status;
 }
 
 /* never returns a new pointer. returns NULL if not found. Should never return the sentinel */
 static HASH_PAIR * CAT(HASH_COMBO, _get_pair)(HASH_MAP_TYPE * map, KEY_TYPE key, size_t * bin_num) {
+    
+    size_t bin_start = HASH_FUNC(key, map->capacity);
+    HASH_PAIR ** bins = map->bins;
+    HASH_PAIR ** bin_begin = bins + bin_start;
+
+    if (*bin_begin && *bin_begin != HASH_PAIR_REMOVED && !KEY_COMP((*bin_begin)->key, key)) {
+        if (bin_num) {
+            *bin_num = bin_start;
+        }
+        return *bin_begin;
+    }
+    if (!*bin_begin) {
+        if (bin_num) {
+            *bin_num = bin_start;
+        }
+        return NULL;
+    }
+    
+    HASH_PAIR ** bin = bin_begin + 1;
+    HASH_PAIR ** bin_cap = bins + map->capacity;
+    if (bin >= bin_cap) {
+        bin = bins;
+    }
+    
+    while (*bin && bin != bin_begin) {
+        if (*bin != HASH_PAIR_REMOVED && !KEY_COMP((*bin)->key, key)) {
+            if (bin_num) {
+                *bin_num = (size_t) (bin - bins);
+            }
+            return *bin;
+        }
+        if (++bin >= bin_cap) {
+            bin = bins;
+        }
+    }
+    return NULL;
+    
+    /*
     //printf("getting pair\n");
     size_t bin_start = HASH_FUNC(key, map->capacity);
     //printf("starting search at %zu\n", bin_start);
     HASH_PAIR * pair = map->bins[bin_start];
     //printf("address at starting pointer %p\n", (void *) (map->bins + bin_start));
     if (!(pair && ((pair == HASH_PAIR_REMOVED) || KEY_COMP(pair->key, key)))) {
-        /*
-        if (pair) {
-            printf("found at starting point\n");
-        } else {
-            printf("NULL found at starting point\n");
-        }
-        */
         if (bin_num) {
             *bin_num = bin_start;
         }
         return pair;
     }
-    //printf("starting linear search\n");
-
     size_t bin = bin_start + 1;
     if (bin == map->capacity) {
         bin = 0;
@@ -226,20 +283,15 @@ static HASH_PAIR * CAT(HASH_COMBO, _get_pair)(HASH_MAP_TYPE * map, KEY_TYPE key,
             bin = 0;
         }
     }
-    /*
-    if (pair) {
-        printf("found pair\n");
-    } else {
-        printf("did not find pair\n");
-    }
-    */
-    if (bin == bin_start) { /* prevents returning the HASH_PAIR_REMOVED sentinel value */
+    if (bin == bin_start) { // prevents returning the HASH_PAIR_REMOVED sentinel value
         return NULL;
     }
     if (bin_num) {
         *bin_num = bin;
     }
+    
     return pair;
+    */
 }
 
 static hash_map_err CAT(HASH_COMBO, _pop)(HASH_MAP_TYPE * map, KEY_TYPE key, VALUE_TYPE * value) {
