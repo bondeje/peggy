@@ -2,8 +2,14 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+// _POSIX_C_SOURCE is needed on gcc in linux when compiling with -std=c99 or really anything less than c11
+//#if defined (__STDC__) && defined(__STDC_VERSION__) && (__STDC_VERSION__ < 201112L)
+//#define _POSIX_C_SOURCE 199506L
+//#define _XOPEN_SOURCE 500
+//#endif
+
 #include <time.h>
-//#include <sys/types.h>
+#include <sys/types.h>
 
 #include "csvparser.h"
 
@@ -83,18 +89,13 @@ ASTNode * handle_csv(Parser * parser, ASTNode * node) {
 err_type from_string(char const * string, size_t string_length, char const * name, size_t name_length, size_t * n_elem, double * time) {
     //printf("processing string:\n%s", string);
     if (time) {
-        /*
+        
         struct timespec t0, t1;
         clockid_t clk = CLOCK_MONOTONIC;
         //double clock_conversion = 1.0e-6;
         clock_gettime(clk, &t0);
-        */
-        clock_t t;
-        t = clock();
         CSVParser_init(&csv, name, name_length, string, string_length);
-        t = clock() - t;
-        *time = ((double)t)/CLOCKS_PER_SEC;
-        /*
+       
         clock_gettime(clk, &t1);
 
         if (t1.tv_nsec < t0.tv_nsec) {
@@ -102,7 +103,7 @@ err_type from_string(char const * string, size_t string_length, char const * nam
         } else {
             *time = ((1 + 1.0e-9 * t1.tv_nsec) - 1.0e-9 * t0.tv_nsec) + t1.tv_sec - 1.0 - t0.tv_sec;
         }
-        */
+        
     } else {
         CSVParser_init(&csv, name, name_length, string, string_length);
     }

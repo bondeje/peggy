@@ -78,7 +78,7 @@ DEP_SUFFIX = .d
 TEMP_DEP_SUFFIX = .Td
 EXE_EXT = 
 
-CFLAGS += -Wall -pedantic -Werror -Wextra -std=c99 
+CFLAGS += -Wall -pedantic -Werror -Wextra -std=gnu99
 CLIBFLAGS = $(CFLAGS) -fPIC -c
 CFLAGS += -Wno-unused -Wno-unused-parameter
 

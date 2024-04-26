@@ -99,7 +99,7 @@ void hm_print_error_message(hash_map_err status);
 #if defined(KEY_TYPE) && defined(VALUE_TYPE)
 
 #ifndef HASH_FILL_RESIZE_RATIO
-#define HASH_FILL_RESIZE_RATIO 1 / 5
+#define HASH_FILL_RESIZE_RATIO 3 / 5
 #endif
 
 #define HASH_COMBO CAT3(KEY_TYPE, _, VALUE_TYPE)
