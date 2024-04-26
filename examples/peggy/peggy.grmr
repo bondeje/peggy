@@ -8,10 +8,10 @@ whitespace(skip_token):
     "([[:space:]]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+" // includes C-style comments as whitespace
 
 string_literal:
-    "^'((\\\\)\'|[^\'])*'"
+    "'((\\\\)\'|[^\'])*'"
     
 regex_literal:
-    "^\"((\\\\\")|[^\"])*\""
+    "\"((\\\\\")|[^\"])*\""
 
 punctuator:
     '!' | '|' | ',' | '?' | '.' | '&' | ':' | '+' | '*' | '(' | ')' | '{' | '}' // to include '/' in the future for a proper "first_choice"

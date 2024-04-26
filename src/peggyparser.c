@@ -884,6 +884,7 @@ void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyStri
 
     // don't need to declare LiteralRules
     PeggyProduction_declare(parser, prod);
+    parser->productions._class->set(&parser->productions, prod.name, prod);
 
     PeggyString arg = format_regex(prod.name.str + 1, prod.name.len - 2);
     
@@ -921,6 +922,7 @@ void handle_regex_literal(PeggyParser * parser, ASTNode * node, const PeggyStrin
     prod.type_name = LiteralRule_class._class->type_name;
 
     PeggyProduction_declare(parser, prod);
+    parser->productions._class->set(&parser->productions, prod.name, prod);
 
     PeggyString arg = {.str = malloc(sizeof(char) * (prod.name.len + 4)), .len = 0};
     memcpy((void*)arg.str, "\"^(", 3);
@@ -968,6 +970,7 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
     prod.type_name = LiteralRule_class._class->type_name;
 
     PeggyProduction_declare(parser, prod);
+    parser->productions._class->set(&parser->productions, prod.name, prod);
 
     PeggyString arg;
     size_t ntokens = 0;

@@ -1,0 +1,35 @@
+// https://datatracker.ietf.org/doc/html/rfc4180
+
+export: csv
+import: csvparser
+
+punctuator:
+    ','
+
+/* different from the ABNF in RFC4180: the header portion as a whole is not optional; 
+    parser disambiguates from record. In order that a single line of csv is accepted,
+    the internal '\r\f' on the header portion must be optional
+*/
+csv(handle_csv):
+    crlf.record, (crlf | whitespace)*
+    
+token:
+    crlf | punctuator | whitespace | field
+
+record:
+    ','.field
+
+nonstring_field:
+    "[^,\r\n]*"
+    
+field:
+    string | nonstring_field
+
+whitespace(skip_token):
+    "[ \t\f\v]+"
+
+crlf:
+    '\r\n'
+
+string:
+    "\"((\\\\\")|[^\"])*\"" // allows escaped double quotes and accounts for characters production

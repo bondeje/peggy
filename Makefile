@@ -31,13 +31,13 @@ $(DEPFILES):
 main: $(MAIN_SRCS) static_lib
 	$(CC) $(CFLAGS) $(IFLAGS) $(MAIN_SRCS) -L$(BIN_DIR) -o $(BIN_DIR)/$(EXE) -l:$(STATIC_LIB_FILE) $(LIBS)
 
-reset:
-	rm -r $(DEP_DIR)
-	rm -r $(OBJ_DIR)
-	rm -r $(BIN_DIR)
+clean: reset
+	rm -rf $(BIN_DIR)
 
-uname:
-	@echo $(UNAME)
+# reset just deletes dependency folders that might themselves depend on the environment in which they were last built so as to trigger rebuild everything, but keeps binaries
+reset:
+	rm -rf $(DEP_DIR)
+	rm -rf $(OBJ_DIR)
 
 # must be at least after the initial, default target; otherwise last
 include $(wildcard $(DEPFILES))

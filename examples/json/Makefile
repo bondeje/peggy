@@ -1,6 +1,6 @@
 include ../../environment.mk
 
-EXAMPLE_NAME = csv
+EXAMPLE_NAME = json
 GRAMMAR = $(EXAMPLE_NAME).grmr
 PKG_PATH = ../..
 PKG_RETURN = examples/$(NAME)

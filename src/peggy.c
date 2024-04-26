@@ -85,6 +85,8 @@ PRODUCTION(peggy_whitespace,WHITESPACE,
 LISTRULE(peggy_list_2_54,LIST_2_54,
 	&vbar.Rule,
 	&peggy_sequence.AnonymousProduction.DerivedRule.Rule);
+LITERALRULE(peggy_regex_literal_re,REGEX_LITERAL_RE,
+	"^(\"((\\\\\")|[^\"])*\")");
 SEQUENCERULE(peggy_seq_3_58,SEQ_3_58,
 	&peggy_choice_2_59.ChainRule.Rule,
 	&colon.Rule,
@@ -148,8 +150,6 @@ LITERALRULE(vbar,VBAR,
 	"^(\\|)");
 LITERALRULE(comma,COMMA,
 	"^(,)");
-LITERALRULE(peggy_string_literal_re,STRING_LITERAL_RE,
-	"^(^'((\\\\)\'|[^\'])*')");
 PRODUCTION(peggy_nonterminal,NONTERMINAL,
 	&peggy_identifier.AnonymousProduction.DerivedRule.Rule);
 LITERALRULE(rbrace,RBRACE,
@@ -182,8 +182,6 @@ SEQUENCERULE(peggy_seq_2_40,SEQ_2_40,
 PRODUCTION(peggy_choice,CHOICE,
 	&peggy_list_2_54.DerivedRule.Rule,
 	simplify_rule);
-LITERALRULE(peggy_regex_literal_re,REGEX_LITERAL_RE,
-	"^(^\"((\\\\\")|[^\"])*\")");
 PRODUCTION(peggy_regex_literal,REGEX_LITERAL,
 	&peggy_regex_literal_re.Rule);
 SEQUENCERULE(peggy_seq_2_48,SEQ_2_48,
@@ -233,6 +231,8 @@ REPEATRULE(peggy_rep_1_0_71,REP_1_0_71,
 	1);
 LITERALRULE(colon,COLON,
 	"^(:)");
+LITERALRULE(peggy_string_literal_re,STRING_LITERAL_RE,
+	"^('((\\\\)\'|[^\'])*')");
 LITERALRULE(ampersand,AMPERSAND,
 	"^(&)");
 SEQUENCERULE(peggy_seq_3_66,SEQ_3_66,
@@ -283,6 +283,7 @@ Rule * peggyrules[PEGGY_NRULES + 1] = {
 	&peggy_choice_3_36.ChainRule.Rule,
 	&peggy_whitespace.AnonymousProduction.DerivedRule.Rule,
 	&peggy_list_2_54.DerivedRule.Rule,
+	&peggy_regex_literal_re.Rule,
 	&peggy_seq_3_58.ChainRule.Rule,
 	&rparen.Rule,
 	&peggy_choice_2_56.ChainRule.Rule,
@@ -307,7 +308,6 @@ Rule * peggyrules[PEGGY_NRULES + 1] = {
 	&peggy_digit_seq_re.Rule,
 	&vbar.Rule,
 	&comma.Rule,
-	&peggy_string_literal_re.Rule,
 	&peggy_nonterminal.AnonymousProduction.DerivedRule.Rule,
 	&rbrace.Rule,
 	&keyword_kw.Rule,
@@ -318,7 +318,6 @@ Rule * peggyrules[PEGGY_NRULES + 1] = {
 	&peggy_choice_6_29.ChainRule.Rule,
 	&peggy_seq_2_40.ChainRule.Rule,
 	&peggy_choice.AnonymousProduction.DerivedRule.Rule,
-	&peggy_regex_literal_re.Rule,
 	&peggy_regex_literal.AnonymousProduction.DerivedRule.Rule,
 	&peggy_seq_2_48.ChainRule.Rule,
 	&period.Rule,
@@ -337,6 +336,7 @@ Rule * peggyrules[PEGGY_NRULES + 1] = {
 	&peggy_nonws_printable.AnonymousProduction.DerivedRule.Rule,
 	&peggy_rep_1_0_71.DerivedRule.Rule,
 	&colon.Rule,
+	&peggy_string_literal_re.Rule,
 	&ampersand.Rule,
 	&peggy_seq_3_66.ChainRule.Rule,
 	&peggy_choice_2_69.ChainRule.Rule,

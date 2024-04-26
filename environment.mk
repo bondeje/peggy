@@ -23,7 +23,7 @@ CFLAGS += -D $(UNAME)
 # set architecture and compile target flags
 ifeq ($(UNAME), $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
     CFLAGS += -D WIN32
-	UNAME_P := $(PROCESSOR_ARCHITECTURE)
+	UNAME_M := $(PROCESSOR_ARCHITECTURE)
     ifeq ($(PROCESSOR_ARCHITECTURE),AMD64)
         CFLAGS += -D AMD64
     else
@@ -35,14 +35,14 @@ ifeq ($(UNAME), $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
         endif
     endif
 else
-    UNAME_P := $(shell uname -p)
-    ifeq ($(UNAME_P),x86_64)
+    UNAME_M := $(shell uname -m)
+    ifeq ($(UNAME_M),$(filter x86_64 amd64, $(UNAME_M)))
         CFLAGS += -D AMD64
     endif
-    ifneq ($(filter %86,$(UNAME_P)),)
+    ifneq ($(filter %86,$(UNAME_M)),)
         CFLAGS += -D IA32
     endif
-    ifneq ($(filter arm%,$(UNAME_P)),)
+    ifneq ($(filter arm%,$(UNAME_M)),)
         CFLAGS += -D ARM
     endif
 endif
