@@ -22,56 +22,17 @@
  *
  */
 
-/* PackratCache setup */
-#define KEY_TYPE size_t
-#define VALUE_TYPE pASTNode
-#define KEY_COMP uint_comp
-#define HASH_FUNC uint_hash
-#include <peggy/hash_map.h>
-
-typedef HASH_MAP(size_t, pASTNode) SAMap, * pSAMap;
-
-int pToken_comp(pToken a, pToken b);
-size_t pToken_hash(pToken a, size_t hash_size);
-
-#define KEY_TYPE pToken
-#define VALUE_TYPE pSAMap
-#define KEY_COMP pToken_comp
-#define HASH_FUNC pToken_hash
-#include <peggy/hash_map.h>
-
-typedef HASH_MAP(pToken, pSAMap) PackratCache;
-#define PackratCache_class HASH_MAP_CLASS(pToken, pSAMap)
-#define DEFAULT_PACKRATCACHE { \
-                            .bins = NULL, \
-                            .capacity = 0, \
-                            .fill = 0, \
-                            ._class = &PackratCache_class, \
-                            }
-
-hash_map_err PackratCache_init(PackratCache * cache);
-hash_map_err PackratCache_get(PackratCache * cache, Token * tok, ASTNode ** node);
-hash_map_err PackratCache_set(PackratCache * cache, Token * tok, ASTNode * node);
-void PackratCache_clear_token(PackratCache * cache, Token * tok);
-int PackratCache_clear_handle(void * data, Token * tok, SAMap * inner_map);
-void PackratCache_dest(PackratCache * cache);
-
-/* end PackratCache setup */
 
 /* Rule definitions and declarations */
 
 #define Rule_DEFAULT_INIT {._class = &Rule_class, \
-                           .id = Rule_DEFAULT_ID, \
-                           .cache_ = DEFAULT_PACKRATCACHE}
+                           .id = Rule_DEFAULT_ID \
+                           }
 #define RuleType_DEFAULT_INIT {._class = &Rule_TYPE,\
                                .new = &Rule_new,\
                                .init = &Rule_init,\
                                .dest = &Rule_dest, \
                                .del = &Rule_del,\
-                               /*.build = &Rule_build,*/\
-                               .cache_check_ = &Rule_cache_check_,\
-                               .check_cache_ = &Rule_check_cache_,\
-                               .clear_cache = &Rule_clear_cache,\
                                .check_rule_ = &Rule_check_rule_,\
                                .check = &Rule_check}
 
@@ -80,7 +41,8 @@ void PackratCache_dest(PackratCache * cache);
 struct Rule {
     struct RuleType * _class;   /* internal */
     rule_id_type id;            /* public */
-    PackratCache cache_;        /* protected */
+    size_t ncalls;
+    size_t nevals;
 };
 
 extern struct RuleType {
@@ -89,24 +51,16 @@ extern struct RuleType {
     err_type (*init)(Rule * self, int id);
     void (*dest)(Rule * self);
     void (*del)(Rule * self);
-    //err_type (*build)(Rule * self, ParserGenerator * pg, char * buffer, size_t buf_size);
-    void (*cache_check_)(Rule * self, Parser * parser, size_t token_key, ASTNode * result);
-    ASTNode * (*check_cache_)(Rule * self, Parser * parser, size_t token_key);
-    void (*clear_cache)(Rule * self, Token * tok);
-    ASTNode * (*check_rule_)(Rule * self, Parser * parser, size_t token_key, bool disable_cache_check);
-    ASTNode * (*check)(Rule * self, Parser * parser, bool disable_cache_check);
+    ASTNode * (*check_rule_)(Rule * self, Parser * parser, size_t token_key);
+    ASTNode * (*check)(Rule * self, Parser * parser);
 } Rule_class;
 
 Rule * Rule_new(int id);
 err_type Rule_init(Rule * self, int id);
 void Rule_dest(Rule * self);
 void Rule_del(Rule * self);
-//err_type Rule_build(Rule * self, ParserGenerator * pg, char * buffer, size_t buffer_size);
-void Rule_cache_check_(Rule * self, Parser * parser, size_t token_key, ASTNode * result);
-ASTNode * Rule_check_cache_(Rule * self, Parser * parser, size_t token_key);
-void Rule_clear_cache(Rule * self, Token * tok);
-ASTNode * Rule_check_rule_(Rule * self, Parser * parser, size_t token_key, bool disable_cache_check);
-ASTNode * Rule_check(Rule * self, Parser * parser, bool disable_cache_check);
+ASTNode * Rule_check_rule_(Rule * self, Parser * parser, size_t token_key);
+ASTNode * Rule_check(Rule * self, Parser * parser);
 
 /* update in C and metadata */
 
@@ -115,7 +69,6 @@ ASTNode * Rule_check(Rule * self, Parser * parser, bool disable_cache_check);
 #define ChainRule_DEFAULT_INIT {._class = &ChainRule_class, \
                                 .Rule = {._class = &(ChainRule_class.Rule_class), \
                                         .id = Rule_DEFAULT_ID, \
-                                        .cache_ = DEFAULT_PACKRATCACHE \
                                 }, \
                                 .deps = NULL, \
                                 .deps_size = 0 \
@@ -127,10 +80,6 @@ ASTNode * Rule_check(Rule * self, Parser * parser, bool disable_cache_check);
                                         .init = &Rule_init,\
                                         .dest = &Rule_dest, \
                                         .del = &ChainRule_as_Rule_del,\
-                                        /*.build = &Rule_build,*/\
-                                        .cache_check_ = &Rule_cache_check_,\
-                                        .check_cache_ = &Rule_check_cache_,\
-                                        .clear_cache = &ChainRule_clear_cache,\
                                         .check_rule_ = &Rule_check_rule_,\
                                         .check = &Rule_check \
                                     }, \
@@ -163,7 +112,6 @@ err_type ChainRule_init(ChainRule * self, rule_id_type id, size_t deps_size, Rul
 void ChainRule_dest(ChainRule * self);
 void ChainRule_del(ChainRule * self);
 void ChainRule_as_Rule_del(Rule * chain_rule);
-void ChainRule_clear_cache(Rule * chain_rule, Token * tok);
 
 /* SequenceRule definitions and declarations */
 
@@ -173,7 +121,6 @@ void ChainRule_clear_cache(Rule * chain_rule, Token * tok);
                                         .Rule = { \
                                             ._class = &(SequenceRule_class.ChainRule_class.Rule_class), \
                                             .id = Rule_DEFAULT_ID, \
-                                            .cache_ = DEFAULT_PACKRATCACHE \
                                         }, \
                                         .deps = NULL, \
                                         .deps_size = 0 \
@@ -188,10 +135,6 @@ void ChainRule_clear_cache(Rule * chain_rule, Token * tok);
                                                 .init = &Rule_init,\
                                                 .dest = &Rule_dest, \
                                                 .del = &SequenceRule_as_Rule_del,\
-                                                /*.build = &SequenceRule_build,*/\
-                                                .cache_check_ = &Rule_cache_check_,\
-                                                .check_cache_ = &Rule_check_cache_,\
-                                                .clear_cache = &ChainRule_clear_cache,\
                                                 .check_rule_ = &SequenceRule_check_rule_,\
                                                 .check = &Rule_check \
                                             }, \
@@ -228,7 +171,7 @@ void SequenceRule_del(SequenceRule * self);
 void SequenceRule_as_ChainRule_del(ChainRule * sequence_chain);
 void SequenceRule_as_Rule_del(Rule * sequence_rule);
 //err_type SequenceRule_build(Rule * sequence_rule, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t token_key, bool disable_cache_check);
+ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t token_key);
 
 /* ChoiceRule definitions and declarations */
 
@@ -238,7 +181,6 @@ ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t
                                         .Rule = { \
                                             ._class = &(ChoiceRule_class.ChainRule_class.Rule_class), \
                                             .id = Rule_DEFAULT_ID, \
-                                            .cache_ = DEFAULT_PACKRATCACHE \
                                         }, \
                                         .deps = NULL, \
                                         .deps_size = 0 \
@@ -253,10 +195,6 @@ ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t
                                             .init = &Rule_init,\
                                             .dest = &Rule_dest, \
                                             .del = &ChoiceRule_as_Rule_del,\
-                                            /*.build = &ChoiceRule_build,*/\
-                                            .cache_check_ = &Rule_cache_check_,\
-                                            .check_cache_ = &Rule_check_cache_,\
-                                            .clear_cache = &Rule_clear_cache,\
                                             .check_rule_ = &ChoiceRule_check_rule_,\
                                             .check = &Rule_check \
                                         }, \
@@ -293,11 +231,13 @@ void ChoiceRule_del(ChoiceRule * self);
 void ChoiceRule_as_ChainRule_del(ChainRule * choice_chain);
 void ChoiceRule_as_Rule_del(Rule * choice_rule);
 //err_type ChoiceRule_build(Rule * choice_rule, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser, size_t token_key, bool disable_cache_check);
+ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser, size_t token_key);
 
 /* LiteralRule class definitions and declarations */
 
+#if defined(MSYS)
 #define LITERAL_N_MATCHES 1
+#endif
 
 /* this captures both StringRule and RegexRule from peggen.py since I only ever use regex anyway. punctuators have to go through a regex cleanup */
 
@@ -305,7 +245,6 @@ ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser, size_t tok
                                     .Rule = { \
                                         ._class = &(LiteralRule_class.Rule_class), \
                                         .id = Rule_DEFAULT_ID, \
-                                        .cache_ = DEFAULT_PACKRATCACHE \
                                     }, \
                                     .regex_s = NULL, \
                                     .compiled = false, \
@@ -317,10 +256,6 @@ ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser, size_t tok
                                             .init = &Rule_init,\
                                             .dest = &LiteralRule_as_Rule_dest, \
                                             .del = &LiteralRule_as_Rule_del,\
-                                            /*.build = &LiteralRule_build,*/\
-                                            .cache_check_ = &Rule_cache_check_,\
-                                            .check_cache_ = &Rule_check_cache_,\
-                                            .clear_cache = &Rule_clear_cache,\
                                             .check_rule_ = &LiteralRule_check_rule_,\
                                             .check = &Rule_check \
                                         }, \
@@ -338,7 +273,9 @@ struct LiteralRule {
     Rule Rule;
     char const * regex_s;
     regex_t regex;
-    regmatch_t match[LITERAL_N_MATCHES];
+#if defined(MSYS)
+    regmatch_t match[LITERAL_N_MATCHES]; // garbage POSIX interface
+#endif
     bool compiled;
 };
 
@@ -360,7 +297,7 @@ err_type LiteralRule_compile_regex(LiteralRule * self);
 void LiteralRule_as_Rule_del(Rule * literal_rule);
 void LiteralRule_as_Rule_dest(Rule * literal_rule);
 //err_type LiteralRule_build(Rule * literal_rule, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t token_key, bool disable_cache_check);
+ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t token_key);
 
 /* TODO: I actually don't think I need this! */
 /* NamedProduction Rule class definitions and declarations */
@@ -369,7 +306,6 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t t
                                         .Rule = { \
                                             ._class = &(NamedProduction_class.Rule_class), \
                                             .id = Rule_DEFAULT_ID, \
-                                            .cache_ = DEFAULT_PACKRATCACHE \
                                         }, \
                                         }
 #define NamedProductionType_DEFAULT_INIT {._class = &NamedProduction_TYPE, \
@@ -379,10 +315,6 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t t
                                                 .init = &Rule_init,\
                                                 .dest = &Rule_dest, \
                                                 .del = &NamedProduction_as_Rule_del,\
-                                                /*.build = &NamedProduction_build,*/\
-                                                .cache_check_ = &Rule_cache_check_,\
-                                                .check_cache_ = &Rule_check_cache_,\
-                                                .clear_cache = &Rule_clear_cache,\
                                                 .check_rule_ = &Rule_check_rule_,\
                                                 .check = &Rule_check \
                                             }, \
@@ -421,7 +353,6 @@ void NamedProduction_as_Rule_del(Rule * named_production_rule);
                                     .Rule = { \
                                         ._class = &(DerivedRule_class.Rule_class), \
                                         .id = Rule_DEFAULT_ID, \
-                                        .cache_ = DEFAULT_PACKRATCACHE \
                                     }, \
                                     .rule = NULL \
                                     }
@@ -432,10 +363,6 @@ void NamedProduction_as_Rule_del(Rule * named_production_rule);
                                             .init = &Rule_init,\
                                             .dest = &Rule_dest, \
                                             .del = &DerivedRule_as_Rule_del,\
-                                            /*.build = &Rule_build,*/\
-                                            .cache_check_ = &Rule_cache_check_,\
-                                            .check_cache_ = &Rule_check_cache_,\
-                                            .clear_cache = &DerivedRule_clear_cache,\
                                             .check_rule_ = &Rule_check_rule_,\
                                             .check = &Rule_check \
                                         }, \
@@ -467,7 +394,6 @@ err_type DerivedRule_init(DerivedRule * self, rule_id_type id, Rule * rule);
 void DerivedRule_dest(DerivedRule * self);
 void DerivedRule_del(DerivedRule * self);
 void DerivedRule_as_Rule_del(Rule * derived_rule);
-void DerivedRule_clear_cache(Rule * derived_rule, Token * tok);
 
 /* ListRule class definitions and declarations */
 
@@ -477,7 +403,6 @@ void DerivedRule_clear_cache(Rule * derived_rule, Token * tok);
                                     .Rule = { \
                                         ._class = &(ListRule_class.DerivedRule_class.Rule_class), \
                                         .id = Rule_DEFAULT_ID, \
-                                        .cache_ = DEFAULT_PACKRATCACHE \
                                     }, \
                                     .rule = NULL \
                                 }, \
@@ -492,10 +417,6 @@ void DerivedRule_clear_cache(Rule * derived_rule, Token * tok);
                                             .init = &Rule_init,\
                                             .dest = &Rule_dest, \
                                             .del = &ListRule_as_Rule_del,\
-                                            /*.build = &ListRule_build,*/\
-                                            .cache_check_ = &Rule_cache_check_,\
-                                            .check_cache_ = &Rule_check_cache_,\
-                                            .clear_cache = &ListRule_clear_cache,\
                                             .check_rule_ = &ListRule_check_rule_,\
                                             .check = &Rule_check\
                                             }, \
@@ -534,8 +455,7 @@ void ListRule_del(ListRule * self);
 void ListRule_as_DerivedRule_del(DerivedRule * list_rule);
 void ListRule_as_Rule_del(Rule * list_rule);
 //err_type ListRule_build(Rule * list_rule, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_key, bool disable_cache_check);
-void ListRule_clear_cache(Rule * list_rule, Token * tok);
+ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_key);
 
 /* RepeatRule class definitions and declarations */
 
@@ -547,7 +467,6 @@ void ListRule_clear_cache(Rule * list_rule, Token * tok);
                                         .Rule = { \
                                             ._class = &(RepeatRule_class.DerivedRule_class.Rule_class), \
                                             .id = Rule_DEFAULT_ID, \
-                                            .cache_ = DEFAULT_PACKRATCACHE \
                                         }, \
                                         .rule = NULL \
                                     }, \
@@ -563,10 +482,6 @@ void ListRule_clear_cache(Rule * list_rule, Token * tok);
                                             .init = &Rule_init,\
                                             .dest = &Rule_dest, \
                                             .del = &RepeatRule_as_Rule_del,\
-                                            /*.build = &RepeatRule_build,*/\
-                                            .cache_check_ = &Rule_cache_check_,\
-                                            .check_cache_ = &Rule_check_cache_,\
-                                            .clear_cache = &DerivedRule_clear_cache,\
                                             .check_rule_ = &RepeatRule_check_rule_,\
                                             .check = &Rule_check \
                                         }, \
@@ -606,7 +521,7 @@ void RepeatRule_del(RepeatRule * self);
 void RepeatRule_as_DerivedRule_del(DerivedRule * repeat_rule);
 void RepeatRule_as_Rule_del(Rule * repeat_rule);
 //err_type RepeatRule_build(Rule * repeat_rule, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t token_key, bool disable_cache_check);
+ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t token_key);
 
 /* OptionalRule class definitions and declarations */
 
@@ -616,7 +531,6 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t tok
                                         .Rule = { \
                                             ._class = &(OptionalRule_class.DerivedRule_class.Rule_class), \
                                             .id = Rule_DEFAULT_ID, \
-                                            .cache_ = DEFAULT_PACKRATCACHE \
                                         }, \
                                         .rule = NULL \
                                     } \
@@ -630,10 +544,6 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t tok
                                                 .init = &Rule_init,\
                                                 .dest = &Rule_dest, \
                                                 .del = &OptionalRule_as_Rule_del,\
-                                                /*.build = &OptionalRule_build,*/\
-                                                .cache_check_ = &Rule_cache_check_,\
-                                                .check_cache_ = &Rule_check_cache_,\
-                                                .clear_cache = &DerivedRule_clear_cache,\
                                                 .check_rule_ = &OptionalRule_check_rule_,\
                                                 .check = &Rule_check\
                                             }, \
@@ -671,7 +581,7 @@ void OptionalRule_del(OptionalRule * self);
 void OptionalRule_as_DerivedRule_del(DerivedRule * optional_rule);
 void OptionalRule_as_Rule_del(Rule * optional_rule);
 //err_type OptionalRule_build(Rule * optional_rule, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * OptionalRule_check_rule_(Rule * optional_rule, Parser * parser, size_t token_key, bool disable_cache_check);
+ASTNode * OptionalRule_check_rule_(Rule * optional_rule, Parser * parser, size_t token_key);
 
 /* NegativeLookahead Rule class definitions and declarations */
 
@@ -681,7 +591,6 @@ ASTNode * OptionalRule_check_rule_(Rule * optional_rule, Parser * parser, size_t
                                             .Rule = { \
                                                 ._class = &(NegativeLookahead_class.DerivedRule_class.Rule_class), \
                                                 .id = Rule_DEFAULT_ID, \
-                                                .cache_ = DEFAULT_PACKRATCACHE \
                                             }, \
                                             .rule = NULL \
                                         } \
@@ -695,10 +604,6 @@ ASTNode * OptionalRule_check_rule_(Rule * optional_rule, Parser * parser, size_t
                                                     .init = &Rule_init,\
                                                     .dest = &Rule_dest, \
                                                     .del = &NegativeLookahead_as_Rule_del,\
-                                                    /*.build = &NegativeLookahead_build,*/\
-                                                    .cache_check_ = &Rule_cache_check_,\
-                                                    .check_cache_ = &Rule_check_cache_,\
-                                                    .clear_cache = &DerivedRule_clear_cache,\
                                                     .check_rule_ = &NegativeLookahead_check_rule_,\
                                                     .check = &Rule_check\
                                                 }, \
@@ -736,7 +641,7 @@ void NegativeLookahead_del(NegativeLookahead * self);
 void NegativeLookahead_as_DerivedRule_del(DerivedRule * negative_lookahead);
 void NegativeLookahead_as_Rule_del(Rule * negative_lookahead);
 //err_type NegativeLookahead_build(Rule * negative_lookahead, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * parser, size_t token_key, bool disable_cache_check);
+ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * parser, size_t token_key);
 
 /* PositiveLookahead Rule definitions and declarations */
 
@@ -746,7 +651,6 @@ ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * pars
                                             .Rule = { \
                                                 ._class = &(PositiveLookahead_class.DerivedRule_class.Rule_class), \
                                                 .id = Rule_DEFAULT_ID, \
-                                                .cache_ = DEFAULT_PACKRATCACHE \
                                             }, \
                                             .rule = NULL \
                                         } \
@@ -760,10 +664,6 @@ ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * pars
                                                     .init = &Rule_init,\
                                                     .dest = &Rule_dest, \
                                                     .del = &PositiveLookahead_as_Rule_del,\
-                                                    /*.build = &PositiveLookahead_build,*/\
-                                                    .cache_check_ = &Rule_cache_check_,\
-                                                    .check_cache_ = &Rule_check_cache_,\
-                                                    .clear_cache = &DerivedRule_clear_cache,\
                                                     .check_rule_ = &PositiveLookahead_check_rule_,\
                                                     .check = &Rule_check\
                                                 }, \
@@ -801,7 +701,7 @@ void PositiveLookahead_del(PositiveLookahead * self);
 void PositiveLookahead_as_DerivedRule_del(DerivedRule * positive_lookahead);
 void PositiveLookahead_as_Rule_del(Rule * positive_lookahead);
 //err_type PositiveLookahead_build(Rule * positive_lookahead, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser, size_t token_key, bool disable_cache_check);
+ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser, size_t token_key);
 
 /* AnonymousProduction Rule abstract class definitions and declarations */
 
@@ -811,7 +711,6 @@ ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * pars
                                                 .Rule = { \
                                                     ._class = &(AnonymousProduction_class.DerivedRule_class.Rule_class), \
                                                     .id = Rule_DEFAULT_ID, \
-                                                    .cache_ = DEFAULT_PACKRATCACHE \
                                                 }, \
                                                 .rule = NULL \
                                             } \
@@ -825,10 +724,6 @@ ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * pars
                                                         .init = &Rule_init,\
                                                         .dest = &Rule_dest, \
                                                         .del = &AnonymousProduction_as_Rule_del,\
-                                                        /*.build = &AnonymousProduction_build,*/\
-                                                        .cache_check_ = &Rule_cache_check_,\
-                                                        .check_cache_ = &Rule_check_cache_,\
-                                                        .clear_cache = &DerivedRule_clear_cache,\
                                                         .check_rule_ = &Rule_check_rule_,\
                                                         .check = &Rule_check \
                                                     }, \
@@ -881,7 +776,6 @@ typedef ASTNode * (*build_action_ftype)(Parser * parser, ASTNode *node);
                                             .Rule = { \
                                                 ._class = &(Production_class.AnonymousProduction_class.DerivedRule_class.Rule_class), \
                                                 .id = Rule_DEFAULT_ID, \
-                                                .cache_ = DEFAULT_PACKRATCACHE \
                                             }, \
                                             .rule = NULL \
                                         } \
@@ -899,10 +793,6 @@ typedef ASTNode * (*build_action_ftype)(Parser * parser, ASTNode *node);
                                                     .init = &Rule_init,\
                                                     .dest = &Rule_dest, \
                                                     .del = &Production_as_Rule_del,\
-                                                    /*.build = &Production_build,*/\
-                                                    .cache_check_ = &Rule_cache_check_,\
-                                                    .check_cache_ = &Rule_check_cache_,\
-                                                    .clear_cache = &DerivedRule_clear_cache,\
                                                     .check_rule_ = &Production_check_rule_,\
                                                     .check = &Rule_check \
                                                     }, \
@@ -947,6 +837,6 @@ void Production_as_AnonymousProduction_del(AnonymousProduction * production);
 void Production_as_DerivedRule_del(DerivedRule * production);
 void Production_as_Rule_del(Rule * production);
 //err_type Production_build(Rule * production, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * Production_check_rule_(Rule * production, Parser * parser, size_t token_key, bool disable_cache_check);
+ASTNode * Production_check_rule_(Rule * production, Parser * parser, size_t token_key);
 
 #endif // PEGGY_RULE_H

@@ -99,7 +99,7 @@ void hm_print_error_message(hash_map_err status);
 #if defined(KEY_TYPE) && defined(VALUE_TYPE)
 
 #ifndef HASH_FILL_RESIZE_RATIO
-#define HASH_FILL_RESIZE_RATIO 3 / 5
+#define HASH_FILL_RESIZE_RATIO .5
 #endif
 
 #define HASH_COMBO CAT3(KEY_TYPE, _, VALUE_TYPE)
@@ -174,6 +174,30 @@ static const CAT(HASH_COMBO, _Type) CAT(HASH_COMBO, _class) = {
     .for_each = &(CAT(HASH_COMBO, _for_each)),
 };
 
+static HASH_PAIR ** CAT(HASH_COMBO, _linear_probe)(HASH_PAIR ** bins, size_t start_index, size_t capacity) {
+    if (*(bins + start_index)) {
+        HASH_PAIR ** bin_begin = bins + start_index;
+        HASH_PAIR ** bin = bin_begin + 1;
+        HASH_PAIR ** bin_cap = bins + capacity;
+        if (bin == bin_cap) {
+            bin = bins;
+        }
+        
+        while (*bin != NULL && bin != bin_begin) {
+            if (++bin == bin_cap) {
+                bin = bins;
+            }
+        }
+        if (bin == bin_begin) {
+            return NULL;
+        }
+        bins = bin;
+    } else {
+        bins = bins + start_index;
+    }
+    return bins;
+}
+
 /* inserts a key-value pair into the hash map */
 static hash_map_err CAT(HASH_COMBO, _insert)(HASH_MAP_TYPE * map, HASH_PAIR * pair) {
     //printf("inserting pair into map of size %zu (%zu)\n", map->fill, map->capacity);
@@ -186,27 +210,13 @@ static hash_map_err CAT(HASH_COMBO, _insert)(HASH_MAP_TYPE * map, HASH_PAIR * pa
     size_t bin_start = HASH_FUNC(pair->key, map->capacity);
     
     HASH_PAIR ** bins = map->bins;
-    if (*(bins + bin_start)) {
-        HASH_PAIR ** bin_begin = bins + bin_start;
-        HASH_PAIR ** bin = bin_begin + 1;
-        HASH_PAIR ** bin_cap = bins + map->capacity;
-        if (bin == bin_cap) {
-            bin = bins;
-        }
-        
-        while (*bin != NULL && bin != bin_begin) {
-            if (++bin == bin_cap) {
-                bin = bins;
-            }
-        }
-        if (bin == bin_begin) {
-            return HM_INSERTION_FAILURE;
-        }
-        bins = bin;
+
+    bins = CAT(HASH_COMBO, _linear_probe)(bins, bin_start, map->capacity);
+    if (bins) {
+        *bins = pair;
     } else {
-        bins = bins + bin_start;
+        return HM_INSERTION_FAILURE;
     }
-    *bins = pair;
     
     /*
     HASH_PAIR * p;
@@ -415,8 +425,9 @@ static hash_map_err CAT(HASH_COMBO, _resize)(HASH_MAP_TYPE * map, size_t new_cap
     //printf("hash_map bins starting from %p to %p\n", (void *)map->bins, (void *)(map->bins + new_capacity));
     hash_map_err status = HM_SUCCESS;
     for (size_t i = 0; i < old_capacity; i++) {
-        if (old_bins[i]) {
-            if ((status = CAT(HASH_COMBO, _insert)(map, old_bins[i]))) {
+        HASH_PAIR * bin = old_bins[i];
+        if (bin && bin != HASH_PAIR_REMOVED) {
+            if ((status = CAT(HASH_COMBO, _insert)(map, bin))) {
                 return status;
             }
         }

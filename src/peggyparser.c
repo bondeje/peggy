@@ -745,17 +745,31 @@ void handle_production(PeggyParser * parser, ASTNode * node) {
     //printf("identifier.str address: %p\n", (void*)prod.identifier.str);
 }
 
+#if 0
+    #define REGEX_LIB_STRING_LEFT "\"^("
+    #define REGEX_LIB_OFFSET_LEFT 3
+    #define REGEX_LIB_STRING_RIGHT ")\""
+    #define REGEX_LIB_OFFSET_RIGHT 2
+#else
+    #define REGEX_LIB_STRING_LEFT "\""
+    #define REGEX_LIB_OFFSET_LEFT 1
+    #define REGEX_LIB_STRING_RIGHT "\""
+    #define REGEX_LIB_OFFSET_RIGHT 1
+#endif
+
 // returns one after last written character or dest if error
 PeggyString format_regex(char const * src, size_t src_length) {
     static char const * const escaped_chars = ".^$*+?()[{\\|";
 
-    size_t buffer_size = src_length + 6;
+    size_t buffer_size = src_length + 1 + REGEX_LIB_OFFSET_LEFT + REGEX_LIB_OFFSET_RIGHT;
     char * buffer = malloc(sizeof(char) * buffer_size);
     size_t len = 0;
 
     buffer[len++] = '"';
-    buffer[len++] = '^';
-    buffer[len++] = '(';
+#if 0
+    buffer[len++] = '^'; // stupid POSIX API
+    buffer[len++] = '('; // stupid POSIX API
+#endif
 
     for (size_t i = 0; i < src_length; i++) {
         if (len >= buffer_size - 2) {
@@ -774,7 +788,9 @@ PeggyString format_regex(char const * src, size_t src_length) {
         buffer = realloc(buffer, sizeof(char) * buffer_size);
     }
 
-    buffer[len++] = ')';
+#if 0
+    buffer[len++] = ')'; // stupid POSIX API
+#endif
     buffer[len++] = '"';
     buffer[len] = '\0';
 
@@ -924,13 +940,14 @@ void handle_regex_literal(PeggyParser * parser, ASTNode * node, const PeggyStrin
     PeggyProduction_declare(parser, prod);
     parser->productions._class->set(&parser->productions, prod.name, prod);
 
-    PeggyString arg = {.str = malloc(sizeof(char) * (prod.name.len + 4)), .len = 0};
-    memcpy((void*)arg.str, "\"^(", 3);
-    arg.len += 3;
-    memcpy((void*)(arg.str + 3), (void*)(prod.name.str + 1), prod.name.len - 2);
+
+    PeggyString arg = {.str = malloc(sizeof(char) * (prod.name.len  - 1 + REGEX_LIB_OFFSET_LEFT + REGEX_LIB_OFFSET_RIGHT)), .len = 0};
+    memcpy((void*)arg.str, REGEX_LIB_STRING_LEFT, REGEX_LIB_OFFSET_LEFT);
+    arg.len += REGEX_LIB_OFFSET_LEFT;
+    memcpy((void*)(arg.str + arg.len), (void*)(prod.name.str + 1), prod.name.len - 2);
     arg.len += prod.name.len - 2;
-    memcpy((void*)(arg.str + prod.name.len + 1), ")\"", 3);
-    arg.len += 2;
+    memcpy((void*)(arg.str + arg.len), REGEX_LIB_STRING_RIGHT, REGEX_LIB_OFFSET_RIGHT + 1);
+    arg.len += REGEX_LIB_OFFSET_RIGHT;
 
     /*
     for (size_t i = 0; i < prod.identifier.len; i++) {
@@ -977,12 +994,14 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
     //size_t n_lits = (node->children[2]->nchildren + 1) / 2;
     Token ** toks = parser->_class->Parser_class.get_tokens(&parser->Parser, node->children[2], &ntokens);
     arg.len = toks[ntokens-1]->end - toks[0]->start;
-    arg.len = 4 * arg.len + 6; // *4 since that is the longest that also escapes every character and include '|' separator and +3 for surrounding "^()"
+    arg.len = 4 * arg.len + 1 + REGEX_LIB_OFFSET_LEFT + REGEX_LIB_OFFSET_RIGHT; // *4 since that is the longest that also escapes every character and include '|' separator and +3 for surrounding "^()" (if stupid POSIX API)
     arg.str = malloc(sizeof(char) * arg.len); 
     size_t written = 0;
     arg.str[written++] = '"';
-    arg.str[written++] = '^';
-    arg.str[written++] = '(';
+#if 0
+    arg.str[written++] = '^'; // stupid POSIX API
+    arg.str[written++] = '('; // stupid POSIX API
+#endif
 
     size_t N = node->children[2]->nchildren;
 
@@ -993,8 +1012,8 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
         PeggyProduction str_lit_prod;
         parser->productions._class->get(&parser->productions, str_lit_name, &str_lit_prod);
 
-        char const * re = str_lit_prod.args.bins[0].str + 2; // remove starting "^
-        size_t length = str_lit_prod.args.bins[0].len - 3; // remove starting "^ and ending "
+        char const * re = str_lit_prod.args.bins[0].str + 1; // remove starting "^
+        size_t length = str_lit_prod.args.bins[0].len - 2; // remove starting "^ and ending "
 
         memcpy((void*)(arg.str + written), (void*)re, length);
         written += length;
@@ -1002,7 +1021,9 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
             arg.str[written++] = '|';
         }
     }
+#if 0
     arg.str[written++] = ')';
+#endif
     arg.str[written++] = '"';
     arg.len = written;
     arg.str[written] = '\0';
@@ -1263,7 +1284,6 @@ ASTNode * simplify_rule(Parser * parser, ASTNode * node) {
 								.Parser = {._class = &(PeggyParser_class.Parser_class), \
 									.token_rule = NULL, \
 									.root_rule = NULL, \
-									.tokens = NULL, \
 									.name = NULL, \
 									.log_buffer = NULL, \
 									.log_buffer_length = 0, \
@@ -1271,9 +1291,6 @@ ASTNode * simplify_rule(Parser * parser, ASTNode * node) {
 									.loc_ = 0, \
 									.tokens_length = 0, \
 									.tokens_capacity = 0, \
-									.node_list = NULL, \
-									.node_list_length = 0, \
-									.node_list_capacity = 0, \
 									.disable_cache_check = false, \
 									.ast = NULL \
 								}, \
@@ -1308,7 +1325,9 @@ struct PeggyParserType PeggyParser_class = {
         .gen_next_token_ = &Parser_gen_next_token_, 
         .get = &Parser_get, 
         .get_tokens = &Parser_get_tokens, 
-        .parse = &PeggyParser_parse, 
+        .parse = &PeggyParser_parse,
+        .check_cache = &Parser_check_cache,
+        .cache_check = &Parser_cache_check,
         .traverse = &Parser_traverse, 
         .print_ast = &Parser_print_ast 
     },
@@ -1317,28 +1336,22 @@ struct PeggyParserType PeggyParser_class = {
 };
 
 struct PeggyParser peggy = {
-    ._class = &PeggyParser_class, \
-    .Parser = {._class = &(PeggyParser_class.Parser_class), \
-        .token_rule = NULL, \
-        .root_rule = NULL, \
-        .tokens = NULL, \
-        .name = "", \
-        .log_buffer = NULL, \
-        .log_buffer_length = 0, \
-        .log_file = NULL, \
-        .loc_ = 0, \
-        .tokens_length = 0, \
-        .tokens_capacity = 0, \
-        .node_list = NULL, \
-        .node_list_length = 0, \
-        .node_list_capacity = 0, \
-        .disable_cache_check = false, \
-        .ast = NULL \
+    ._class = &PeggyParser_class,
+    .Parser = {._class = &(PeggyParser_class.Parser_class),
+        .token_rule = NULL,
+        .root_rule = NULL,
+        .name = "",
+        .log_buffer = NULL,
+        .log_buffer_length = 0,
+        .log_file = NULL,
+        .loc_ = 0,
+        .disable_cache_check = false,
+        .ast = NULL
     },\
-    .header_file = NULL, \
-    .source_file = NULL, \
-    .header_name = NULL, \
-    .source_name = NULL, \
+    .header_file = NULL,
+    .source_file = NULL,
+    .header_name = NULL,
+    .source_name = NULL,
 };
 
 err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * string, size_t string_length) {
@@ -1363,7 +1376,7 @@ err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_l
     parser->export.len = name_length;
     return parser->Parser._class->init(&(parser->Parser), name, name_length, string, 
 		string_length, &peggy_token.AnonymousProduction.DerivedRule.Rule, 
-		&peggy_peggy.AnonymousProduction.DerivedRule.Rule, 0, 0, false, NULL);
+		&peggy_peggy.AnonymousProduction.DerivedRule.Rule, PEGGY_NRULES, 0, 0, false, NULL);
 
 parser_productions_map_fail:
     parser->imports._class->dest(&parser->imports);
@@ -1422,16 +1435,17 @@ void PeggyParser_dest(PeggyParser * parser) {
 
 void PeggyParser_parse(Parser * self) {
 	//printf("in PeggyParser_parse\n");
-    self->ast = self->root_rule->_class->check(self->root_rule, self, false);
-    /*
+    self->ast = self->root_rule->_class->check(self->root_rule, self);
+
+        
     if (self->ast == &ASTNode_fail) {
         printf("parsing failed, no matches found\n\n");
-    } else if (self->ast->ntokens < self->tokens_length - 1) {
+    } else if (self->ast->ntokens < self->tokens.fill- 1) {
         printf("parsing failed to tokenize input\n\n");
-    } else {
-        printf("parsing succeeded\n");        
-    }
-    */
+    }// else {
+    //    printf("parsing succeeded\n");        
+    //}
+    
     /* TODO: logging */
 }
 
@@ -1456,7 +1470,7 @@ err_type from_file(char const * filename) {
     if (!string) {
         return PEGGY_MALLOC_FAILURE;
     }
-    fread(string, 1, file_size, pfile);
+    size_t nbytes = fread(string, 1, file_size, pfile);
     if (ferror(pfile)) {
         printf("error occurred in reading file: %s\n", filename);
         free(string);

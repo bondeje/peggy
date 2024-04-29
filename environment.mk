@@ -35,6 +35,7 @@ ifeq ($(UNAME), $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
         endif
     endif
 else
+    CFLAGS += -D $(UNAME)
     UNAME_M := $(shell uname -m)
     ifeq ($(UNAME_M),$(filter x86_64 amd64, $(UNAME_M)))
         CFLAGS += -D AMD64
@@ -48,9 +49,9 @@ else
 endif
 
 ifneq ($(origin NDEBUG), undefined)
-	CFLAGS += -DNDEBUG
+	CFLAGS += -DNDEBUG -O2
 else
-	CFLAGS += -g3 -pg
+	CFLAGS += -g3
 	ifeq (, $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
 	ifneq ($(origin SANITIZE), undefined)
 # sanitizer options are not available on Windows and a separate flag is necessary so that I can 
@@ -87,13 +88,13 @@ IFLAGS += -I$(INC_DIR)
 DEPFLAGS = -MMD -MP -MF 
 
 MAIN_SRCS = src/peggy.c src/peggyparser.c
-LIB_SRCS = src/astnode.c src/hash_map.c src/parser.c src/rule.c src/token.c src/type.c src/utils.c
+LIB_SRCS = src/astnode.c src/hash_map.c src/parser.c src/rule.c src/token.c src/type.c src/utils.c src/packrat_cache.c
 ALL_SRCS := $(shell find $(SRC_DIR) -name '*.c')
 LIB_OBJS := $(addprefix $(OBJ_DIR)/,$(LIB_SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(OBJ_SUFFIX)))
 
 #OS specific changes
 ifeq ($(UNAME), $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
-	LIBS += -lregex
+	LIBS += -lregex -ltre
 	EXE_EXT = .exe
 endif
 

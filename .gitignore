@@ -5,15 +5,14 @@ linear_files/
 sample_files/
 obj/
 bin/
-examples/peggy/backup/
-src/backup/
-include/backup/
 backup/
 old/
 .deps/
 .vscode/
+data/
 profile.txt
 gmon.out
+TODO.txt
 
 # development files
 main.c

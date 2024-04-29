@@ -14,13 +14,13 @@ csv(handle_csv):
     crlf.record, (crlf | whitespace)*
     
 token:
-    crlf | punctuator | whitespace | field
+    whitespace | crlf | punctuator | field
 
 record:
     ','.field
 
 nonstring_field:
-    "[^,\r\n]*"
+    "[^,\r\n]+"
     
 field:
     string | nonstring_field

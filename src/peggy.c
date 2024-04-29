@@ -86,13 +86,13 @@ LISTRULE(peggy_list_2_54,LIST_2_54,
 	&vbar.Rule,
 	&peggy_sequence.AnonymousProduction.DerivedRule.Rule);
 LITERALRULE(peggy_regex_literal_re,REGEX_LITERAL_RE,
-	"^(\"((\\\\\")|[^\"])*\")");
+	"\"((\\\\\")|[^\"])*\"");
 SEQUENCERULE(peggy_seq_3_58,SEQ_3_58,
 	&peggy_choice_2_59.ChainRule.Rule,
 	&colon.Rule,
 	&peggy_list_2_60.DerivedRule.Rule);
 LITERALRULE(rparen,RPAREN,
-	"^(\\))");
+	"\\)");
 CHOICERULE(peggy_choice_2_56,CHOICE_2_56,
 	&peggy_seq_3_57.ChainRule.Rule,
 	&peggy_seq_3_58.ChainRule.Rule);
@@ -106,9 +106,9 @@ PRODUCTION(peggy_sequence,SEQUENCE,
 	&peggy_list_2_53.DerivedRule.Rule,
 	simplify_rule);
 LITERALRULE(peggy_punctuator,PUNCTUATOR,
-	"^((!)|(\\|)|(,)|(\\?)|(\\.)|(&)|(:)|(\\+)|(\\*)|(\\()|(\\))|(\\{)|(}))");
+	"(!)|(\\|)|(,)|(\\?)|(\\.)|(&)|(:)|(\\+)|(\\*)|(\\()|(\\))|(\\{)|(})");
 LITERALRULE(asterisk,ASTERISK,
-	"^(\\*)");
+	"\\*");
 PRODUCTION(peggy_production,PRODUCTION,
 	&peggy_seq_4_64.ChainRule.Rule);
 SEQUENCERULE(peggy_seq_3_37,SEQ_3_37,
@@ -118,18 +118,18 @@ SEQUENCERULE(peggy_seq_3_37,SEQ_3_37,
 PRODUCTION(peggy_base_rule,BASE_RULE,
 	&peggy_choice_3_36.ChainRule.Rule);
 LITERALRULE(lbrace,LBRACE,
-	"^(\\{)");
+	"\\{");
 LISTRULE(peggy_list_2_44,LIST_2_44,
 	&period.Rule,
 	&peggy_lookahead_rule.AnonymousProduction.DerivedRule.Rule);
 LITERALRULE(question,QUESTION,
-	"^(\\?)");
+	"\\?");
 LITERALRULE(plus,PLUS,
-	"^(\\+)");
+	"\\+");
 LITERALRULE(exclaim,EXCLAIM,
-	"^(!)");
+	"!");
 LITERALRULE(import_kw,IMPORT_KW,
-	"^(import)");
+	"import");
 LISTRULE(peggy_list_2_62,LIST_2_62,
 	&comma.Rule,
 	&peggy_nonws_printable.AnonymousProduction.DerivedRule.Rule);
@@ -145,17 +145,17 @@ LISTRULE(peggy_list_2_60,LIST_2_60,
 	&vbar.Rule,
 	&peggy_string_literal.AnonymousProduction.DerivedRule.Rule);
 LITERALRULE(peggy_digit_seq_re,DIGIT_SEQ_RE,
-	"^([0-9]*)");
+	"[0-9]*");
 LITERALRULE(vbar,VBAR,
-	"^(\\|)");
+	"\\|");
 LITERALRULE(comma,COMMA,
-	"^(,)");
+	",");
 PRODUCTION(peggy_nonterminal,NONTERMINAL,
 	&peggy_identifier.AnonymousProduction.DerivedRule.Rule);
 LITERALRULE(rbrace,RBRACE,
-	"^(})");
+	"}");
 LITERALRULE(keyword_kw,KEYWORD_KW,
-	"^(keyword)");
+	"keyword");
 PRODUCTION(peggy_repeated_rule,REPEATED_RULE,
 	&peggy_seq_2_48.ChainRule.Rule,
 	simplify_rule);
@@ -188,11 +188,11 @@ SEQUENCERULE(peggy_seq_2_48,SEQ_2_48,
 	&peggy_list_rule.AnonymousProduction.DerivedRule.Rule,
 	&peggy_rep_0_1_49.DerivedRule.Rule);
 LITERALRULE(period,PERIOD,
-	"^(\\.)");
+	"\\.");
 PRODUCTION(peggy_config,CONFIG,
 	&peggy_seq_3_68.ChainRule.Rule);
 LITERALRULE(export_kw,EXPORT_KW,
-	"^(export)");
+	"export");
 SEQUENCERULE(peggy_seq_4_64,SEQ_4_64,
 	&peggy_identifier.AnonymousProduction.DerivedRule.Rule,
 	&peggy_rep_0_1_65.DerivedRule.Rule,
@@ -213,7 +213,7 @@ PRODUCTION(peggy_list_rule,LIST_RULE,
 PRODUCTION(peggy_terminal,TERMINAL,
 	&peggy_choice_2_34.ChainRule.Rule);
 LITERALRULE(peggy_identifier_re,IDENTIFIER_RE,
-	"^([A-Za-z0-9_]+)");
+	"[A-Za-z0-9_]+");
 PRODUCTION(peggy_lookahead_rule,LOOKAHEAD_RULE,
 	&peggy_seq_2_40.ChainRule.Rule,
 	simplify_rule);
@@ -221,20 +221,20 @@ CHOICERULE(peggy_choice_2_59,CHOICE_2_59,
 	&punctuator_kw.Rule,
 	&keyword_kw.Rule);
 LITERALRULE(peggy_keyword,KEYWORD,
-	"^((import)|(export)|(punctuator)|(keyword)|(token))");
+	"(import)|(export)|(punctuator)|(keyword)|(token)");
 LITERALRULE(token_kw,TOKEN_KW,
-	"^(token)");
+	"token");
 PRODUCTION(peggy_nonws_printable,NONWS_PRINTABLE,
 	&peggy_nonws_printable_re.Rule);
 REPEATRULE(peggy_rep_1_0_71,REP_1_0_71,
 	&peggy_choice_3_72.ChainRule.Rule,
 	1);
 LITERALRULE(colon,COLON,
-	"^(:)");
+	":");
 LITERALRULE(peggy_string_literal_re,STRING_LITERAL_RE,
-	"^('((\\\\)\'|[^\'])*')");
+	"'((\\\\)\'|[^\'])*'");
 LITERALRULE(ampersand,AMPERSAND,
-	"^(&)");
+	"&");
 SEQUENCERULE(peggy_seq_3_66,SEQ_3_66,
 	&lparen.Rule,
 	&peggy_transform_functions.AnonymousProduction.DerivedRule.Rule,
@@ -250,7 +250,7 @@ SEQUENCERULE(peggy_seq_3_57,SEQ_3_57,
 	&colon.Rule,
 	&peggy_choice.AnonymousProduction.DerivedRule.Rule);
 LITERALRULE(punctuator_kw,PUNCTUATOR_KW,
-	"^(punctuator)");
+	"punctuator");
 CHOICERULE(peggy_choice_3_72,CHOICE_3_72,
 	&peggy_config.AnonymousProduction.DerivedRule.Rule,
 	&peggy_special_production.AnonymousProduction.DerivedRule.Rule,
@@ -260,7 +260,7 @@ PRODUCTION(peggy_string_literal,STRING_LITERAL,
 PRODUCTION(peggy_digit_seq,DIGIT_SEQ,
 	&peggy_digit_seq_re.Rule);
 LITERALRULE(peggy_nonws_printable_re,NONWS_PRINTABLE_RE,
-	"^([^[:space:]]+)");
+	"[^[:space:]]+");
 PRODUCTION(peggy_special_production,SPECIAL_PRODUCTION,
 	&peggy_choice_2_56.ChainRule.Rule);
 PRODUCTION(peggy_peggy,PEGGY,
@@ -270,13 +270,13 @@ PRODUCTION(peggy_token,TOKEN,
 	&peggy_choice_6_29.ChainRule.Rule,
 	token_action);
 LITERALRULE(lparen,LPAREN,
-	"^(\\()");
+	"\\(");
 REPEATRULE(peggy_rep_0_1_65,REP_0_1_65,
 	&peggy_seq_3_66.ChainRule.Rule,
 	0,
 	1);
 LITERALRULE(peggy_whitespace_re,WHITESPACE_RE,
-	"^(([[:space:]]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+)");
+	"([[:space:]]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+");
 
 
 Rule * peggyrules[PEGGY_NRULES + 1] = {

@@ -30,7 +30,7 @@ err_type CSVParser_init(CSVParser * parser, char const * name, size_t name_lengt
     parser->data = NULL;
     parser->ncols = 0;
     parser->nrows = 0;
-    parser->Parser._class->init(&parser->Parser, name, name_length, string, string_length, &csv_token.AnonymousProduction.DerivedRule.Rule, &csv_csv.AnonymousProduction.DerivedRule.Rule, 0, 0, false, NULL);
+    parser->Parser._class->init(&parser->Parser, name, name_length, string, string_length, &csv_token.AnonymousProduction.DerivedRule.Rule, &csv_csv.AnonymousProduction.DerivedRule.Rule, CSV_NRULES, 0, 0, false, NULL);
     return PEGGY_SUCCESS;
 }
 
@@ -42,7 +42,22 @@ void CSVParser_dest(CSVParser * parser) {
     parser->Parser._class->dest(&parser->Parser);
 }
 
-CSVParser csv = {.Parser = Parser_DEFAULT_INIT, .data = NULL, .ncols = 0, .nrows = 0};
+CSVParser csv = {
+    .Parser = {
+        ._class = &Parser_class,
+        .token_rule = NULL,
+        .root_rule = NULL,
+        .name = "",
+        .log_buffer = NULL,
+        .log_buffer_length = 0,
+        .log_file = NULL,
+        .loc_ = 0,
+        .disable_cache_check = false,
+        .ast = NULL
+    }, 
+    .data = NULL, 
+    .ncols = 0, 
+    .nrows = 0};
 
 void handle_field(CSVParser * parser, ASTNode * node, size_t row, size_t col) {
     size_t ntokens;
@@ -73,6 +88,7 @@ ASTNode * handle_csv(Parser * parser, ASTNode * node) {
     ASTNode * record_list = node->children[0];
     csv->nrows = (record_list->nchildren + 1) / 2;
     csv->ncols = (record_list->children[0]->nchildren + 1) / 2;
+    /*
     csv->data = malloc(sizeof(*(csv->data)) * csv->nrows * csv->ncols);
     
     size_t N = record_list->nchildren;
@@ -82,7 +98,7 @@ ASTNode * handle_csv(Parser * parser, ASTNode * node) {
         j++;
     }
     printf("succeeded parsing %s\n", parser->name);
-    
+    */
     return node;
 }
 
@@ -107,6 +123,7 @@ err_type from_string(char const * string, size_t string_length, char const * nam
     } else {
         CSVParser_init(&csv, name, name_length, string, string_length);
     }
+    printf("number of nodes found: %zu\n", csv.Parser.node_list.fill);
     
 
     if (n_elem) {
@@ -131,7 +148,7 @@ err_type from_file(char const * filename, size_t * n_elem, double * time) {
         printf("failed to malloc sufficient data\n");
         return PEGGY_MALLOC_FAILURE;
     }
-    fread(string, 1, file_size, pfile);
+    size_t nbytes = fread(string, 1, file_size, pfile);
     if (ferror(pfile)) {
         printf("error occurred in reading file: %s\n", filename);
         free(string);
@@ -181,21 +198,25 @@ int main(int narg, char ** args) {
         
     }
 
-    //nfiles = (nfiles < 8) ? nfiles : 8;
+    nfiles = (nfiles < 18) ? nfiles : 18;
     if (timeit) {
         char buffer[1026] = {'\0'};
+        int length = 0;
         FILE * time_records = fopen("times.csv", "w");
         for (unsigned int i = 0; i < nfiles; i++) {
             
-            char buffer[1026];
+            //char buffer[1026];
             printf("processing %s...", filenames[i]);
             double time;
             size_t n_elements;
             from_file(filenames[i], &n_elements, &time);
             //CSVParser_dest(&csv);
 
-            snprintf(buffer, 1026, "%zu, %10.8lf, %s\n", n_elements, time, filenames[i]);
+            if ((length = snprintf(buffer, 1026, "%zu, %10.8lf, %s\n", n_elements, time, filenames[i])) > 0) {
+                fwrite(buffer, sizeof(char), length, time_records);
+            }
             printf("%s", buffer);
+
         }
         
         fclose(time_records);
@@ -208,7 +229,6 @@ int main(int narg, char ** args) {
             //CSVParser_dest(&csv);
         }
     }
-
     csv_dest();
     return 0;
 }

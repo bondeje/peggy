@@ -1,5 +1,13 @@
 #include <peggy/utils.h>
 
+#if defined(MSYS)
+    #define REGEX_LEFT "^("
+    #define REGEX_RIGHT ")"
+#else 
+    #define REGEX_LEFT 
+    #define REGEX_RIGHT
+#endif
+
 // variadic is a list of Rule *
 #define SEQUENCERULE(IDENTIFIER, ENUM_IDENTIFIER, ...) \
 SequenceRule IDENTIFIER = { \
@@ -9,7 +17,6 @@ SequenceRule IDENTIFIER = { \
             .Rule = { \
                 ._class = &(SequenceRule_class.ChainRule_class.Rule_class), \
                 .id = ENUM_IDENTIFIER, \
-                .cache_ = DEFAULT_PACKRATCACHE \
             }, \
             .deps = (Rule *[VARIADIC_SIZE(__VA_ARGS__)]) {__VA_ARGS__}, \
         .deps_size = VARIADIC_SIZE(__VA_ARGS__) \
@@ -25,7 +32,6 @@ ChoiceRule IDENTIFIER = { \
         .Rule = { \
             ._class = &(ChoiceRule_class.ChainRule_class.Rule_class), \
             .id = ENUM_IDENTIFIER, \
-            .cache_ = DEFAULT_PACKRATCACHE \
         }, \
         .deps = (Rule *[VARIADIC_SIZE(__VA_ARGS__)]) {__VA_ARGS__}, \
         .deps_size = VARIADIC_SIZE(__VA_ARGS__) \
@@ -38,9 +44,8 @@ LiteralRule IDENTIFIER = { \
     .Rule = { \
         ._class = &(LiteralRule_class.Rule_class), \
         .id = ENUM_IDENTIFIER, \
-        .cache_ = DEFAULT_PACKRATCACHE \
     }, \
-    .regex_s = REGEX, \
+    .regex_s = REGEX_LEFT REGEX REGEX_RIGHT, \
     .compiled = false \
 }
 
@@ -52,7 +57,6 @@ ListRule IDENTIFIER = { \
         .Rule = { \
             ._class = &(ListRule_class.DerivedRule_class.Rule_class), \
             .id = ENUM_IDENTIFIER, \
-            .cache_ = DEFAULT_PACKRATCACHE \
         }, \
         .rule = pRULE_ELEMENT \
     }, \
@@ -67,7 +71,6 @@ RepeatRule IDENTIFIER = { \
         .Rule = { \
             ._class = &(RepeatRule_class.DerivedRule_class.Rule_class), \
             .id = ENUM_IDENTIFIER, \
-            .cache_ = DEFAULT_PACKRATCACHE \
         }, \
         .rule = pRULE \
     }, \
@@ -86,7 +89,6 @@ OptionalRule IDENTIFIER = { \
         .Rule = { \
             ._class = &(OptionalRule_class.DerivedRule_class.Rule_class), \
             .id = ENUM_IDENTIFIER, \
-            .cache_ = DEFAULT_PACKRATCACHE \
         }, \
         .rule = pRULE \
     } \
@@ -100,7 +102,6 @@ NegativeLookahead IDENTIFIER = { \
         .Rule = { \
             ._class = &(NegativeLookahead_class.DerivedRule_class.Rule_class), \
             .id = ENUM_IDENTIFIER, \
-            .cache_ = DEFAULT_PACKRATCACHE \
         }, \
         .rule = pRULE \
     } \
@@ -114,7 +115,6 @@ PositiveLookahead IDENTIFIER = { \
         .Rule = { \
             ._class = &(PositiveLookahead_class.DerivedRule_class.Rule_class), \
             .id = ENUM_IDENTIFIER, \
-            .cache_ = DEFAULT_PACKRATCACHE \
         }, \
         .rule = pRULE \
     } \
@@ -128,7 +128,6 @@ AnonymousProduction IDENTIFIER = { \
         .Rule = { \
             ._class = &(AnonymousProduction_class.DerivedRule_class.Rule_class), \
             .id = ENUM_IDENTIFIER, \
-            .cache_ = DEFAULT_PACKRATCACHE \
         }, \
         .rule = pRULE \
     } \
@@ -144,7 +143,6 @@ Production IDENTIFIER = { \
             .Rule = { \
                 ._class = &(Production_class.AnonymousProduction_class.DerivedRule_class.Rule_class), \
                 .id = ENUM_IDENTIFIER, \
-                .cache_ = DEFAULT_PACKRATCACHE \
             }, \
             .rule = pRULE \
         } \

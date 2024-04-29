@@ -21,3 +21,4 @@ clean:
 	rm -f $(EXAMPLE_NAME)$(EXE_EXT)
 	rm -f $(EXAMPLE_NAME)$(HDR_SUFFIX)
 	rm -f $(EXAMPLE_NAME)$(SRC_SUFFIX)
+	rm -f gmon.out

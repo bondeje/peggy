@@ -7,7 +7,7 @@
 #include <peggy/parser.h>
 
 typedef enum peggyrule {
-	WHITESPACE,
+	WHITESPACE, // 0
 	WHITESPACE_RE,
 	STRING_LITERAL,
 	STRING_LITERAL_RE,
@@ -17,7 +17,7 @@ typedef enum peggyrule {
 	EXCLAIM,
 	VBAR,
 	COMMA,
-	QUESTION,
+	QUESTION, // 10
 	PERIOD,
 	AMPERSAND,
 	COLON,
@@ -27,7 +27,7 @@ typedef enum peggyrule {
 	RPAREN,
 	LBRACE,
 	RBRACE,
-	KEYWORD,
+	KEYWORD, // 20
 	IMPORT_KW,
 	EXPORT_KW,
 	PUNCTUATOR_KW,
@@ -37,7 +37,7 @@ typedef enum peggyrule {
 	IDENTIFIER_RE,
 	TOKEN,
 	CHOICE_6_29,
-	NONWS_PRINTABLE,
+	NONWS_PRINTABLE, // 30
 	NONWS_PRINTABLE_RE,
 	NONTERMINAL,
 	TERMINAL,
@@ -47,7 +47,7 @@ typedef enum peggyrule {
 	SEQ_3_37,
 	LOOKAHEAD_RULE,
 	SEQ_2_40,
-	REP_0_1_41,
+	REP_0_1_41, // 40
 	CHOICE_2_42,
 	LIST_RULE,
 	LIST_2_44,
@@ -57,7 +57,7 @@ typedef enum peggyrule {
 	SEQ_2_48,
 	REP_0_1_49,
 	CHOICE_4_50,
-	SEQ_5_51,
+	SEQ_5_51, // 50
 	SEQUENCE,
 	LIST_2_53,
 	CHOICE,
@@ -67,7 +67,7 @@ typedef enum peggyrule {
 	SEQ_3_57,
 	SEQ_3_58,
 	CHOICE_2_59,
-	LIST_2_60,
+	LIST_2_60, // 60
 	TRANSFORM_FUNCTIONS,
 	LIST_2_62,
 	PRODUCTION,
@@ -77,7 +77,7 @@ typedef enum peggyrule {
 	CONFIG,
 	SEQ_3_68,
 	CHOICE_2_69,
-	PEGGY,
+	PEGGY, // 70
 	REP_1_0_71,
 	CHOICE_3_72,
 	PEGGY_NRULES

@@ -50,9 +50,6 @@ extern struct PeggyParserType {
 #define ELEMENT_TYPE PeggyProduction
 #include <peggy/stack.h>
 
-#define ELEMENT_TYPE pASTNode
-#include <peggy/stack.h>
-
 struct PeggyParser {
     struct PeggyParserType const * _class;
 	Parser Parser;

@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <peggy/utils.h>
 
 #define STACK_INIT(k) CAT(k, Stack_init)
@@ -50,6 +51,7 @@ typedef struct CAT(STACK_TYPE, _Type) {
     err_type (*push)(STACK_TYPE * stack, ELEMENT_TYPE value);
     err_type (*peek)(STACK_TYPE * stack, ELEMENT_TYPE * value);
     void (*for_each)(STACK_TYPE * stack, int (*handle_item)(void * data, ELEMENT_TYPE value), void * data);
+    err_type (*resize)(STACK_TYPE * stack, size_t new_capacity);
 } CAT(STACK_TYPE, _Type);
 
 struct STACK_TYPE {
@@ -81,6 +83,7 @@ static const CAT(STACK_TYPE, _Type) CAT(STACK_TYPE, _class) = {
     .push = &(CAT(STACK_TYPE, _push)),
     .peek = &(CAT(STACK_TYPE, _peek)),
     .for_each = &(CAT(STACK_TYPE, _for_each)),
+    .resize = &(CAT(STACK_TYPE, _resize))
 };
 
 static err_type CAT(STACK_TYPE, _pop)(STACK_TYPE * stack, ELEMENT_TYPE * value) {
@@ -151,10 +154,14 @@ static void CAT(STACK_TYPE, _for_each)(STACK_TYPE * stack, int (*handle_item)(vo
     }
 }
 static err_type CAT(STACK_TYPE, _resize)(STACK_TYPE * stack, size_t new_capacity) {
-    ELEMENT_TYPE * new_bins = realloc(stack->bins, sizeof(*stack->bins) * new_capacity);
+    //printf("realloc to new size in stack: %zu\n", new_capacity);
+    //ELEMENT_TYPE * new_bins = realloc(stack->bins, sizeof(*stack->bins) * new_capacity);
+    ELEMENT_TYPE * new_bins = calloc(sizeof(*stack->bins), new_capacity);
     if (!new_bins) {
         return PEGGY_MALLOC_FAILURE;
     }
+    memcpy(new_bins, stack->bins, stack->fill * sizeof(ELEMENT_TYPE));
+    free(stack->bins);
     stack->bins = new_bins;
     stack->capacity = new_capacity;
     return PEGGY_SUCCESS;
