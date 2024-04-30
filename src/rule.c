@@ -1,3 +1,4 @@
+// should break LiteralRule off so that the regex stuff is completely separate
 #define _GNU_SOURCE
 /**
  * High level TODO: 
@@ -17,10 +18,10 @@
 #include <tre/tre.h>
 #endif
 
-#define DEFAULT_RE_SYNTAX (RE_SYNTAX_POSIX_EXTENDED | RE_CHAR_CLASSES)
+#define DEFAULT_RE_SYNTAX RE_SYNTAX_POSIX_EXTENDED | RE_BACKSLASH_ESCAPE_IN_LISTS | RE_DOT_NEWLINE
 
 #include <peggy/utils.h>
-#include <peggy/type.h>
+//#include <peggy/type.h>
 #include <peggy/rule.h>
 #include <peggy/parser.h>
 #include <peggy/token.h>
@@ -28,17 +29,14 @@
 
 /* Rule implementations */
 
-/* Type system metadata for Rule */
-#define Rule_NAME "Rule"
-
-Type const Rule_TYPE = {._class = &Type_class,
-                        .type_name = Rule_NAME};
-/* END Type system metadata for Rule */
-
-/* for tracking rule IDs and equality */
-int rule_id = 0;
-
-struct RuleType Rule_class = RuleType_DEFAULT_INIT;
+struct RuleType Rule_class = {
+    .new = &Rule_new,
+    .init = &Rule_init,
+    .dest = &Rule_dest, 
+    .del = &Rule_del,
+    .check_rule_ = &Rule_check_rule_,
+    .check = &Rule_check
+};
 
 /* id = -1 means none provided */
 Rule * Rule_new(int id) {
@@ -57,8 +55,10 @@ Rule * Rule_new(int id) {
 /* id = -1 means none provided */
 err_type Rule_init(Rule * self, int id) {
     self->id = id;
+#ifndef NDEBUG
     self->ncalls = 0;
     self->nevals = 0;
+#endif
     return PEGGY_SUCCESS;
 }
 
@@ -79,8 +79,10 @@ ASTNode * Rule_check_rule_(Rule * self, Parser * parser, size_t token_keyk) {
 }
 
 ASTNode * Rule_check(Rule * self, Parser * parser) {
-    //printf("checking Rule id: %d (type: %s) @%zu\n", self->id, self->_class->_class->type_name, parser->loc_);
+    //printf("checking Rule id: %d (type: %s) @%zu\n", self->id, self->_class->type_name, parser->loc_);
+#ifndef NDEBUG
     self->ncalls++;
+#endif
     size_t token_key = parser->_class->tell(parser);
     ASTNode * res = parser->_class->check_cache(parser, self->id, token_key);
     if (res) {
@@ -90,12 +92,15 @@ ASTNode * Rule_check(Rule * self, Parser * parser) {
     }
     //printf("check cache failed\n");
     // check the rule and generate a node
+#ifndef NDEBUG
     self->nevals++;
+#endif
     res = self->_class->check_rule_(self, parser, token_key);
     // cache the result
     if (!res) {
         printf("storing a null from rule id %d!!!\n", self->id);
     }
+    //printf("caching result\n");
     parser->_class->cache_check(parser, self->id, token_key, res);
 
     /* TODO: log the result */
@@ -104,22 +109,32 @@ ASTNode * Rule_check(Rule * self, Parser * parser) {
         //printf("rule %d failed!\n", self->id);
         // reset the parser seek because the rule check failed
         parser->_class->seek(parser, token_key, P_SEEK_SET);
+    } else {
+        //printf("rule %d succeeded! Now at (%zu)\n", self->id, parser->loc_);
     }
-    //printf("rule %d succeeded! Now at (%zu)\n", self->id, parser->loc_);
+    
     return res;
 }
 
 /* ChainRule implementations */
 
-/* Type system metadata for ChainRule */
 #define ChainRule_NAME "ChainRule.Rule"
-//StructInfo ChainRule_INFO = {0};
-Type const ChainRule_TYPE = {//._info = &ChainRule_INFO,
-                               ._class = &Type_class,
-                               .type_name = ChainRule_NAME};
-/* END Type system metadata for ChainRule */
 
-struct ChainRuleType ChainRule_class = ChainRuleType_DEFAULT_INIT;
+struct ChainRuleType ChainRule_class = {
+    .Rule_class = {
+        .type_name = ChainRule_NAME,
+        .new = &Rule_new,
+        .init = &Rule_init,
+        .dest = &Rule_dest,
+        .del = &ChainRule_as_Rule_del,
+        .check_rule_ = &Rule_check_rule_,
+        .check = &Rule_check
+    },
+    .new = &ChainRule_new,
+    .init = &ChainRule_init,
+    .dest = &ChainRule_dest,
+    .del = &ChainRule_del
+};
 
 ChainRule * ChainRule_new(rule_id_type id, size_t deps_size, Rule * deps[deps_size]) {
     ChainRule * ret = malloc(sizeof(ChainRule));
@@ -134,7 +149,8 @@ ChainRule * ChainRule_new(rule_id_type id, size_t deps_size, Rule * deps[deps_si
     return ret;
 }
 err_type ChainRule_init(ChainRule * self, rule_id_type id, size_t deps_size, Rule * deps[deps_size]) {
-    self->_class->Rule_class.init(&(self->Rule), id);
+    Rule * rule = (Rule *)self;
+    rule->_class->init(rule, id);
     self->deps_size = deps_size;
     self->deps = deps;
     return PEGGY_SUCCESS;
@@ -149,22 +165,34 @@ void ChainRule_del(ChainRule * self) {
 }
 
 void ChainRule_as_Rule_del(Rule * chain_rule) {
-    ChainRule_del(DOWNCAST_P(chain_rule, Rule, ChainRule));
+    ChainRule_del((ChainRule *)chain_rule);
 }
 
 /* SequenceRule implementations */
 /* NOTE: was "And" in the python version */
 
-/* Type system metadata for SequenceRule */
 #define SequenceRule_NAME "SequenceRule.ChainRule.Rule"
-//StructInfo SequenceRule_INFO = {0};
-Type const SequenceRule_TYPE = {//._info = &SequenceRule_INFO,
-                       ._class = &Type_class,
-                       .type_name = SequenceRule_NAME
-                       };
-/* END Type system metadata for SequenceRule */
 
-struct SequenceRuleType SequenceRule_class = SequenceRuleType_DEFAULT_INIT;
+struct SequenceRuleType SequenceRule_class = {
+    .ChainRule_class = {
+        .Rule_class = {
+            .type_name = SequenceRule_NAME,
+            .new = &Rule_new,
+            .init = &Rule_init,
+            .dest = &Rule_dest,
+            .del = &SequenceRule_as_Rule_del,
+            .check_rule_ = &SequenceRule_check_rule_,
+            .check = &Rule_check
+        },
+        .new = &ChainRule_new,
+        .init = &ChainRule_init,
+        .dest = &ChainRule_dest,
+        .del = &SequenceRule_as_ChainRule_del},
+    .new = &SequenceRule_new,
+    .init = &SequenceRule_init,
+    .dest = &SequenceRule_dest,
+    .del = &SequenceRule_del
+};
 
 SequenceRule * SequenceRule_new(rule_id_type id, size_t deps_size, Rule * deps[deps_size]) {
     SequenceRule * ret = malloc(sizeof(SequenceRule));
@@ -180,7 +208,8 @@ SequenceRule * SequenceRule_new(rule_id_type id, size_t deps_size, Rule * deps[d
 }
 
 err_type SequenceRule_init(SequenceRule * self, rule_id_type id, size_t deps_size, Rule * deps[deps_size]) {
-    self->_class->ChainRule_class.init(&(self->ChainRule), id, deps_size, deps);
+    ChainRule * chain_rule = (ChainRule *)self;
+    self->_class->init(self, id, deps_size, deps);
     return PEGGY_SUCCESS;
 }
 
@@ -193,24 +222,17 @@ void SequenceRule_del(SequenceRule * self) {
     free(self);
 }
 
-void SequenceRule_as_ChainRule_del(ChainRule * sequence_chain) {
-    SequenceRule_del(DOWNCAST_P(sequence_chain, ChainRule, SequenceRule));
+void SequenceRule_as_ChainRule_del(ChainRule * sequence_rule) {
+    SequenceRule_del((SequenceRule *)sequence_rule);
 }
 
 void SequenceRule_as_Rule_del(Rule * sequence_rule) {
-    SequenceRule_del(DOWNCAST_P(DOWNCAST_P(sequence_rule, Rule, ChainRule), ChainRule, SequenceRule));
+    SequenceRule_del((SequenceRule *)sequence_rule);
 }
-
-/*
-err_type SequenceRule_build(Rule * sequence_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
-    SequenceRule * self = DOWNCAST_P(DOWNCAST_P(sequence_rule, Rule, ChainRule), ChainRule, SequenceRule);
-    return PEGGY_NOT_IMPLEMENTED;
-}
-*/
 
 ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t token_key) {
     //printf("checking sequence rule. id: %d\n", sequence_rule->id);
-    SequenceRule * self = DOWNCAST_P(DOWNCAST_P(sequence_rule, Rule, ChainRule), ChainRule, SequenceRule);
+    SequenceRule * self = (SequenceRule *)sequence_rule;
     ASTNode ** children = malloc(sizeof(ASTNode *) * self->ChainRule.deps_size);
     if (!children) {
         return &ASTNode_fail;
@@ -245,16 +267,29 @@ ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t
 
 /* ChoiceRule implementations */
 
-/* Type system metadata for ChoiceRule */
 #define ChoiceRule_NAME "ChoiceRule.ChainRule.Rule"
-//StructInfo ChoiceRule_INFO = {0};
-Type const ChoiceRule_TYPE = {//._info = &ChoiceRule_INFO,
-                            ._class = &Type_class,
-                            .type_name = ChoiceRule_NAME
-                            };
-/* END Type system metadata for ChoiceRule */
 
-struct ChoiceRuleType ChoiceRule_class = ChoiceRuleType_DEFAULT_INIT;
+struct ChoiceRuleType ChoiceRule_class = {
+    .ChainRule_class = {
+        .Rule_class = {
+            .type_name = ChoiceRule_NAME,
+            .new = &Rule_new,
+            .init = &Rule_init,
+            .dest = &Rule_dest,
+            .del = &ChoiceRule_as_Rule_del,
+            .check_rule_ = &ChoiceRule_check_rule_,
+            .check = &Rule_check
+        },
+        .new = &ChainRule_new,
+        .init = &ChainRule_init,
+        .dest = &ChainRule_dest,
+        .del = &ChoiceRule_as_ChainRule_del
+    },
+    .new = &ChoiceRule_new,
+    .init = &ChoiceRule_init,
+    .dest = &ChoiceRule_dest,
+    .del = &ChoiceRule_del
+};
 
 ChoiceRule * ChoiceRule_new(rule_id_type id, size_t deps_size, Rule * deps[deps_size]) {
     ChoiceRule * ret = malloc(sizeof(*ret));
@@ -270,7 +305,8 @@ ChoiceRule * ChoiceRule_new(rule_id_type id, size_t deps_size, Rule * deps[deps_
 }
 
 err_type ChoiceRule_init(ChoiceRule * self, rule_id_type id, size_t deps_size, Rule * deps[deps_size]) {
-    self->_class->ChainRule_class.init(&(self->ChainRule), id, deps_size, deps);
+    ChainRule * chain_rule = (ChainRule *)self;
+    chain_rule->_class->init(chain_rule, id, deps_size, deps);
     return PEGGY_SUCCESS;
 }
 
@@ -283,24 +319,17 @@ void ChoiceRule_del(ChoiceRule * self) {
     free(self);
 }
 
-void ChoiceRule_as_ChainRule_del(ChainRule * choice_chain) {
-    ChoiceRule_del(DOWNCAST_P(choice_chain, ChainRule, ChoiceRule));
+void ChoiceRule_as_ChainRule_del(ChainRule * choice_rule) {
+    ChoiceRule_del((ChoiceRule *)choice_rule);
 }
 
 void ChoiceRule_as_Rule_del(Rule * choice_rule) {
-    ChoiceRule_del(DOWNCAST_P(DOWNCAST_P(choice_rule, Rule, ChainRule), ChainRule, ChoiceRule));
+    ChoiceRule_del((ChoiceRule *)choice_rule);
 }
-
-/*
-err_type ChoiceRule_build(Rule * choice_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
-    ChoiceRule * self = DOWNCAST_P(DOWNCAST_P(choice_rule, Rule, ChainRule), ChainRule, ChoiceRule);
-    return PEGGY_NOT_IMPLEMENTED;
-}
-*/
 
 ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser, size_t token_key) {
     //printf("checking choice rule. id: %d\n", choice_rule->id);
-    ChoiceRule * self = DOWNCAST_P(DOWNCAST_P(choice_rule, Rule, ChainRule), ChainRule, ChoiceRule);
+    ChoiceRule * self = (ChoiceRule *)choice_rule;
     for (size_t i = 0; i < self->ChainRule.deps_size; i++) {
         ASTNode * child_res = self->ChainRule.deps[i]->_class->check(self->ChainRule.deps[i], parser);
         if (child_res != &ASTNode_fail) {
@@ -313,16 +342,24 @@ ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser, size_t tok
 
 /* LiteralRule implementations */
 
-/* Type system metadata for LiteralRule */
 #define LiteralRule_NAME "LiteralRule.Rule"
-//StructInfo LiteralRule_INFO = {0};
-Type const LiteralRule_TYPE = {//._info = &LiteralRule_INFO,
-                            ._class = &Type_class,
-                            .type_name = LiteralRule_NAME
-                            };
-/* END Type system metadata for LiteralRule */
 
-struct LiteralRuleType LiteralRule_class = LiteralRuleType_DEFAULT_INIT;
+struct LiteralRuleType LiteralRule_class = {
+    .Rule_class = {
+        .type_name = LiteralRule_NAME,
+        .new = &Rule_new,
+        .init = &Rule_init,
+        .dest = &LiteralRule_as_Rule_dest,
+        .del = &LiteralRule_as_Rule_del,
+        .check_rule_ = &LiteralRule_check_rule_,
+        .check = &Rule_check
+    },
+    .new = &LiteralRule_new,
+    .init = &LiteralRule_init,
+    .dest = &LiteralRule_dest,
+    .del = &LiteralRule_del,
+    .compile = &LiteralRule_compile_regex
+};
 
 LiteralRule * LiteralRule_new(rule_id_type id, char const * regex_s) {
     LiteralRule * ret = malloc(sizeof(*ret));
@@ -358,7 +395,8 @@ err_type LiteralRule_compile_regex(LiteralRule * self) {
 }
 
 err_type LiteralRule_init(LiteralRule * self, rule_id_type id, char const * regex_s) {
-    self->_class->Rule_class.init(&(self->Rule), id);
+    Rule * rule = (Rule *)self;
+    rule->_class->init(rule, id);
     self->regex_s = regex_s;
     self->compiled = false;
     if (regex_s) {
@@ -380,11 +418,11 @@ void LiteralRule_del(LiteralRule * self) {
 }
 
 void LiteralRule_as_Rule_del(Rule * literal_rule) {
-    LiteralRule_del(DOWNCAST_P(literal_rule, Rule, LiteralRule));
+    LiteralRule_del((LiteralRule *)literal_rule);
 }
 
 void LiteralRule_as_Rule_dest(Rule * literal_rule) {
-    LiteralRule_dest(DOWNCAST_P(literal_rule, Rule, LiteralRule));
+    LiteralRule_dest((LiteralRule *)literal_rule);
 }
 
 /*
@@ -395,7 +433,7 @@ err_type LiteralRule_build(Rule * literal_rule, ParserGenerator * pg, char * buf
 */
 
 ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t token_key) {
-    LiteralRule * self = DOWNCAST_P(literal_rule, Rule, LiteralRule);
+    LiteralRule * self = (LiteralRule *)literal_rule;
     //printf("checking literal rule. id: %d, %s\n", literal_rule->id, self->regex_s);
     err_type status = PEGGY_SUCCESS;
     if (!self->compiled) {
@@ -441,69 +479,25 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t t
     return &ASTNode_fail;
 }
 
-/* NamedProduction implementations */
-
-/* Type system metadata for NamedProduction */
-#define NamedProduction_NAME "NamedProduction.Rule"
-//StructInfo NamedProduction_INFO = {0};
-Type const NamedProduction_TYPE = {//._info = &NamedProduction_INFO,
-                            ._class = &Type_class,
-                            .type_name = NamedProduction_NAME
-                            };
-/* END Type system metadata for NamedProduction */
-
-struct NamedProductionType NamedProduction_class = NamedProductionType_DEFAULT_INIT;
-
-NamedProduction * NamedProduction_new(rule_id_type id) {
-    NamedProduction * ret = malloc(sizeof(*ret));
-    if (!ret) {
-        return NULL;
-    }
-    *ret = (NamedProduction) NamedProduction_DEFAULT_INIT;
-    if (NamedProduction_init(ret, id)) {
-        free(ret);
-        ret = NULL;
-    }
-    return ret;
-}
-
-err_type NamedProduction_init(NamedProduction * self, rule_id_type id) {
-    self->_class->Rule_class.init(&(self->Rule), id);
-    return PEGGY_SUCCESS;
-}
-
-void NamedProduction_dest(NamedProduction * self) {
-    Rule_dest(&(self->Rule));
-}
-
-void NamedProduction_del(NamedProduction * self) {
-    NamedProduction_dest(self);
-    free(self);
-}
-
-void NamedProduction_as_Rule_del(Rule * named_production_rule) {
-    NamedProduction_del(DOWNCAST_P(named_production_rule, Rule, NamedProduction));
-}
-
-/*
-err_type NamedProduction_build(Rule * named_production, ParserGenerator * pg, char * buffer, size_t buffer_size) {
-    NamedProduction * self = DOWNCAST_P(named_production, Rule, NamedProduction);
-    return PEGGY_NOT_IMPLEMENTED;
-}
-*/
-
 /* DerivedRule implementations */
 
-/* Type system metadata for DerivedRule */
 #define DerivedRule_NAME "Rule.DerivedRule"
-//StructInfo DerivedRule_INFO = {0};
-Type const DerivedRule_TYPE = {//._info = &DerivedRule_INFO,
-                            ._class = &Type_class,
-                            .type_name = DerivedRule_NAME
-                            };
-/* END Type system metadata for DerivedRule */
 
-struct DerivedRuleType DerivedRule_class = DerivedRuleType_DEFAULT_INIT;
+struct DerivedRuleType DerivedRule_class = {  
+    .Rule_class = {
+        .type_name = DerivedRule_NAME,
+        .new = &Rule_new,
+        .init = &Rule_init,
+        .dest = &Rule_dest,
+        .del = &DerivedRule_as_Rule_del,
+        .check_rule_ = &Rule_check_rule_,
+        .check = &Rule_check
+    },
+    .new = &DerivedRule_new,
+    .init = &DerivedRule_init,
+    .dest = &DerivedRule_dest,
+    .del = &DerivedRule_del
+};
 
 DerivedRule * DerivedRule_new(rule_id_type id, Rule * rule) {
     DerivedRule * ret = malloc(sizeof(*ret));
@@ -519,13 +513,14 @@ DerivedRule * DerivedRule_new(rule_id_type id, Rule * rule) {
 }
 
 err_type DerivedRule_init(DerivedRule * self, rule_id_type id, Rule * rule) {
-    self->_class->Rule_class.init(&(self->Rule), id);
+    Rule * rule_ = (Rule *)self;
+    rule_->_class->init(rule_, id);
     self->rule = rule;
     return PEGGY_SUCCESS;
 }
 
 void DerivedRule_dest(DerivedRule * self) {
-    Rule_dest(&(self->Rule));
+    Rule_dest((Rule *)self);
 }
 
 void DerivedRule_del(DerivedRule * self) {
@@ -534,21 +529,34 @@ void DerivedRule_del(DerivedRule * self) {
 }
 
 void DerivedRule_as_Rule_del(Rule * derived_rule) {
-    DerivedRule_del(DOWNCAST_P(derived_rule, Rule, DerivedRule));
+    DerivedRule_del((DerivedRule *)derived_rule);
 }
 
 /* ListRule implementations */
 
-/* Type system metadata for ListRule */
 #define ListRule_NAME "ListRule.DerivedRule.Rule"
-//StructInfo ListRule_INFO = {0};
-Type const ListRule_TYPE = {//._info = &ListRule_INFO,
-                            ._class = &Type_class,
-                            .type_name = ListRule_NAME
-                            };
-/* END Type system metadata for ListRule */
 
-struct ListRuleType ListRule_class = ListRuleType_DEFAULT_INIT;
+struct ListRuleType ListRule_class = { 
+    .DerivedRule_class = {
+        .Rule_class = {
+            .type_name = ListRule_NAME,
+            .new = &Rule_new,
+            .init = &Rule_init,
+            .dest = &Rule_dest,
+            .del = &ListRule_as_Rule_del,
+            .check_rule_ = &ListRule_check_rule_,
+            .check = &Rule_check
+            },
+        .new = &DerivedRule_new,
+        .init = &DerivedRule_init,
+        .dest = &DerivedRule_dest,
+        .del = &ListRule_as_DerivedRule_del
+    },
+    .new = &ListRule_new,
+    .init = &ListRule_init,
+    .dest = &ListRule_dest,
+    .del = &ListRule_del
+};
 
 ListRule * ListRule_new(rule_id_type id, Rule * rule, Rule * delim) {
     ListRule * ret = malloc(sizeof(*ret));
@@ -563,7 +571,8 @@ ListRule * ListRule_new(rule_id_type id, Rule * rule, Rule * delim) {
     return ret;
 }
 err_type ListRule_init(ListRule * self, rule_id_type id, Rule * rule, Rule * delim) {
-    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
+    DerivedRule * derived = (DerivedRule *)self;
+    derived->_class->init(derived, id, rule);
     self->delim = delim;
     return PEGGY_SUCCESS;
 }
@@ -575,25 +584,23 @@ void ListRule_del(ListRule * self) {
     free(self);
 }
 void ListRule_as_DerivedRule_del(DerivedRule * list_rule) {
-    ListRule_del(DOWNCAST_P(list_rule, DerivedRule, ListRule));
+    ListRule_del((ListRule *)list_rule);
 }
 void ListRule_as_Rule_del(Rule * list_rule) {
-    ListRule_del(DOWNCAST_P(DOWNCAST_P(list_rule, Rule, DerivedRule), DerivedRule, ListRule));
+    ListRule_del((ListRule *)list_rule);
 }
-
-/*
-err_type ListRule_build(Rule * list_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
-    return PEGGY_NOT_IMPLEMENTED;
-}
-*/
 
 ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_key) {
     //printf("checking list rule. id: %d\n", list_rule->id);
-    ListRule * self = DOWNCAST_P(DOWNCAST_P(list_rule, Rule, DerivedRule), DerivedRule, ListRule);
+    ListRule * self = (ListRule *) list_rule;
 
     // call alternating checks for the delimiter and base rule to count the number of children
     size_t nchildren = 0;
-    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
+    Rule * derived_rule = ((DerivedRule *)self)->rule;
+    ASTNode * (*derived_rule_check)(Rule *, Parser *) = derived_rule->_class->check;
+    Rule * delim_rule = self->delim;
+    ASTNode * (*delim_rule_check)(Rule *, Parser *) = delim_rule->_class->check;
+    ASTNode * node = derived_rule_check(derived_rule, parser);
     //ASTNode * check_node = NULL;
     ASTNode * delim = &ASTNode_fail;
     while (node != &ASTNode_fail) {
@@ -601,7 +608,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
         //DEBUG_ASSERT(node == check_node, "failed to retrieve delimiter node from cache\n");
         //printf("verified check cache for rule id %d at %zu. %p == %p\n", node->rule->id, node->token_key, (void *)node, (void *)check_node);
         nchildren++;
-        delim = self->delim->_class->check(self->delim, parser);
+        delim = delim_rule_check(delim_rule, parser);
         if (delim == &ASTNode_fail) {
             node = &ASTNode_fail;
         } else {
@@ -609,7 +616,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
             //DEBUG_ASSERT(delim == check_node, "failed to retrieve delimiter node from cache\n");
             //printf("verified check cache for rule id %d at %zu. %p == %p\n", delim->rule->id, delim->token_key, (void *)node, (void *)check_node);
             nchildren++;
-            node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
+            node = derived_rule_check(derived_rule, parser);
         }
     }
     if (!nchildren) {
@@ -620,6 +627,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
     }
     
     // success, so allocate memory for the children
+    //printf("list rule %d success with %zu children\n", list_rule->id, nchildren);
     ASTNode ** children = malloc(sizeof(*children) * nchildren);
     if (!children) {
         printf("failed to alloc enough memory for children in List Rule\n");
@@ -627,54 +635,18 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
     }
 
     // populate children
+    //printf("populating children\n");
     size_t token_index = token_key;
+    ASTNode * (*check_cache)(Parser *, rule_id_type, size_t) = parser->_class->check_cache;
     for (size_t i = 0; i < nchildren; i++) {
-        children[i] = parser->_class->check_cache(parser, i & 1 ? self->delim->id : self->DerivedRule.rule->id, token_index); // this should never not be null
-        //if (!children[i]) {
-        //    printf("cache retrieval returned null pointer (%p) for child rule %d in list rule with id %d at location %zu. disable_check_cache = %d!!!!!!!\n", (void*)(children[i]), i & 1 ? self->delim->id : self->DerivedRule.rule->id, list_rule->id, token_index, parser->disable_cache_check);
-        //}
+        children[i] = check_cache(parser, i & 1 ? delim_rule->id : derived_rule->id, token_index); // this should never not be null
+        if (!children[i]) {
+            printf("cache retrieval returned null pointer (%p) for child rule %d in list rule with id %d at location %zu. disable_check_cache = %d!!!!!!!\n", (void*)(children[i]), i & 1 ? self->delim->id : self->DerivedRule.rule->id, list_rule->id, token_index, parser->disable_cache_check);
+        }
         token_index += children[i]->ntokens;
     }
 
-
-    /* This is part of the algorithm that causes O(n^2), I believe because of the repeated calls to realloc
-    // TODO: when stack is available, replace with stack API
-    size_t capacity = 3; // MAGIC_NUMBER. Frequently only one will ever be found but 2x will be common. Avoid realloc
-    ASTNode ** children = malloc(sizeof(*children) * capacity);
-    if (!children) {
-        return &ASTNode_fail;
-    }
-    size_t nchildren = 0;
-    children[nchildren++] = node;
-    while (true) { 
-        ASTNode * delim = self->delim->_class->check(self->delim, parser);
-        if (delim == &ASTNode_fail) {
-            //printf("delimiter failed with list length %zu\n", nchildren);
-            break;
-        }
-        
-        if (nchildren >= capacity - 1) { // realloc more space. Always make sure it can handle a delim and node in one pass
-            size_t new_capacity = 4 * capacity + 1; // because of above comment, it should always have odd capacity
-            //printf("realloc in ListRule_check_rule to new size %zu\n", new_capacity);
-            ASTNode ** new_children = realloc(children, sizeof(*children) * new_capacity);
-            if (!new_children) {
-                free(children);
-                return &ASTNode_fail;
-            }
-            children = new_children;
-            capacity = new_capacity;
-        }
-        children[nchildren++] = delim; // append delimiter to children
-        
-        node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
-        if (node == &ASTNode_fail) {
-            parser->_class->seek(parser, -delim->ntokens, P_SEEK_CUR);
-            break;
-        }
-        children[nchildren++] = node;
-    }
-    size_t token_index = parser->_class->tell(parser);
-    */
+    //printf("building node parameters\n");
     Token * token_cur = NULL;
     err_type status = parser->_class->get(parser, token_key, &token_cur);
     if (status) {
@@ -685,22 +657,35 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
     if (status) {
         printf("unhandled error (%d) in ListRule_check_rule_ getting starting token from parser\n", status);
     }
-    //printf("list rule building new node\");
+    //printf("list rule building new node\n");
     return parser->_class->add_node(parser, list_rule, token_key, token_index - token_key, token_cur->start - token_start->start, nchildren, children);
 }
 
 /* RepeatRule implementations */
 
-/* Type system metadata for RepeatRule */
 #define RepeatRule_NAME "RepeatRule.DerivedRule.Rule"
-//StructInfo RepeatRule_INFO = {0};
-Type const RepeatRule_TYPE = {//._info = &RepeatRule_INFO,
-                            ._class = &Type_class,
-                            .type_name = RepeatRule_NAME
-                            };
-/* END Type system metadata for RepeatRule */
 
-struct RepeatRuleType RepeatRule_class = RepeatRuleType_DEFAULT_INIT;
+struct RepeatRuleType RepeatRule_class = {
+    .DerivedRule_class = {
+        .Rule_class = {
+            .type_name = RepeatRule_NAME,
+            .new = &Rule_new,
+            .init = &Rule_init,
+            .dest = &Rule_dest,
+            .del = &RepeatRule_as_Rule_del,
+            .check_rule_ = &RepeatRule_check_rule_,
+            .check = &Rule_check
+        },
+        .new = &DerivedRule_new,
+        .init = &DerivedRule_init,
+        .dest = &DerivedRule_dest,
+        .del = &RepeatRule_as_DerivedRule_del
+    },
+    .new = &RepeatRule_new,
+    .init = &RepeatRule_init,
+    .dest = &RepeatRule_dest,
+    .del = &RepeatRule_del
+};
 
 RepeatRule * RepeatRule_new(rule_id_type id, Rule * rule, size_t min_rep, size_t max_rep) {
     RepeatRule * ret = malloc(sizeof(*ret));
@@ -715,7 +700,8 @@ RepeatRule * RepeatRule_new(rule_id_type id, Rule * rule, size_t min_rep, size_t
     return ret;
 }
 err_type RepeatRule_init(RepeatRule * self, rule_id_type id, Rule * rule, size_t min_rep, size_t max_rep) {
-    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
+    DerivedRule * derived = (DerivedRule *)self;
+    derived->_class->init(derived, id, rule);
     self->min_rep = min_rep;
     self->max_rep = max_rep;
     return PEGGY_SUCCESS;
@@ -728,51 +714,88 @@ void RepeatRule_del(RepeatRule * self) {
     free(self);
 }
 void RepeatRule_as_DerivedRule_del(DerivedRule * repeat_rule) {
-    RepeatRule_del(DOWNCAST_P(repeat_rule, DerivedRule, RepeatRule));
+    RepeatRule_del((RepeatRule *)repeat_rule);
 }
 void RepeatRule_as_Rule_del(Rule * repeat_rule) {
-    RepeatRule_del(DOWNCAST_P(DOWNCAST_P(repeat_rule, Rule, DerivedRule), DerivedRule, RepeatRule));
+    RepeatRule_del((RepeatRule *)repeat_rule);
 }
 
-/*
-err_type RepeatRule_build(Rule * repeat_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
-    RepeatRule * self = DOWNCAST_P(DOWNCAST_P(repeat_rule, Rule, DerivedRule), DerivedRule, RepeatRule);
-    return PEGGY_NOT_IMPLEMENTED;
-}
-*/
-
+// MAJOR TODO: get rid of realloc. Follow ListRule_check_rule_ implementation
 ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t token_key) {
     //printf("checking repeat rule. id: %d\n", repeat_rule->id);
-    RepeatRule * self = DOWNCAST_P(DOWNCAST_P(repeat_rule, Rule, DerivedRule), DerivedRule, RepeatRule);
-    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
-    // TODO: when stack implementation is available, replace
-    size_t capacity = 0;
-    ASTNode ** node_list = NULL;
-    size_t node_list_length = 0;
+    RepeatRule * self = (RepeatRule *)repeat_rule;
+    size_t nchildren = 0;
+    Rule * derived_rule = ((DerivedRule *)self)->rule;
+    ASTNode * (*derived_rule_check)(Rule *, Parser *) = derived_rule->_class->check;
 
+    ASTNode * node = derived_rule_check(derived_rule, parser);
     while (node != &ASTNode_fail) {
-        //printf("did not find fail node: trying repeat again, %p, list size %zu\n", (void*)node, node_list_length);
-        
-        if (node_list_length == capacity) { // realloc more space
-            size_t new_capacity = (2 * capacity + 3);
-            //printf("RepeatRule_check_rule_ realloc to %zu\n", new_capacity);
-            ASTNode ** new_node_list = realloc(node_list, sizeof(*new_node_list) * new_capacity);
-            if (!new_node_list) {
-                free(node_list); // will work if node_list is NULL as well                
-                return &ASTNode_fail;
-            }
-            node_list = new_node_list;
-            capacity = new_capacity;
-        }
-        node_list[node_list_length++] = node; // append node
-        node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);        
+        nchildren++;
+        node = derived_rule_check(derived_rule, parser);
     }
-    if (node_list_length < self->min_rep || (self->max_rep && node_list_length > self->max_rep)) {
-        free(node_list);
+    //printf("repeat rule %d finished initial check with %zu children\n", repeat_rule->id, nchildren);
+
+    // check for failure of the RepeatRule before allocating any memory
+    if (nchildren < self->min_rep || (self->max_rep && nchildren > self->max_rep)) {
         return &ASTNode_fail;
     }
 
+    //printf("repeated rule %d succeeded with %zu children\n", repeat_rule->id, nchildren);
+    // success. set up variables
+    ASTNode ** children = NULL; // NULL must be available for case nchildren = 0
+    size_t token_index = token_key;
+
+    // allocate memory for the children
+    if (nchildren) { // 0 may be a success but we cannot malloc(0), UB
+        children = malloc(sizeof(*children) * nchildren);
+        if (!children) {
+            printf("failed to alloc enough memory for children in List Rule\n");
+            return &ASTNode_fail; // failure but for wrong reasons
+        }
+    }
+
+    // populate children
+    ASTNode * (*check_cache)(Parser *, rule_id_type, size_t) = parser->_class->check_cache;
+    for (size_t i = 0; i < nchildren; i++) {
+        children[i] = check_cache(parser, derived_rule->id, token_index); // this should never not be null
+        //if (!children[i]) {
+        //    printf("cache retrieval returned null pointer (%p) for child rule %d in list rule with id %d at location %zu. disable_check_cache = %d!!!!!!!\n", (void*)(children[i]), i & 1 ? self->delim->id : self->DerivedRule.rule->id, list_rule->id, token_index, parser->disable_cache_check);
+        //}
+        token_index += children[i]->ntokens;
+    }
+
+    /*
+    ASTNode * node = derived_rule->_class->check(derived_rule, parser);
+    // TODO: when stack implementation is available, replace
+    size_t capacity = 0;
+    
+    ASTNode ** children = NULL;
+    size_t nchildren = 0;
+
+    while (node != &ASTNode_fail) {
+        //printf("did not find fail node: trying repeat again, %p, list size %zu\n", (void*)node, nchildren);
+        
+        if (nchildren == capacity) { // realloc more space
+            size_t new_capacity = (2 * capacity + 3);
+            //printf("RepeatRule_check_rule_ realloc to %zu\n", new_capacity);
+            ASTNode ** new_children = realloc(children, sizeof(*new_children) * new_capacity);
+            if (!new_children) {
+                free(children); // will work if children is NULL as well                
+                return &ASTNode_fail;
+            }
+            children = new_children;
+            capacity = new_capacity;
+        }
+        children[nchildren++] = node; // append node
+        node = derived_rule->_class->check(derived_rule, parser);        
+    }
+    if (nchildren < self->min_rep || (self->max_rep && nchildren > self->max_rep)) {
+        free(children);
+        return &ASTNode_fail;
+    }
     size_t cur_token_key = parser->_class->tell(parser);
+    */
+    
     Token * token_cur = NULL;
     err_type status = parser->_class->get(parser, token_key, &token_cur);
     if (status) {
@@ -783,87 +806,34 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t tok
     if (status) {
         printf("unhandled error (%d) in RepeatRule_check_rule_ getting starting token from parser\n", status);
     }
-    return parser->_class->add_node(parser, repeat_rule, token_key, cur_token_key - token_key, token_cur->start - token_start->start, node_list_length, node_list);
-}
-
-/* OptionalRule implementations */
-
-/* Type system metadata for OptionalRule */
-#define OptionalRule_NAME "OptionalRule.DerivedRule.Rule"
-//StructInfo OptionalRule_INFO = {0};
-Type const OptionalRule_TYPE = {//._info = &OptionalRule_INFO,
-                            ._class = &Type_class,
-                            .type_name = OptionalRule_NAME
-                            };
-/* END Type system metadata for OptionalRule */
-
-struct OptionalRuleType OptionalRule_class = OptionalRuleType_DEFAULT_INIT;
-
-OptionalRule * OptionalRule_new(rule_id_type id, Rule * rule) {
-    OptionalRule * ret = malloc(sizeof(*ret));
-    if (!ret) {
-        return NULL;
-    }
-    *ret = (OptionalRule) OptionalRule_DEFAULT_INIT;
-    if (OptionalRule_init(ret, id, rule)) {
-        free(ret);
-        ret = NULL;
-    }
-    return ret;
-}
-err_type OptionalRule_init(OptionalRule * self, rule_id_type id, Rule * rule) {
-    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
-    return PEGGY_SUCCESS;
-}
-void OptionalRule_dest(OptionalRule * self) {
-    DerivedRule_dest(&(self->DerivedRule));
-}
-void OptionalRule_del(OptionalRule * self) {
-    OptionalRule_dest(self);
-    free(self);
-}
-void OptionalRule_as_DerivedRule_del(DerivedRule * optional_rule) {
-    OptionalRule_del(DOWNCAST_P(optional_rule, DerivedRule, OptionalRule));
-}
-void OptionalRule_as_Rule_del(Rule * optional_rule) {
-    OptionalRule_del(DOWNCAST_P(DOWNCAST_P(optional_rule, Rule, DerivedRule), DerivedRule, OptionalRule));
-}
-
-/*
-err_type OptionalRule_build(Rule * optional_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
-    OptionalRule * self = DOWNCAST_P(DOWNCAST_P(optional_rule, Rule, DerivedRule), DerivedRule, OptionalRule);
-    return PEGGY_NOT_IMPLEMENTED;
-}
-*/
-
-ASTNode * OptionalRule_check_rule_(Rule * optional_rule, Parser * parser, size_t token_key) {
-    //printf("checking optional rule. id: %d\n", optional_rule->id);
-    OptionalRule * self = DOWNCAST_P(DOWNCAST_P(optional_rule, Rule, DerivedRule), DerivedRule, OptionalRule);
-    ASTNode ** node_list = NULL;
-    size_t node_list_length = 0;
-    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
-    if (node != &ASTNode_fail) {
-        node_list = malloc(sizeof(*node_list));
-        if (!node_list) {
-            return &ASTNode_fail;
-        }
-        node_list[node_list_length++] = node;
-    }
-    return parser->_class->add_node(parser, optional_rule, token_key, node->ntokens, node->str_length, node_list_length, node_list);
+    return parser->_class->add_node(parser, repeat_rule, token_key, token_index - token_key, token_cur->start - token_start->start, nchildren, children);
 }
 
 /* NegativeLookahead implementations */
 
-/* Type system metadata for NegativeLookahead */
 #define NegativeLookahead_NAME "NegativeLookahead.DerivedRule.Rule"
-//StructInfo NegativeLookahead_INFO = {0};
-Type const NegativeLookahead_TYPE = {//._info = &NegativeLookahead_INFO,
-                            ._class = &Type_class,
-                            .type_name = NegativeLookahead_NAME
-                            };
-/* END Type system metadata for NegativeLookahead */
 
-struct NegativeLookaheadType NegativeLookahead_class = NegativeLookaheadType_DEFAULT_INIT;
+struct NegativeLookaheadType NegativeLookahead_class = {
+    .DerivedRule_class = {
+        .Rule_class = {
+            .type_name = NegativeLookahead_NAME,
+            .new = &Rule_new,
+            .init = &Rule_init,
+            .dest = &Rule_dest,
+            .del = &NegativeLookahead_as_Rule_del,
+            .check_rule_ = &NegativeLookahead_check_rule_,
+            .check = &Rule_check
+        },
+        .new = &DerivedRule_new,
+        .init = &DerivedRule_init,
+        .dest = &DerivedRule_dest,
+        .del = &NegativeLookahead_as_DerivedRule_del
+    },
+    .new = &NegativeLookahead_new,
+    .init = &NegativeLookahead_init,
+    .dest = &NegativeLookahead_dest,
+    .del = &NegativeLookahead_del
+};
 
 NegativeLookahead * NegativeLookahead_new(rule_id_type id, Rule * rule) {
     NegativeLookahead * ret = malloc(sizeof(*ret));
@@ -878,7 +848,8 @@ NegativeLookahead * NegativeLookahead_new(rule_id_type id, Rule * rule) {
     return ret;
 }
 err_type NegativeLookahead_init(NegativeLookahead * self, rule_id_type id, Rule * rule) {
-    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
+    DerivedRule * derived = (DerivedRule *)self;
+    derived->_class->init(derived, id, rule);
     return PEGGY_SUCCESS;
 }
 void NegativeLookahead_dest(NegativeLookahead * self) {
@@ -889,22 +860,15 @@ void NegativeLookahead_del(NegativeLookahead * self) {
     free(self);
 }
 void NegativeLookahead_as_DerivedRule_del(DerivedRule * negative_lookahead) {
-    NegativeLookahead_del(DOWNCAST_P(negative_lookahead, DerivedRule, NegativeLookahead));
+    NegativeLookahead_del((NegativeLookahead *)negative_lookahead);
 }
 void NegativeLookahead_as_Rule_del(Rule * negative_lookahead) {
-    NegativeLookahead_del(DOWNCAST_P(DOWNCAST_P(negative_lookahead, Rule, DerivedRule), DerivedRule, NegativeLookahead));
+    NegativeLookahead_del((NegativeLookahead *)negative_lookahead);
 }
-
-/*
-err_type NegativeLookahead_build(Rule * negative_lookahead, ParserGenerator * pg, char * buffer, size_t buffer_size) {
-    NegativeLookahead * self = DOWNCAST_P(DOWNCAST_P(negative_lookahead, Rule, DerivedRule), DerivedRule, NegativeLookahead);
-    return PEGGY_NOT_IMPLEMENTED;
-}
-*/
 
 ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * parser, size_t token_key) {
     //printf("checking negative lookahead rule. id: %d\n", negative_lookahead->id);
-    NegativeLookahead * self = DOWNCAST_P(DOWNCAST_P(negative_lookahead, Rule, DerivedRule), DerivedRule, NegativeLookahead);
+    NegativeLookahead * self = (NegativeLookahead *)negative_lookahead;
     ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
     if (node == &ASTNode_fail) {
         return &ASTNode_lookahead;
@@ -914,16 +878,29 @@ ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * pars
 }
 /* PositiveLookahead implementations */
 
-/* Type system metadata for PositiveLookahead */
 #define PositiveLookahead_NAME "PositiveLookahead.DerivedRule.Rule"
-//StructInfo PositiveLookahead_INFO = {0};
-Type const PositiveLookahead_TYPE = {//._info = &PositiveLookahead_INFO,
-                            ._class = &Type_class,
-                            .type_name = PositiveLookahead_NAME
-                            };
-/* END Type system metadata for PositiveLookahead */
 
-struct PositiveLookaheadType PositiveLookahead_class = PositiveLookaheadType_DEFAULT_INIT;
+struct PositiveLookaheadType PositiveLookahead_class = {
+    .DerivedRule_class = {
+        .Rule_class = {
+            .type_name = PositiveLookahead_NAME,
+            .new = &Rule_new,
+            .init = &Rule_init,
+            .dest = &Rule_dest,
+            .del = &PositiveLookahead_as_Rule_del,
+            .check_rule_ = &PositiveLookahead_check_rule_,
+            .check = &Rule_check
+        },
+        .new = &DerivedRule_new,
+        .init = &DerivedRule_init,
+        .dest = &DerivedRule_dest,
+        .del = &PositiveLookahead_as_DerivedRule_del
+    },
+    .new = &PositiveLookahead_new,
+    .init = &PositiveLookahead_init,
+    .dest = &PositiveLookahead_dest,
+    .del = &PositiveLookahead_del
+};
 
 PositiveLookahead * PositiveLookahead_new(rule_id_type id, Rule * rule) {
     PositiveLookahead * ret = malloc(sizeof(*ret));
@@ -938,7 +915,8 @@ PositiveLookahead * PositiveLookahead_new(rule_id_type id, Rule * rule) {
     return ret;
 }
 err_type PositiveLookahead_init(PositiveLookahead * self, rule_id_type id, Rule * rule) {
-    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
+    DerivedRule * derived = (DerivedRule *)self;
+    derived->_class->init(derived, id, rule);
     return PEGGY_SUCCESS;
 }
 void PositiveLookahead_dest(PositiveLookahead * self) {
@@ -949,22 +927,15 @@ void PositiveLookahead_del(PositiveLookahead * self) {
     free(self);
 }
 void PositiveLookahead_as_DerivedRule_del(DerivedRule * positive_lookahead) {
-    PositiveLookahead_del(DOWNCAST_P(positive_lookahead, DerivedRule, PositiveLookahead));
+    PositiveLookahead_del((PositiveLookahead *)positive_lookahead);
 }
 void PositiveLookahead_as_Rule_del(Rule * positive_lookahead) {
-    PositiveLookahead_del(DOWNCAST_P(DOWNCAST_P(positive_lookahead, Rule, DerivedRule), DerivedRule, PositiveLookahead));
+    PositiveLookahead_del((PositiveLookahead *)positive_lookahead);
 }
-
-/*
-err_type PositiveLookahead_build(Rule * positive_lookahead, ParserGenerator * pg, char * buffer, size_t buffer_size) {
-    PositiveLookahead * self = DOWNCAST_P(DOWNCAST_P(positive_lookahead, Rule, DerivedRule), DerivedRule, PositiveLookahead);
-    return PEGGY_NOT_IMPLEMENTED;
-}
-*/
 
 ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser, size_t token_key) {
     //printf("checking positive lookahead rule. id: %d\n", positive_lookahead->id);
-    PositiveLookahead * self = DOWNCAST_P(DOWNCAST_P(positive_lookahead, Rule, DerivedRule), DerivedRule, PositiveLookahead);
+    PositiveLookahead * self = (PositiveLookahead *)positive_lookahead;
     ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
     if (node != &ASTNode_fail) {
         parser->_class->seek(parser, token_key, P_SEEK_SET);
@@ -973,73 +944,35 @@ ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * pars
     return node;
 }
 
-/* AnonymousProduction implementations */
-
-/* Type system metadata for AnonymousProduction */
-#define AnonymousProduction_NAME "AnonymousProduction.DerivedRule.Rule"
-//StructInfo AnonymousProduction_INFO = {0};
-Type const AnonymousProduction_TYPE = {//._info = &AnonymousProduction_INFO,
-                            ._class = &Type_class,
-                            .type_name = AnonymousProduction_NAME
-                            };
-/* END Type system metadata for AnonymousProduction */
-
-struct AnonymousProductionType AnonymousProduction_class = AnonymousProductionType_DEFAULT_INIT;
-
-AnonymousProduction * AnonymousProduction_new(rule_id_type id, Rule * rule) {
-    AnonymousProduction * ret = malloc(sizeof(*ret));
-    if (!ret) {
-        return NULL;
-    }
-    *ret = (AnonymousProduction) AnonymousProduction_DEFAULT_INIT;
-    if (AnonymousProduction_init(ret, id, rule)) {
-        free(ret);
-        ret = NULL;
-    }
-    return ret;
-}
-
-err_type AnonymousProduction_init(AnonymousProduction * self, rule_id_type id, Rule * rule) {
-    self->_class->DerivedRule_class.init(&(self->DerivedRule), id, rule);
-    return PEGGY_SUCCESS;
-}
-void AnonymousProduction_dest(AnonymousProduction * self) {
-    DerivedRule_dest(&(self->DerivedRule));
-}
-void AnonymousProduction_del(AnonymousProduction * self) {
-    AnonymousProduction_dest(self);
-    free(self);
-}
-void AnonymousProduction_as_DerivedRule_del(DerivedRule * anonymous_production) {
-    AnonymousProduction_del(DOWNCAST_P(anonymous_production, DerivedRule, AnonymousProduction));
-}
-void AnonymousProduction_as_Rule_del(Rule * anonymous_production) {
-    AnonymousProduction_del(DOWNCAST_P(DOWNCAST_P(anonymous_production, Rule, DerivedRule), DerivedRule, AnonymousProduction));
-}
-
-/*
-err_type AnonymousProduction_build(Rule * anonymous_production, ParserGenerator * pg, char * buffer, size_t buffer_size) {
-    AnonymousProduction * self = DOWNCAST_P(DOWNCAST_P(anonymous_production, Rule, DerivedRule), DerivedRule, AnonymousProduction);
-    return PEGGY_NOT_IMPLEMENTED;
-}
-*/
-
 /* Production implementations */
 
 ASTNode * build_action_default(Parser * parser, ASTNode * node) {
     return node;
 }
 
-/* Type system metadata for AnonymousProduction */
-#define Production_NAME "Production.AnonymousProduction.DerivedRule.Rule"
-//StructInfo AnonymousProduction_INFO = {0};
-Type const Production_TYPE = {//._info = &AnonymousProduction_INFO,
-                            ._class = &Type_class,
-                            .type_name = Production_NAME
-                            };
-/* END Type system metadata for AnonymousProduction */
+#define Production_NAME "Production.DerivedRule.Rule"
 
-struct ProductionType Production_class = ProductionType_DEFAULT_INIT;
+struct ProductionType Production_class = {  
+    .DerivedRule_class = { \
+        .Rule_class = { \
+            .type_name = Production_NAME,\
+            .new = &Rule_new,\
+            .init = &Rule_init,\
+            .dest = &Rule_dest, \
+            .del = &Production_as_Rule_del,\
+            .check_rule_ = &Production_check_rule_,\
+            .check = &Rule_check \
+            }, \
+        .new = &DerivedRule_new, \
+        .init = &DerivedRule_init, \
+        .dest = &DerivedRule_dest, \
+        .del = &Production_as_DerivedRule_del \
+    }, \
+    .new = &Production_new, \
+    .init = &Production_init, \
+    .dest = &Production_dest, \
+    .del = &Production_del \
+};
 
 Production * Production_new(rule_id_type id, Rule * rule, build_action_ftype build_action) {
     Production * ret = malloc(sizeof(*ret));
@@ -1054,48 +987,42 @@ Production * Production_new(rule_id_type id, Rule * rule, build_action_ftype bui
     return ret;
 }
 err_type Production_init(Production * self, rule_id_type id, Rule * rule, build_action_ftype build_action) {
-    self->_class->AnonymousProduction_class.init(&(self->AnonymousProduction), id, rule);
+    DerivedRule * derived = (DerivedRule *)self;
+    derived->_class->init(derived, id, rule);
     self->build_action = build_action;
     return PEGGY_SUCCESS;
 }
 void Production_dest(Production * self) {
-    AnonymousProduction_dest(&(self->AnonymousProduction));
+    DerivedRule_dest((DerivedRule *)self);
 }
 void Production_del(Production * self) {
     Production_dest(self);
     free(self);
 }
-void Production_as_AnonymousProduction_del(AnonymousProduction * production) {
-    Production_del(DOWNCAST_P(production, AnonymousProduction, Production));
-}
 void Production_as_DerivedRule_del(DerivedRule * production) {
-    Production_del(DOWNCAST_P(DOWNCAST_P(production, DerivedRule, AnonymousProduction), AnonymousProduction, Production));
+    Production_del((Production *)production);
 }
 void Production_as_Rule_del(Rule * production) {
-    Production_del(DOWNCAST_P(DOWNCAST_P(DOWNCAST_P(production, Rule, DerivedRule), DerivedRule, AnonymousProduction), AnonymousProduction, Production));
+    Production_del((Production *)production);
 }
 
-/*
-err_type Production_build(Rule * production, ParserGenerator * pg, char * buffer, size_t buffer_size) {
-    Production * self = DOWNCAST_P(DOWNCAST_P(DOWNCAST_P(production, Rule, DerivedRule), DerivedRule, AnonymousProduction), AnonymousProduction, Production);
-    return PEGGY_NOT_IMPLEMENTED;
-}
-*/
-
-Type const * PRODUCTION_UNESCAPED_RULES[2] = {
-    &Production_TYPE,
-    &LiteralRule_TYPE,
+char const * PRODUCTION_UNESCAPED_RULES[3] = {
+    Production_NAME,
+    LiteralRule_NAME,
+    NULL
 };
 ASTNode * Production_check_rule_(Rule * production, Parser * parser, size_t token_key) {
     //printf("checking production rule. id: %d\n", production->id);
-    Production * self = DOWNCAST_P(DOWNCAST_P(DOWNCAST_P(production, Rule, DerivedRule), DerivedRule, AnonymousProduction), AnonymousProduction, Production);
+    Production * self = (Production *)production;
     
-    ASTNode * node = self->AnonymousProduction.DerivedRule.rule->_class->check(self->AnonymousProduction.DerivedRule.rule, parser);
+    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
+    //printf("production id %d derived node pointner %p\n", production->id, (void*)node);
+    DEBUG_ASSERT(node != NULL, "found NULL in call to Rule_check for production id %d\n", production->id);
     if (node != &ASTNode_fail) {
         //printf("production rule sub rule passed; %p\n", (void *) node);
         if (!is_skip_node(node)) {
             //printf("is not skip node\n");
-            if (!isinstance((Type *)node->rule->_class->_class, 2, PRODUCTION_UNESCAPED_RULES)) {
+            if (!isinstance(node->rule->_class->type_name, PRODUCTION_UNESCAPED_RULES)) {
                 //printf("is not unescaped instance\n");
 
                 // pretty sure this is causing my leak

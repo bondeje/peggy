@@ -139,6 +139,7 @@ static err_type CAT(STACK_TYPE, _set)(STACK_TYPE * stack, size_t key, ELEMENT_TY
     return PEGGY_INDEX_OUT_OF_BOUNDS;
 }
 static void CAT(STACK_TYPE, _dest)(STACK_TYPE * stack) {
+    //printf("destroying the stack\n");
     if (stack->bins) {
         free(stack->bins);
     }
@@ -154,16 +155,19 @@ static void CAT(STACK_TYPE, _for_each)(STACK_TYPE * stack, int (*handle_item)(vo
     }
 }
 static err_type CAT(STACK_TYPE, _resize)(STACK_TYPE * stack, size_t new_capacity) {
-    //printf("realloc to new size in stack: %zu\n", new_capacity);
+    //printf("realloc from %zu to new size %zu in stack...", stack->capacity, new_capacity);
     //ELEMENT_TYPE * new_bins = realloc(stack->bins, sizeof(*stack->bins) * new_capacity);
     ELEMENT_TYPE * new_bins = calloc(sizeof(*stack->bins), new_capacity);
     if (!new_bins) {
         return PEGGY_MALLOC_FAILURE;
     }
-    memcpy(new_bins, stack->bins, stack->fill * sizeof(ELEMENT_TYPE));
-    free(stack->bins);
+    if (stack->bins) {
+        memcpy(new_bins, stack->bins, stack->fill * sizeof(ELEMENT_TYPE));
+        free(stack->bins);
+    }
     stack->bins = new_bins;
     stack->capacity = new_capacity;
+    //printf("...done\n");
     return PEGGY_SUCCESS;
 }
 static err_type CAT(STACK_TYPE, _init)(STACK_TYPE * stack, size_t init_capacity) {

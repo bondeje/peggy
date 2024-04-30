@@ -1,5 +1,7 @@
 #include <stddef.h>
 #include <stdbool.h>
+#include <string.h>
+#include <stdio.h>
 #include <peggy/utils.h>
 
 // inspired by Implementation 5 https://stackoverflow.com/questions/4475996/given-prime-number-n-compute-the-next-prime
@@ -45,4 +47,22 @@ size_t next_prime(size_t x) {
         o ^= 6;
     }
     return x;
+}
+
+bool isinstance(char const * type, char const ** types) {
+    static char buffer[256] = {'\0'};
+    while (*types != NULL) {
+        unsigned char len = (unsigned char)(strchr(*types, '.') - *types);
+        if (!len) {
+            len = (unsigned char) strlen(*types);
+        }
+        memcpy((void *) buffer, *types, len);
+        buffer[len] = '\0';
+        //printf("checking if %s is instance of %s: %d\n", type, buffer, strstr(type, buffer) != NULL);
+        if (strstr(type, buffer)) {
+            return true;
+        }
+        types++;
+    }
+    return false;
 }

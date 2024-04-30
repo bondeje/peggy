@@ -8,17 +8,6 @@
 
 #define Token_DEFAULT_INIT {._class = &Token_class, \
                            }
-#define TokenType_DEFAULT_INIT {._class = &Token_TYPE,\
-                               .new = &Token_new,\
-                               .init = &Token_init,\
-                               .del = &Token_del,\
-                               .len = &Token_len, \
-                               .coords = &Token_coords, \
-                               .str = &Token_str, \
-                               .get = &Token_get, \
-                               .equal = &Token_equal, \
-                               .equal_value = &Token_equal, \
-                               }
 
 typedef struct Token Token, * pToken;
 
@@ -37,7 +26,7 @@ struct Token {
 };
 
 extern struct TokenType {
-    Type const * _class;
+    char const * type_name;
     Token * (*new)(char const * string, size_t start, size_t end, unsigned int line, unsigned int col);
     err_type (*init)(Token * self, char const * string, size_t start, size_t end, unsigned int line, unsigned int col);
     void (*del)(Token * self);

@@ -30,12 +30,14 @@ err_type CSVParser_init(CSVParser * parser, char const * name, size_t name_lengt
     parser->data = NULL;
     parser->ncols = 0;
     parser->nrows = 0;
-    parser->Parser._class->init(&parser->Parser, name, name_length, string, string_length, &csv_token.AnonymousProduction.DerivedRule.Rule, &csv_csv.AnonymousProduction.DerivedRule.Rule, CSV_NRULES, 0, 0, false, NULL);
+    parser->Parser._class->init(&parser->Parser, name, name_length, string, string_length, (Rule*)&csv_token, (Rule*)&csv_csv, CSV_NRULES, 0, 0, false, NULL);
     return PEGGY_SUCCESS;
 }
 
 void CSVParser_dest(CSVParser * parser) {
-    free(parser->data);
+    if (parser->data) {
+        free(parser->data);
+    }
     parser->data = NULL;
     parser->ncols = 0;
     parser->nrows = 0;
@@ -125,6 +127,7 @@ err_type from_string(char const * string, size_t string_length, char const * nam
     }
     printf("number of nodes found: %zu\n", csv.Parser.node_list.fill);
     
+    csv.Parser._class->dest((Parser *)&csv);
 
     if (n_elem) {
         *n_elem = csv.ncols * csv.nrows;

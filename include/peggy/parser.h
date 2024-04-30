@@ -6,7 +6,7 @@
 #include <stdlib.h>
 
 #include <peggy/utils.h>
-#include <peggy/type.h>
+//#include <peggy/type.h>
 #include <peggy/token.h>
 #include <peggy/rule.h>
 #include <peggy/packrat_cache.h>
@@ -42,29 +42,6 @@ typedef enum seek_origin {
                              .disable_cache_check = false, \
                              .ast = NULL \
                              }
-#define ParserType_DEFAULT_INIT {._class = &Parser_TYPE,\
-                                .new = &Parser_new,\
-                                .init = &Parser_init,\
-                                .dest = &Parser_dest, \
-                                .del = &Parser_del,\
-                                .tell = &Parser_tell, \
-                                .seek = &Parser_seek, \
-                                .log = &Parser_log, \
-                                .log_check_fail_ = &Parser_log_check_fail_, \
-                                .get_line_col_end = &Parser_get_line_col_end, \
-                                .gen_final_token_ = &Parser_gen_final_token_, \
-                                .skip_token = &Parser_skip_token, \
-                                .add_token = &Parser_add_token, \
-                                .add_node = &Parser_add_node, \
-                                .gen_next_token_ = &Parser_gen_next_token_, \
-                                .get = &Parser_get, \
-                                .get_tokens = &Parser_get_tokens, \
-                                .parse = &Parser_parse, \
-                                .check_cache = &Parser_check_cache, \
-                                .cache_check = &Parser_cache_check, \
-                                .traverse = &Parser_traverse, \
-                                .print_ast = &Parser_print_ast \
-                                }
 
 //typedef struct Parser Parser; // handled in <peggy/utils.h>
 
@@ -75,7 +52,7 @@ typedef enum seek_origin {
 #include <peggy/stack.h>
 
 struct Parser {
-    struct ParserType const * _class;
+    struct ParserType * _class;
     PackratCache cache;
     STACK(pASTNode) node_list; /* fucking stupid...need an arena allocator in an AST object */
     STACK(pToken) tokens; /* only going to have a simple array */
@@ -90,9 +67,7 @@ struct Parser {
     bool disable_cache_check;
     ASTNode * ast;
     unsigned int flags;
-    size_t cache_resize_trigger;
 };
-
 
 typedef enum ParserFlags {
     PARSER_NONE = 0,
@@ -100,8 +75,10 @@ typedef enum ParserFlags {
     PARSER_SPARSE_ALLOC = 2
 } ParserFlags;
 
+typedef struct ParserType ParserType;
+
 extern struct ParserType {
-    Type const * _class;
+    char const * type_name;
     Parser * (*new)(char const * name, size_t name_length, char const * string, size_t string_length, Rule * token_rule, 
                     Rule * root_rule, size_t nrules, unsigned int line_offset, 
                     unsigned int col_offset, unsigned int flags, 
@@ -120,6 +97,7 @@ extern struct ParserType {
     void (*get_line_col_end)(Parser * parser, Token * tok, unsigned int * line_out, unsigned int * col_out);
     Token * (*gen_final_token_)(Parser * parser, ASTNode * node);
     err_type (*skip_token)(Parser * parser, ASTNode * node);
+    size_t (*estimate_final_ntokens_)(Parser * self);
     err_type (*add_token)(Parser * parser, ASTNode * node);
     ASTNode * (*add_node)(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]);
     bool (*gen_next_token_)(Parser * parser);
@@ -131,8 +109,6 @@ extern struct ParserType {
     err_type (*traverse)(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
     void (*print_ast)(Parser * parser, char * buffer, size_t buffer_size);
 } Parser_class;
-
-extern Type const Parser_TYPE;
 
 Parser * Parser_new(char const * name, size_t name_length, char const * string, size_t string_length, Rule * token_rule, 
                     Rule * root_rule, size_t nrules, unsigned int line_offset, unsigned intcol_offset, 
@@ -151,6 +127,7 @@ void Parser_log_check_fail_(Parser * parser, size_t loc, Rule * rule);
 void Parser_get_line_col_end(Parser * parser, Token * tok, unsigned int * line_out, unsigned int * col_out);
 Token * Parser_gen_final_token_(Parser * parser, ASTNode * node);
 err_type Parser_skip_token(Parser * parser, ASTNode * node);
+size_t Parser_estimate_final_ntokens(Parser * self);
 err_type Parser_add_token(Parser * parser, ASTNode * node);
 ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]);
 bool Parser_gen_next_token_(Parser * parser);

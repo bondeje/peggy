@@ -5,24 +5,28 @@
 #include <peggy/astnode.h>
 #include <peggy/rule.h>
 
-/* Type system metadata for ASTNode */
-#define ASTNode_NAME "ASTNode"
-
-Type const ASTNode_TYPE = {._class = &Type_class,
-                        .type_name = ASTNode_NAME};
-
-/* END Type system metadata for ASTNode */
-
-struct ASTNodeType ASTNode_class = ASTNodeType_DEFAULT_INIT;
+struct ASTNodeType ASTNode_class = {
+    .type_name = ASTNode_NAME,
+    .new = &ASTNode_new,
+    .init = &ASTNode_init,
+    .dest = &ASTNode_dest,
+    .del = &ASTNode_del,
+    .iter = &ASTNode_iter,
+    .reverse = &ASTNode_reverse,
+    .get = &ASTNode_get,
+    .len = &ASTNode_len,
+    .str = &ASTNode_str,
+};
 ASTNode ASTNode_fail = ASTNode_DEFAULT_INIT;
-ASTNode ASTNode_lookahead = {._class = &ASTNode_class, \
-                                .children = NULL, \
-                                .rule = NULL, \
-                                .str_length = 1, /* this indicates the node is skipped/not processed  */ \
-                                .nchildren = 0, \
-                                .token_key = 0, \
-                                .ntokens = 0, /* ntokens should be 0 because no tokens are consumed */ \
-                                };
+ASTNode ASTNode_lookahead = {
+    ._class = &ASTNode_class,
+    .children = NULL,
+    .rule = NULL,
+    .str_length = 1, /* this indicates the node is skipped/not processed  */
+    .nchildren = 0,
+    .token_key = 0,
+    .ntokens = 0, /* ntokens should be 0 because no tokens are consumed */
+};
 
 ASTNode * ASTNode_new(Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]) {
     ASTNode * ret = malloc(sizeof(*ret));
@@ -47,6 +51,11 @@ err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntok
 }
 void ASTNode_dest(ASTNode * self) { 
     // no-op. ASTNode does not own any contents that need to be destroyed. children are owned externally
+    if (self->children) {
+        free(self->children);
+    }
+    self->children = NULL;
+    self->nchildren = 0;
 }
 void ASTNode_del(ASTNode * self) { 
     if (self != &ASTNode_fail) {
@@ -75,15 +84,15 @@ int ASTNode_str(ASTNode * self, char * buffer, size_t buf_size) {
     return 0;
 }
 
-/* Type system metadata for ASTNodeIterator */
-#define ASTNodeIterator_NAME "ASTNodeIterator"
-
-Type const ASTNodeIterator_TYPE = {._class = &Type_class,
-                        .type_name = ASTNodeIterator_NAME};
-
-/* END Type system metadata for ASTNodeIterator */
-
-struct ASTNodeIteratorType ASTNodeIterator_class = ASTNodeIteratorType_DEFAULT_INIT;
+struct ASTNodeIteratorType ASTNodeIterator_class = {
+    .type_name = ASTNodeIterator_NAME,
+    .new = &ASTNodeIterator_new,
+    .init = &ASTNodeIterator_init,
+    .del = &ASTNodeIterator_del,
+    .next = &ASTNodeIterator_next,
+    .iter = &ASTNodeIterator_iter,
+    .reverse = &ASTNodeIterator_reverse,
+};
 
 ASTNodeIterator * ASTNodeIterator_new(ASTNode * parent_node, size_t start, size_t stop, ptrdiff_t step) {
     /* TODO */

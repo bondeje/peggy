@@ -57,8 +57,8 @@ else
 # sanitizer options are not available on Windows and a separate flag is necessary so that I can 
 # ensure build is explicitly compatible with valgrind 
 # (https://github.com/google/sanitizers/issues/810, which still seems relevant)
-		CFLAGS += -fsanitize=address,undefined,leak
-		LIBS = -lubsan -lasan -llsan
+		CFLAGS += -fsanitize=address,undefined
+		LIBS = -lubsan -lasan
 	endif
 	endif
 endif

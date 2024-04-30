@@ -4,17 +4,23 @@
 #include <stdio.h> // for Token_print only
 
 #include <peggy/utils.h>
-#include <peggy/type.h>
+//#include <peggy/type.h>
 #include <peggy/token.h>
 
-/* Type system metadata for Token */
 #define Token_NAME "Token"
 
-Type const Token_TYPE = {._class = &Type_class,
-                        .type_name = Token_NAME};
-/* END Type system metadata for Token */
-
-struct TokenType Token_class = TokenType_DEFAULT_INIT;
+struct TokenType Token_class = {
+    .type_name = Token_NAME,
+    .new = &Token_new,
+    .init = &Token_init,
+    .del = &Token_del,
+    .len = &Token_len,
+    .coords = &Token_coords,
+    .str = &Token_str,
+    .get = &Token_get,
+    .equal = &Token_equal,
+    .equal_value = &Token_equal,
+};
 
 Token * Token_new(char const * string, size_t start, size_t end, unsigned int line, unsigned int col) {
     Token * ret = malloc(sizeof(*ret));

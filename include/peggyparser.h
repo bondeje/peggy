@@ -34,15 +34,15 @@ typedef struct PeggyProduction {
 
 typedef struct PeggyParser PeggyParser;
 
-extern Type PeggyParser_TYPE;
-
 err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * string, size_t string_length);
 void PeggyParser_dest(PeggyParser * parser);
 void PeggyParser_parse(Parser * self);
 
+#define PeggyParser_NAME "PeggyParser.Parser"
+
 extern struct PeggyParserType {
-    Type const * _class;
-	struct ParserType Parser_class;
+    struct ParserType Parser_class;
+    char const * type_name;
     err_type (*init)(PeggyParser * parser, char const * name, size_t name_length, char const * string, size_t string_length);
     void (*dest)(PeggyParser * parser);
 } PeggyParser_class;
@@ -51,8 +51,8 @@ extern struct PeggyParserType {
 #include <peggy/stack.h>
 
 struct PeggyParser {
-    struct PeggyParserType const * _class;
 	Parser Parser;
+    struct PeggyParserType * _class;
     //HASH_MAP(PeggyString, PeggyProduction) punctuators;
     //HASH_MAP(PeggyString, PeggyProduction) keywords;
     HASH_MAP(PeggyString, PeggyProduction) productions;

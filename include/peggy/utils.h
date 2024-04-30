@@ -69,4 +69,6 @@ bool is_prime(size_t x);
 // but reconfigured to handle some of the swtich cases and reflect more the is_prime function
 size_t next_prime(size_t x);
 
+bool isinstance(char const * type, char const ** types);
+
 #endif // PEGGY_UTILS_H

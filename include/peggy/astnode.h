@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 #include <peggy/utils.h>
-#include <peggy/type.h>
+//#include <peggy/type.h>
 
 #define ASTNode_DEFAULT_INIT {._class = &ASTNode_class, \
                                 .children = NULL, \
@@ -55,20 +55,10 @@ struct ASTNodeIterator {
     size_t cur;
 };
 
-#define ASTNodeType_DEFAULT_INIT {._class = &ASTNode_TYPE,\
-                                    .new = &ASTNode_new,\
-                                    .init = &ASTNode_init,\
-                                    .dest = &ASTNode_dest, \
-                                    .del = &ASTNode_del,\
-                                    .iter = &ASTNode_iter, \
-                                    .reverse = &ASTNode_reverse, \
-                                    .get = &ASTNode_get, \
-                                    .len = &ASTNode_len, \
-                                    .str = &ASTNode_str, \
-                                    }
+#define ASTNode_NAME "ASTNode"
 
 extern struct ASTNodeType {
-    Type const * _class;
+    char const * type_name;
     ASTNode * (*new)(Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]);
     err_type (*init)(ASTNode * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]);
     void (*dest)(ASTNode * self);
@@ -90,17 +80,10 @@ err_type ASTNode_get(ASTNode * self, size_t key, ASTNode ** value);
 size_t ASTNode_len(ASTNode * self);
 int ASTNode_str(ASTNode * self, char * buffer, size_t buf_size);
 
-#define ASTNodeIteratorType_DEFAULT_INIT {._class = &ASTNodeIterator_TYPE,\
-                                            .new = &ASTNodeIterator_new,\
-                                            .init = &ASTNodeIterator_init,\
-                                            .del = &ASTNodeIterator_del,\
-                                            .next = &ASTNodeIterator_next, \
-                                            .iter = &ASTNodeIterator_iter, \
-                                            .reverse = &ASTNodeIterator_reverse, \
-                                            }
+#define ASTNodeIterator_NAME "ASTNodeIterator"
 
 extern struct ASTNodeIteratorType {
-    Type const * _class;
+    char const * type_name;
     ASTNodeIterator * (*new)(ASTNode * parent_node, size_t start, size_t stop, ptrdiff_t step);
     err_type (*init)(ASTNodeIterator * self, ASTNode * parent_node, size_t start, size_t stop, ptrdiff_t step);
     void (*del)(ASTNodeIterator * self);
@@ -125,3 +108,4 @@ ASTNode * make_skip_node(ASTNode * node);
 bool is_skip_node(ASTNode * node);
 
 #endif // PEGGY_ASTNODE_H
+
