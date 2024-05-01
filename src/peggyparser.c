@@ -144,8 +144,8 @@ bool is_root(PeggyParser * parser, Token * tok) {
 
 PeggyString get_string_from_parser(PeggyParser * parser, ASTNode * node) {
     size_t ntokens;
-    Token ** toks = parser->_class->Parser_class.get_tokens(&parser->Parser, node, &ntokens);
-    return (PeggyString){.str = (char *)(toks[0]->string + toks[0]->start), .len = toks[ntokens-1]->end - toks[0]->start};
+    Token * toks = parser->_class->Parser_class.get_tokens(&parser->Parser, node, &ntokens);
+    return (PeggyString){.str = (char *)(toks[0].string + toks[0].start), .len = toks[ntokens-1].end - toks[0].start};
 }
 
 PeggyString get_rule_pointer(PeggyParser * parser, PeggyString name) {
@@ -993,8 +993,8 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
     PeggyString arg;
     size_t ntokens = 0;
     //size_t n_lits = (node->children[2]->nchildren + 1) / 2;
-    Token ** toks = parser->_class->Parser_class.get_tokens(&parser->Parser, node->children[2], &ntokens);
-    arg.len = toks[ntokens-1]->end - toks[0]->start;
+    Token * toks = parser->_class->Parser_class.get_tokens(&parser->Parser, node->children[2], &ntokens);
+    arg.len = toks[ntokens-1].end - toks[0].start;
     arg.len = 4 * arg.len + 1 + REGEX_LIB_OFFSET_LEFT + REGEX_LIB_OFFSET_RIGHT; // *4 since that is the longest that also escapes every character and include '|' separator and +3 for surrounding "^()" (if stupid POSIX API)
     arg.str = malloc(sizeof(char) * arg.len); 
     size_t written = 0;
@@ -1173,20 +1173,20 @@ void handle_export(PeggyParser * parser, ASTNode * node) {
     //printf("in handle_export\n");
     // node is a nonws_printable production
     if (parser->productions.fill){ // || parser->keywords.fill || parser->punctuators.fill) {
-        Token * tok;
+        Token tok;
         parser_class->get(&parser->Parser, node->token_key, &tok);
-        printf("cannot change export name after any productions have been defined: line %u, col %u\n", tok->coords.line, tok->coords.col);
+        printf("cannot change export name after any productions have been defined: line %u, col %u\n", tok.coords.line, tok.coords.col);
         exit(EXIT_FAILURE);
     }
     if (parser->export_found) {
-        Token * tok;
+        Token tok;
         parser_class->get(&parser->Parser, node->token_key, &tok);
-        printf("cannot have multiple exports in a grammar specification: line %u, col %u\n", tok->coords.line, tok->coords.col);
+        printf("cannot have multiple exports in a grammar specification: line %u, col %u\n", tok.coords.line, tok.coords.col);
         exit(EXIT_FAILURE);
     }
     size_t ntokens = 0;
-    Token ** toks = parser_class->get_tokens(&parser->Parser, node, &ntokens);
-    parser->export = (PeggyString){.str = (char *)(toks[0]->string + toks[0]->start), .len = toks[ntokens-1]->end - toks[0]->start};
+    Token * toks = parser_class->get_tokens(&parser->Parser, node, &ntokens);
+    parser->export = (PeggyString){.str = (char *)(toks[0].string + toks[0].start), .len = toks[ntokens-1].end - toks[0].start};
 
     open_output_files(parser);
     prep_output_files(parser);
@@ -1215,12 +1215,13 @@ ASTNode * handle_peggy(Parser * parser_, ASTNode * node) {
     PeggyParser * parser = (PeggyParser *)parser_;
     parser_->ast = node;
 
-    Token * final = parser_->tokens.bins[parser_->tokens.fill - 1];
+    Token final;
+    parser_->_class->get(parser_, parser_->tokens.fill - 1, &final);
     //printf("parser_->ast %p\n", (void *)parser_->ast);
     if (parser_->ast == &ASTNode_fail) {
         printf("parsing failed, no matches found\n\n");
-    } else if (parser_->ast->ntokens < parser_->tokens.fill - 1 || final->end - final->start) {
-        printf("parsing failed to tokenize input: remaining %s\n\n", final->string + final->start);
+    } else if (parser_->ast->ntokens < parser_->tokens.fill - 1 || final.end - final.start) {
+        printf("parsing failed to tokenize input: remaining %s\n\n", final.string + final.start);
     } else {
         printf("parsing successful\n");
     }

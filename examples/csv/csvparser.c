@@ -63,12 +63,13 @@ CSVParser csv = {
 
 void handle_field(CSVParser * parser, ASTNode * node, size_t row, size_t col) {
     size_t ntokens;
-    Token ** toks = parser->Parser._class->get_tokens(&parser->Parser, node, &ntokens);
+    Token * toks = parser->Parser._class->get_tokens(&parser->Parser, node, &ntokens);
 
     if (node->children[0]->rule->id == STRING) {
-        parser->data[row * parser->ncols + col] = (Cell){.start = (char *)(toks[0]->string + toks[0]->start + 1), toks[ntokens-1]->end - toks[0]->start - 2};
+        // string is surrounded by '\"' '\"', so remove those two characters
+        parser->data[row * parser->ncols + col] = (Cell){.start = (char *)(toks[0].string + toks[0].start + 2), toks[ntokens-1].end - toks[0].start - 4};
     } else {
-        parser->data[row * parser->ncols + col] = (Cell){.start = (char *)(toks[0]->string + toks[0]->start), toks[ntokens-1]->end - toks[0]->start};
+        parser->data[row * parser->ncols + col] = (Cell){.start = (char *)(toks[0].string + toks[0].start), toks[ntokens-1].end - toks[0].start};
     }
 }
 
@@ -90,7 +91,7 @@ ASTNode * handle_csv(Parser * parser, ASTNode * node) {
     ASTNode * record_list = node->children[0];
     csv->nrows = (record_list->nchildren + 1) / 2;
     csv->ncols = (record_list->children[0]->nchildren + 1) / 2;
-    /*
+    
     csv->data = malloc(sizeof(*(csv->data)) * csv->nrows * csv->ncols);
     
     size_t N = record_list->nchildren;
@@ -100,7 +101,7 @@ ASTNode * handle_csv(Parser * parser, ASTNode * node) {
         j++;
     }
     printf("succeeded parsing %s\n", parser->name);
-    */
+    
     return node;
 }
 
@@ -129,6 +130,16 @@ err_type from_string(char const * string, size_t string_length, char const * nam
     
     csv.Parser._class->dest((Parser *)&csv);
 
+    /*
+    static char buffer[10] = {'\0'};
+    Cell * cell = csv.data + 30;
+    printf("value at index 30: ");
+    for (size_t i = 0 ; i < cell->len; i++) {
+        printf("%c", cell->start[i]);
+    }
+    printf("\n");
+    */
+    
     if (n_elem) {
         *n_elem = csv.ncols * csv.nrows;
     }
@@ -201,7 +212,7 @@ int main(int narg, char ** args) {
         
     }
 
-    nfiles = (nfiles < 18) ? nfiles : 18;
+    nfiles = (nfiles < 16) ? nfiles : 16;
     if (timeit) {
         char buffer[1026] = {'\0'};
         int length = 0;
