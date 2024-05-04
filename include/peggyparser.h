@@ -34,7 +34,7 @@ typedef struct PeggyProduction {
 
 typedef struct PeggyParser PeggyParser;
 
-err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * string, size_t string_length);
+err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * string, size_t string_length, char const * log_file, unsigned char log_level);
 void PeggyParser_dest(PeggyParser * parser);
 void PeggyParser_parse(Parser * self);
 
@@ -43,7 +43,7 @@ void PeggyParser_parse(Parser * self);
 extern struct PeggyParserType {
     struct ParserType Parser_class;
     char const * type_name;
-    err_type (*init)(PeggyParser * parser, char const * name, size_t name_length, char const * string, size_t string_length);
+    err_type (*init)(PeggyParser * parser, char const * name, size_t name_length, char const * string, size_t string_length, char const * log_file, unsigned char log_level);
     void (*dest)(PeggyParser * parser);
 } PeggyParser_class;
 
@@ -65,8 +65,8 @@ struct PeggyParser {
     bool export_found;
 };
 
-ASTNode * handle_peggy(Parser * parser, ASTNode * node);
+ASTNode * handle_peggy(Production * peggy_prod, Parser * parser, ASTNode * node);
 
-ASTNode * simplify_rule(Parser * parser, ASTNode * node);
+ASTNode * simplify_rule(Production * simplifiable_rule, Parser * parser, ASTNode * node);
 
 #endif // PEGGY_H

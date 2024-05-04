@@ -416,10 +416,6 @@ void PositiveLookahead_as_Rule_del(Rule * positive_lookahead);
 ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser, size_t token_key);
 /* Production Rule abstract class definitions and declarations */
 
-ASTNode * build_action_default(Parser * parser, ASTNode * node);
-
-typedef ASTNode * (*build_action_ftype)(Parser * parser, ASTNode *node);
-
 #define Production_DEFAULT_INIT {   .DerivedRule = { \
                                         .Rule = { \
                                             ._class = &Production_class.DerivedRule_class.Rule_class, \
@@ -433,6 +429,9 @@ typedef ASTNode * (*build_action_ftype)(Parser * parser, ASTNode *node);
                                     }
 
 typedef struct Production Production;
+
+ASTNode * build_action_default(Production * production, Parser * parser, ASTNode * node);
+typedef ASTNode * (*build_action_ftype)(Production * production, Parser * parser, ASTNode *node);
 
 struct Production {
     DerivedRule DerivedRule;

@@ -1,9 +1,14 @@
+/* C std lib */
 #include <stddef.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
 
+/* lib includes */
+#include <logger.h>
+
+/* peggy includes */
 #include <peggy/token.h>
 #include <peggy/rule.h>
 
@@ -18,6 +23,54 @@ typedef struct STACK(char) StringBuilder;
 #include <peggy/stack.h>
 
 const PeggyString NULL_STRING = {.str = NULL, .len = 0};
+
+struct PeggyParserType PeggyParser_class = {
+    .Parser_class = {
+        .type_name = PeggyParser_NAME,
+        .new = &Parser_new,
+        .init = &Parser_init,
+        .dest = &Parser_dest, 
+        .del = &Parser_del,
+        .tell = &Parser_tell, 
+        .seek = &Parser_seek, 
+        .log = &Parser_log, 
+        .log_check_fail_ = &Parser_log_check_fail_, 
+        .get_line_col_end = &Parser_get_line_col_end, 
+        .gen_final_token_ = &Parser_gen_final_token_, 
+        .skip_token = &Parser_skip_token, 
+        .estimate_final_ntokens_ = &Parser_estimate_final_ntokens,
+        .add_token = &Parser_add_token, 
+        .add_node = &Parser_add_node,
+        .gen_next_token_ = &Parser_gen_next_token_, 
+        .get = &Parser_get, 
+        .get_tokens = &Parser_get_tokens, 
+        .parse = &PeggyParser_parse,
+        .check_cache = &Parser_check_cache,
+        .cache_check = &Parser_cache_check,
+        .traverse = &Parser_traverse, 
+        .print_ast = &Parser_print_ast 
+    },
+    .init = &PeggyParser_init,
+    .dest = &PeggyParser_dest,
+};
+
+struct PeggyParser peggy = {
+    .Parser = {._class = &(PeggyParser_class.Parser_class),
+        .token_rule = NULL,
+        .root_rule = NULL,
+        .name = "",
+        .log_file = NULL,
+        .logger = DEFAULT_LOGGER_INIT,
+        .loc_ = 0,
+        .disable_cache_check = false,
+        .ast = NULL
+    },
+    ._class = &PeggyParser_class,
+    .header_file = NULL,
+    .source_file = NULL,
+    .header_name = NULL,
+    .source_name = NULL,
+};
 
 int StringBuilder_comp(StringBuilder a, StringBuilder b) {
     if (b.fill != a.fill) {
@@ -151,6 +204,7 @@ PeggyString get_string_from_parser(PeggyParser * parser, ASTNode * node) {
 PeggyString get_rule_pointer(PeggyParser * parser, PeggyString name) {
     PeggyProduction prod = {0};
     if (parser->productions._class->get(&parser->productions, name, &prod)) {
+
         printf("retrieval of ");
         PeggyString_print(name);
         printf(" failed\n");
@@ -212,6 +266,7 @@ int PeggyProduction_define(void * parser_, PeggyString name, PeggyProduction pro
 
 int build_export_rules_resolved(void * parser_, PeggyString name, PeggyProduction prod) {
     PeggyParser * parser = (PeggyParser *) parser_;
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building export rules for %.*s\n", __func__, prod.name.len, prod.name.str);
     char * rule_resolve = strchr(prod.type_name, '.');
     size_t length = rule_resolve ? strlen(rule_resolve) : 0;
     PeggyString arg = {.len = 1 + prod.identifier.len + length};
@@ -232,6 +287,7 @@ int build_export_rules_resolved(void * parser_, PeggyString name, PeggyProductio
 }
 
 void build_export_rules(PeggyParser * parser) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - building export rules\n", __func__);
     char const * buffer = NULL;
     FILE * file = parser->source_file;
     buffer = "\n\nRule * ";
@@ -253,6 +309,7 @@ void build_export_rules(PeggyParser * parser) {
 }
 
 void build_destructor(PeggyParser * parser) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - building destructor\n", __func__);
     char const * buffer = NULL;
     FILE * file = parser->source_file;
     buffer = "void ";
@@ -276,6 +333,7 @@ void build_destructor(PeggyParser * parser) {
 }
 
 void PeggyProduction_declare(PeggyParser * parser, PeggyProduction prod) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - declaring type %.*s\n", __func__, prod.name.len, prod.name.str);
     //printf("declaring type: %s\n", prod.type_name);
 
     char * main_type_end = strchr(prod.type_name, '.');
@@ -297,6 +355,8 @@ void PeggyProduction_declare(PeggyParser * parser, PeggyProduction prod) {
 
     PeggyString_fwrite(prod.identifier, parser->header_file, PSFO_UPPER | PSFO_LOFFSET(offset));
     fwrite(",\n\t", 1, strlen(",\n\t"), parser->header_file);
+    fflush(parser->header_file);
+    fflush(parser->source_file);
 }
 
 void production_init(PeggyParser * parser, PeggyString name, PeggyProduction * prod) {
@@ -330,6 +390,7 @@ void handle_terminal(PeggyParser * parser, ASTNode * node, const PeggyString par
 
 
 void handle_lookahead_rule(PeggyParser * parser, ASTNode * node, PeggyString name) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling lookahead rule id %d from line %u, col %u\n", __func__, node->rule->id, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     // if we get this far, it is definitely a repeated rule
     //printf("handling lookahead with name ");
     //PeggyString_print(name);
@@ -392,6 +453,7 @@ void handle_lookahead_rule(PeggyParser * parser, ASTNode * node, PeggyString nam
 } 
 
 void handle_list_rule(PeggyParser * parser, ASTNode * node, PeggyString name) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling list rule id %d from line %u, col %u\n", __func__, node->rule->id, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     //printf("handling list with name ");
     //PeggyString_print(name);
     //printf("\n");
@@ -425,6 +487,7 @@ void handle_list_rule(PeggyParser * parser, ASTNode * node, PeggyString name) {
 }
 
 void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling repeated rule id %d from line %u, col %u\n", __func__, node->rule->id, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     // if we get this far, it is definitely a repeated rule
     //printf("handling repeated rule with name ");
     //PeggyString_print(name);
@@ -541,6 +604,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
 }
 
 void handle_sequence(PeggyParser * parser, ASTNode * node, PeggyString name) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling sequence rule id %d from line %u, col %u\n", __func__, node->rule->id, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     //printf("handling sequence with name ");
     //PeggyString_print(name);
     //printf("\n");
@@ -576,6 +640,7 @@ void handle_sequence(PeggyParser * parser, ASTNode * node, PeggyString name) {
 }
 
 void handle_choice(PeggyParser * parser, ASTNode * node, PeggyString name) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling choice rule id %d from line %u, col %u\n", __func__, node->rule->id, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     /*
     printf("handling choice with name ");
     PeggyString_print(name);
@@ -608,6 +673,7 @@ void handle_choice(PeggyParser * parser, ASTNode * node, PeggyString name) {
 }
 
 PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, char const * type) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building PeggyProduction rule id %d from line %u, col %u\n", __func__, id->rule->id, parser->Parser.tokens.bins[id->token_key].coords.line, parser->Parser.tokens.bins[id->token_key].coords.col);
     PeggyProduction prod;
     STACK_INIT(PeggyString)(&prod.args, 0);
 
@@ -629,12 +695,14 @@ PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, char c
         prod.type_name = ((RuleType *) &Production_class)->type_name;
     }    
 
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding build of production rule id %d with name %.*s from line %u, col %u to production map\n", __func__, id->rule->id, prod.name.len, prod.name.str, parser->Parser.tokens.bins[id->token_key].coords.line, parser->Parser.tokens.bins[id->token_key].coords.col);
     parser->productions._class->set(&parser->productions, prod.name, prod);
 
     return prod;
 }
 
 void handle_base_rule(PeggyParser * parser, ASTNode * node, const PeggyString parent_id, PeggyString name) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling base rule id %d from line %u, col %u\n", __func__, node->rule->id, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     switch (node->children[0]->rule->id) {
         case TERMINAL: {
             // terminals are only built if parent_id is not empty
@@ -669,6 +737,7 @@ void handle_base_rule(PeggyParser * parser, ASTNode * node, const PeggyString pa
 }
 
 void handle_simplified_rules(PeggyParser * parser, ASTNode * node, const PeggyString parent_id, PeggyString name) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling simplified rule rule id %d from line %u, col %u\n", __func__, node->rule->id, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     switch (node->rule->id) {
         case CHOICE: {
             handle_choice(parser, node, name);
@@ -695,7 +764,7 @@ void handle_simplified_rules(PeggyParser * parser, ASTNode * node, const PeggySt
             break;
         }
         default: {
-
+            LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - trying to simplify an unknown rule id %d with type %s from line %u, col %u\n", __func__, node->rule->id, node->rule->_class->type_name, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
         }
     }
     
@@ -735,15 +804,14 @@ void handle_production_(PeggyParser * parser, ASTNode * id, ASTNode * transforms
     }
 
     // since productions are not allocated objects on the hash map, have to push to map again
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding production rule id %d from line %u, col %u to production map\n", __func__, id->rule->id, parser->Parser.tokens.bins[id->token_key].coords.line, parser->Parser.tokens.bins[id->token_key].coords.col);
     parser->productions._class->set(&parser->productions, prod.name, prod);
 }
 
 void handle_production(PeggyParser * parser, ASTNode * node) {
-    //printf("production not yet fully implemented\n");
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling production rule id %d from line %u, col %u\n", __func__, node->rule->id, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
 
     handle_production_(parser, node->children[0], node->children[1]->nchildren ? node->children[1]->children[0]->children[1] : NULL, node->children[3], HANDLE_PRODUCTION_NONE);
-    
-    //printf("identifier.str address: %p\n", (void*)prod.identifier.str);
 }
 
 #if 0
@@ -846,11 +914,13 @@ char * punctuator_lookup(char * punctuation, size_t len) {
     if (punc) {
         return PUNCTUATION_LOOKUP[i][1];
     }
+    // eww global variable direct access in low-level function
+    LOG_EVENT(&peggy.Parser.logger, LOG_LEVEL_WARN, "WARN: %s - punctuator lookup failed\n", __func__);
     return NULL;
 }
 
 void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyString parent_id) {
-    /* seriously need to rework this */
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling string literal from line %u, col %u\n", __func__, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     PeggyProduction prod;
     STACK_INIT(PeggyString)(&prod.args, 0);
     
@@ -924,6 +994,7 @@ void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyStri
 }
 
 void handle_regex_literal(PeggyParser * parser, ASTNode * node, const PeggyString parent_id) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling regex from line %u, col %u\n", __func__, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     PeggyProduction prod;
     STACK_INIT(PeggyString)(&prod.args, 0);
     
@@ -976,6 +1047,7 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
     STACK_INIT(PeggyString)(&prod.args, 0);
     PeggyString parent_id = {.str = (node->children[0]->rule->id == PUNCTUATOR_KW) ? "punctuator" : "keyword"};
     parent_id.len = strlen(parent_id.str);
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling %s from line %u, col %u\n", __func__, parent_id.str, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
 
     prod.name = get_string_from_parser(parser, node->children[0]);
 
@@ -1064,8 +1136,7 @@ void handle_special_production(PeggyParser * parser, ASTNode * node) {
 }
 
 void handle_import(PeggyParser * parser, ASTNode * node) {
-    // node is a nonws_printable production
-    //printf("in handle_import\n");
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling import from line %u, col %u\n", __func__, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     PeggyString import = get_string_from_parser(parser, node);
     parser->imports._class->push(&parser->imports, import);
 
@@ -1075,11 +1146,12 @@ void handle_import(PeggyParser * parser, ASTNode * node) {
 
     buffer = ".h\"\n";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->source_file);
+    fflush(parser->source_file);
 }
 
 #define PREP_OUTPUT_VAR_BUFFER_SIZE 256
 void prep_output_files(PeggyParser * parser) {
-    //printf("prepping output files\n");
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - prepping output files\n", __func__);
     char var_buffer[PREP_OUTPUT_VAR_BUFFER_SIZE];
     char const * buffer = NULL;
     int nbytes = 0;
@@ -1087,9 +1159,11 @@ void prep_output_files(PeggyParser * parser) {
     // write header in .h file
     buffer = "/* this file is auto-generated, do not modify */\n#ifndef ";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
+    
     PeggyString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
     buffer = "_H\n#define ";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
+    
     PeggyString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
     buffer = "_H\n\n#include <peggy/utils.h>\n#include <peggy/rule.h>\n#include <peggy/parser.h>\n\ntypedef enum ";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
@@ -1101,9 +1175,11 @@ void prep_output_files(PeggyParser * parser) {
 
     nbytes = snprintf(var_buffer, PREP_OUTPUT_VAR_BUFFER_SIZE, "/* this file is auto-generated, do not modify */\n#include <peggy/parser_gen.h>\n#include \"%s\"\n", parser->header_name);
     fwrite(var_buffer, 1, nbytes, parser->source_file);
+    fflush(parser->header_file);
 }
 
 void cleanup_header_file(PeggyParser * parser) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - cleaning up header file %s\n", __func__, parser->header_name);
     PeggyString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
     char * buffer = "_NRULES\n} ";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
@@ -1134,10 +1210,10 @@ void cleanup_header_file(PeggyParser * parser) {
 
     buffer = "_H\n";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
+    fflush(parser->header_file);
 }
 
 err_type open_output_files(PeggyParser * parser) {
-    //printf("opening output files\n");
     size_t name_length = parser->export.len;
     // build filenames. TODO: need to move this to build phase since export keyword will modify this
     parser->header_name = malloc(2* (sizeof(*parser->header_name) * (name_length + 3)));
@@ -1156,33 +1232,32 @@ err_type open_output_files(PeggyParser * parser) {
     parser->source_name[name_length+2] = '\0';
 
     if (!(parser->header_file = fopen(parser->header_name, "w"))) {
-        printf("failed to open header file %s\n", parser->header_name);
+        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to open header file %s\n", __func__, parser->header_name);
         return PEGGY_FILE_IO_ERROR;
     }
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - opened header file %s\n", __func__, parser->header_name);
     //printf("opened output header file %s\n", parser->header_name);
     if (!(parser->source_file = fopen(parser->source_name, "w"))) {
-        printf("failed to open source file %s\n", parser->source_name);
+        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to open source file %s\n", __func__, parser->source_name);
         return PEGGY_FILE_IO_ERROR;
     }
-    //printf("opened output source file %s\n", parser->source_name);
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - opened source file %s\n", __func__, parser->source_name);
     return PEGGY_SUCCESS;
 }
 
 void handle_export(PeggyParser * parser, ASTNode * node) {
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling export from line %u, col %u\n", __func__, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     ParserType * parser_class = parser->Parser._class;
-    //printf("in handle_export\n");
     // node is a nonws_printable production
     if (parser->productions.fill){ // || parser->keywords.fill || parser->punctuators.fill) {
         Token tok;
         parser_class->get(&parser->Parser, node->token_key, &tok);
-        printf("cannot change export name after any productions have been defined: line %u, col %u\n", tok.coords.line, tok.coords.col);
-        exit(EXIT_FAILURE);
+        LOG_EVENT(&((Parser *)parser)->logger, LOG_LEVEL_WARN, "WARN: %s - cannot change export name after any productions have been defined: line %u, col %u...ignoring\n", __func__, tok.coords.line, tok.coords.col);
     }
     if (parser->export_found) {
         Token tok;
         parser_class->get(&parser->Parser, node->token_key, &tok);
-        printf("cannot have multiple exports in a grammar specification: line %u, col %u\n", tok.coords.line, tok.coords.col);
-        exit(EXIT_FAILURE);
+        LOG_EVENT(&((Parser *)parser)->logger, LOG_LEVEL_WARN, "WARN: %s - cannot have multiple exports in a grammar specification: line %u, col %u...ignoring\n", __func__, tok.coords.line, tok.coords.col);
     }
     size_t ntokens = 0;
     Token * toks = parser_class->get_tokens(&parser->Parser, node, &ntokens);
@@ -1193,8 +1268,7 @@ void handle_export(PeggyParser * parser, ASTNode * node) {
 }
 
 void handle_config(PeggyParser * parser, ASTNode * node) {
-    // node is a config production
-    //printf("in handle_config\n");
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling config at line %u, col %u\n", __func__, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
     switch (node->children[0]->rule->id) {
         case IMPORT_KW: {
             handle_import(parser, node->children[2]);
@@ -1205,30 +1279,20 @@ void handle_config(PeggyParser * parser, ASTNode * node) {
             break;
         }
         default: {
-            printf("config type not understood with rule id: %d\n", node->children[0]->rule->id);
+            LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - config type not understood with rule id: %d\n", __func__, node->children[0]->rule->id);
         }
     }
 }
 
-ASTNode * handle_peggy(Parser * parser_, ASTNode * node) {
-    //printf("\nhandling peggy grmr document\n\n");
+ASTNode * handle_peggy(Production * peggy_prod, Parser * parser_, ASTNode * node) {
+    LOG_EVENT(&parser_->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - Found %zu document elements\n", __func__, node->nchildren);
     PeggyParser * parser = (PeggyParser *)parser_;
     parser_->ast = node;
-
-    Token final;
-    parser_->_class->get(parser_, parser_->tokens.fill - 1, &final);
-    //printf("parser_->ast %p\n", (void *)parser_->ast);
-    if (parser_->ast == &ASTNode_fail) {
-        printf("parsing failed, no matches found\n\n");
-    } else if (parser_->ast->ntokens < parser_->tokens.fill - 1 || final.end - final.start) {
-        printf("parsing failed to tokenize input: remaining %s\n\n", final.string + final.start);
-    } else {
-        printf("parsing successful\n");
-    }
-    //printf("n peggy children %zu\n", node->nchildren);
+    
     // node is a peggy document production
     for (size_t i = 0; i < node->nchildren; i++) {
         ASTNode * child = node->children[i];
+        
         switch (child->rule->id) {
             case CONFIG: {
                 handle_config(parser, child);
@@ -1243,63 +1307,64 @@ ASTNode * handle_peggy(Parser * parser_, ASTNode * node) {
                 break;
             }
             default: {
-                printf("peggy child node with unknown rule id: %d\n", child->rule->id);
+                LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - document element not understood: %d. Expected a config or production.\n", __func__, child->rule->id);
             }
         }
+        
     }
 
-    //printf("cleaning up header file\n");
     cleanup_header_file(parser);
 
-    //printf("building definitions\n");
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - building definitions\n", __func__);
     parser->productions._class->for_each(&parser->productions, &PeggyProduction_define, (void*)parser);
 
-    //printf("building export rules\n");
     build_export_rules(parser);
 
-    //printf("building destructor\n");
     build_destructor(parser);
     
     return node;
 }
 
-ASTNode * simplify_rule(Parser * parser, ASTNode * node) {
-    //printf("simplifying node\n");
-    switch (node->rule->id) {
+ASTNode * simplify_rule(Production * simplifiable_rule, Parser * parser, ASTNode * node) {
+    LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - trying to simplifying rule id %d from line %u, col %u\n", __func__, node->rule->id, parser->tokens.bins[node->token_key].coords.line, parser->tokens.bins[node->token_key].coords.col);
+    rule_id_type cur_rule = ((Rule *)simplifiable_rule)->id;
+    switch (cur_rule) {
         case LOOKAHEAD_RULE: {
             if (!(node->children[0]->nchildren)) {
-                node = node->children[1];
-            } else {
-                return node;
+                return node->children[1];
+                
             }
             break;
         }
         case REPEATED_RULE: {
             //printf("repeated rule found with %zu children. is actually repeated rule? %s\n", node->nchildren, node->children[1]->nchildren ? "yes": "no");
             if (!node->children[1]->nchildren) {
-                node = node->children[0];
-            } else {
-                return node;
+                return node->children[0];
             }
             break;
         }
-        case LIST_RULE: {}
+        case LIST_RULE: {
+        }
             __attribute__((fallthrough)); // otherwise gcc -pedantic complains about fallthrough
-        case SEQUENCE: {}
+        case SEQUENCE: {
+        }
             __attribute__((fallthrough)); // otherwise gcc -pedantic complains about fallthrough
         case CHOICE: {
             if (node->nchildren == 1) {
-                node = node->children[0];
-            } else {
-                return node;
+                return node->children[0];
             }
             break;
         }
         default: {
+            LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - rule id %d was not simplified\n", __func__, node->rule->id);
             return node;
         }
-    }
-    return simplify_rule(parser, node);
+    }    
+
+    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - re-initializing node rule from id %d to id %d; no node generated\n", __func__, node->rule->id, cur_rule);
+    node->_class->init(node, (Rule *)simplifiable_rule, node->token_key, node->ntokens, node->str_length, node->nchildren, node->children);
+    return node;
+
 }
 
 
@@ -1309,9 +1374,8 @@ ASTNode * simplify_rule(Parser * parser, ASTNode * node) {
 									.token_rule = NULL, \
 									.root_rule = NULL, \
 									.name = NULL, \
-									.log_buffer = NULL, \
-									.log_buffer_length = 0, \
 									.log_file = NULL, \
+                                    .logger = DEFAULT_LOGGER_INIT, \
 									.loc_ = 0, \
 									.tokens_length = 0, \
 									.tokens_capacity = 0, \
@@ -1327,57 +1391,14 @@ ASTNode * simplify_rule(Parser * parser, ASTNode * node) {
                                 export = NULL \
 								}
 
-struct PeggyParserType PeggyParser_class = {
-    .Parser_class = {
-        .type_name = PeggyParser_NAME,
-        .new = &Parser_new,
-        .init = &Parser_init,
-        .dest = &Parser_dest, 
-        .del = &Parser_del,
-        .tell = &Parser_tell, 
-        .seek = &Parser_seek, 
-        .log = &Parser_log, 
-        .log_check_fail_ = &Parser_log_check_fail_, 
-        .get_line_col_end = &Parser_get_line_col_end, 
-        .gen_final_token_ = &Parser_gen_final_token_, 
-        .skip_token = &Parser_skip_token, 
-        .estimate_final_ntokens_ = &Parser_estimate_final_ntokens,
-        .add_token = &Parser_add_token, 
-        .add_node = &Parser_add_node,
-        .gen_next_token_ = &Parser_gen_next_token_, 
-        .get = &Parser_get, 
-        .get_tokens = &Parser_get_tokens, 
-        .parse = &PeggyParser_parse,
-        .check_cache = &Parser_check_cache,
-        .cache_check = &Parser_cache_check,
-        .traverse = &Parser_traverse, 
-        .print_ast = &Parser_print_ast 
-    },
-    .init = &PeggyParser_init,
-    .dest = &PeggyParser_dest,
-};
-
-struct PeggyParser peggy = {
-    .Parser = {._class = &(PeggyParser_class.Parser_class),
-        .token_rule = NULL,
-        .root_rule = NULL,
-        .name = "",
-        .log_buffer = NULL,
-        .log_buffer_length = 0,
-        .log_file = NULL,
-        .loc_ = 0,
-        .disable_cache_check = false,
-        .ast = NULL
-    },
-    ._class = &PeggyParser_class,
-    .header_file = NULL,
-    .source_file = NULL,
-    .header_name = NULL,
-    .source_name = NULL,
-};
-
-err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * string, size_t string_length) {
-	//printf("in PeggyParser_init\n");
+err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * string, size_t string_length, char const * log_file, unsigned char log_level) {
+    err_type err_status = parser->Parser._class->init(&(parser->Parser), name, name_length, string, 
+		string_length, (Rule *)&peggy_token, 
+		(Rule *)&peggy_peggy, PEGGY_NRULES, 0, 0, PARSER_LAZY, log_file, log_level);
+    LOG_EVENT(&((Parser*)parser)->logger, LOG_LEVEL_INFO, "INFO: %s - initializing peggy parser attributes\n", __func__);
+    if (err_status) {
+        return err_status;
+    }
     hash_map_err status = HM_SUCCESS;
     if ((STACK_INIT(PeggyString)(&parser->imports, 0))) {
         status = HM_MALLOC_PAIR_FAILURE;
@@ -1386,19 +1407,13 @@ err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_l
     if ((status = HASH_MAP_INIT(PeggyString, PeggyProduction)(&parser->productions, 0))) {
         goto parser_productions_map_fail;
     }
-    /*
-    if ((status = HASH_MAP_INIT(PeggyString, PeggyProduction)(&parser->keywords, 0))) {
-        goto parser_keywords_map_fail;
-    }
-    if ((status = HASH_MAP_INIT(PeggyString, PeggyProduction)(&parser->punctuators, 0))) {
-        goto parser_punctuators_map_fail;
-    }
-    */
     parser->export.str = (char *)name;
     parser->export.len = name_length;
-    return parser->Parser._class->init(&(parser->Parser), name, name_length, string, 
-		string_length, (Rule *)&peggy_token, 
-		(Rule *)&peggy_peggy, PEGGY_NRULES, 0, 0, false, NULL);
+    parser->Parser._class->parse((Parser *)parser);
+    if (parser->Parser.ast == &ASTNode_fail) {
+        return PEGGY_FAILURE;
+    }
+    return PEGGY_SUCCESS;
 
 parser_productions_map_fail:
     parser->imports._class->dest(&parser->imports);
@@ -1408,9 +1423,6 @@ parser_import_stack_fail:
 
 int PeggyProduction_cleanup(void * data, PeggyString name, PeggyProduction prod) {
     if (prod.identifier.len) {
-        //printf("in production named: ");
-        //PeggyString_print(prod.name);
-        //printf(", freeing identifier at %p\n", (void*)prod.identifier.str);
         free(prod.identifier.str);
     }
     PeggyString res;
@@ -1424,61 +1436,48 @@ int PeggyProduction_cleanup(void * data, PeggyString name, PeggyProduction prod)
 }
 
 void PeggyParser_dest(PeggyParser * parser) {
-    //printf("closing header file\n");
+    LOG_EVENT(&((Parser*)parser)->logger, LOG_LEVEL_INFO, "INFO: %s - destroying peggy parser attributes\n", __func__);
     if (parser->header_file) {
         fclose(parser->header_file);
         parser->header_file = NULL;
     }
-    //printf("closing source file\n");
     if (parser->source_file) {
         fclose(parser->source_file);
         parser->source_file = NULL;
     }
-    //printf("freeing header name\n");
     if (parser->header_name) {
         free(parser->header_name);
         parser->header_name = NULL;
     }
-    /* // do not do this. source_name is allocated under header_name
-    printf("freeing source name\n");
-    if (parser->source_name) {
-        free(parser->source_name);
-        parser->source_name = NULL;
-    }
-    */
-    //printf("destroying productions\n");
+    
     parser->productions._class->for_each(&parser->productions, &PeggyProduction_cleanup, NULL);
-    //printf("destroying production map\n");
 	parser->productions._class->dest(&(parser->productions));
-    //printf("destroying import stack\n");
     parser->imports._class->dest(&parser->imports);
-    //printf("destroying superclass Parser\n");
     parser->_class->Parser_class.dest(&parser->Parser);
 }
 
 void PeggyParser_parse(Parser * self) {
-	//printf("in PeggyParser_parse\n");
+	LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - initiating parse\n", __func__);
     self->ast = self->root_rule->_class->check(self->root_rule, self);
-
-    // else {
-    //    printf("parsing succeeded\n");        
-    //}
-    
-    /* TODO: logging */
+    if (self->ast == NULL) {
+        LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - parser failure. null node returned.\n", __func__);
+    } else if (self->ast == &ASTNode_fail) {
+        LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - parser failure\n", __func__); // TODO: need better messaging
+    } else if (self->ast != &ASTNode_fail && self->tokens.bins[self->tokens.fill - 1].start < self->tokens.bins[self->tokens.fill - 1].end) {
+        LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - tokenizer failure. string was not fully tokenized. Remaining string at line %u, col %u\n", __func__, self->tokens.bins[self->tokens.fill - 1].coords.line, self->tokens.bins[self->tokens.fill - 1].coords.col);
+    } else {
+        LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - parsing successful\n", __func__);
+    }
 }
 
-err_type from_string(char const * string, size_t string_length, char const * name, size_t name_length) {
-    //printf("processing string:\n%s", string);
-    peggy._class->init(&peggy, name, name_length, string, string_length);
-    //printf("done\n");
-    return PEGGY_SUCCESS;
+err_type from_string(char const * string, size_t string_length, char const * name, size_t name_length, char const * log_file, unsigned char log_level) {
+    return peggy._class->init(&peggy, name, name_length, string, string_length, log_file, log_level);
 }
 
-err_type from_file(char const * filename) {
-    //printf("processing from file %s\n", filename);
+err_type from_file(char const * filename, char const * log_file, unsigned char log_level) {
     FILE * pfile = fopen(filename, "rb");
     if (!pfile) {
-        printf("failed to open file: %s\n", filename);
+        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - failed to open file %s\n", __func__, filename);
     }
     fseek(pfile, 0, SEEK_END);
     long file_size = ftell(pfile);
@@ -1490,7 +1489,7 @@ err_type from_file(char const * filename) {
     }
     size_t nbytes = fread(string, 1, file_size, pfile);
     if (ferror(pfile)) {
-        printf("error occurred in reading file: %s\n", filename);
+        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - failed to read file: %s\n", __func__, filename);
         free(string);
         return PEGGY_FILE_IO_ERROR;
     }
@@ -1500,6 +1499,8 @@ err_type from_file(char const * filename) {
 
     size_t name_length = strlen(filename);
     char const * name = filename;
+
+    // set name of the parser
     if (strchr(name, '/')) {
         name = strrchr(name, '/');
     }
@@ -1509,7 +1510,7 @@ err_type from_file(char const * filename) {
     if (strstr(name, ".grmr")) {
         name_length = (size_t)(strstr(name, ".grmr") - name);
     }
-    err_type status = from_string(string, (size_t) file_size, filename, name_length);
+    err_type status = from_string(string, (size_t) file_size, filename, name_length, log_file, log_level);
     if (status) {
         return status;
     }
@@ -1521,10 +1522,22 @@ err_type from_file(char const * filename) {
 
 int main(int narg, char ** args) {
     //printf("built!\n");
+    char const * input_file = NULL;
+    char const * log_file = NULL;
+    unsigned char log_level = LOG_LEVEL_INFO;
     if (narg > 1) {
-        from_file(args[1]);
+        input_file = args[1];
     }
+    if (narg > 2) {
+        log_file = args[2];
+    }
+    if (narg > 3) {
+        log_level = Logger_level_to_uchar(args[3], strlen(args[3]));
+    }
+    from_file(input_file, log_file, log_level);
     peggy._class->dest(&peggy);   
     peggy_dest();
+    
+    Logger_tear_down();
     return 0;
 }

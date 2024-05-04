@@ -1,4 +1,5 @@
 export: json
+
 import: jsonparser
 
 punctuator:
@@ -6,9 +7,6 @@ punctuator:
 
 keyword:
     'true' | 'false' | 'null'
-
-json(handle_json):
-    value+
 
 token:
     whitespace | string | keyword | number | punctuator
@@ -19,19 +17,22 @@ whitespace(skip_token):
 string:
     "\"((\\\\\")|[^\"])*\"" // allows escaped double quotes and accounts for characters production
 
-int_constant:
+int_constant(build_int):
     "[-+]?(([1-9][0-9]*)|(0(x|X)[A-Fa-f0-9]+)|(0[0-7]*))"
 
-decimal_float_constant:
+decimal_float_constant(build_decimal):
     "[-+]?(((([0-9]*\\.[0-9]+)|([0-9]+\\.))([eE][-+]?[0-9]+)?)|([0-9]+[eE][-+]?[0-9]+))"
 
 number:
     decimal_float_constant | int_constant
-    
-value:
-    object | array | keyword | string | number
 
-object:
+boolean:
+    'true' | 'false'
+    
+value(build_value):
+    object | array | boolean | null_value | string | number
+
+object(build_object):
     '{', members?, '}'
 
 members:
@@ -40,9 +41,11 @@ members:
 member:
     string, ':', value
 
-array:
+array(build_array):
     '[', elements?, ']'
 
 elements:
     ','.value
 
+json(handle_json):
+    value+

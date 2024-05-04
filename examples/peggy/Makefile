@@ -9,11 +9,14 @@ PARSER_SRC := $(PKG_NAME)parser$(SRC_SUFFIX)
 PARSER_INC := $(PKG_NAME)parser$(HDR_SUFFIX)
 EXPORT_SRC = $(EXAMPLE_NAME)$(SRC_SUFFIX)
 
-all:
-	$(PKG_PATH)/$(BIN_DIR)/$(EXE) $(GRAMMAR)
+all: transpile
 	$(COPY) $(PKG_PATH)/$(SRC_DIR)/$(PARSER_SRC) $(PARSER_SRC)
 	$(COPY) $(PKG_PATH)/$(INC_DIR)/$(PARSER_INC) $(PARSER_INC)
 	$(CC) $(CFLAGS) $(PEGGY_IFLAGS) $(PARSER_SRC) $(EXPORT_SRC) -o $(EXAMPLE_NAME)$(EXE_EXT) -L$(PKG_PATH)/$(BIN_DIR) -l:$(STATIC_LIB_FILE) $(LIBS)
+
+transpile:
+	rm -f $(GRAMMAR).log
+	$(PKG_PATH)/$(BIN_DIR)/$(EXE) $(GRAMMAR) $(GRAMMAR).log LOG_LEVEL_INFO
 
 clean:
 	rm -f $(PARSER_SRC)
@@ -22,3 +25,4 @@ clean:
 	rm -f $(EXAMPLE_NAME)$(HDR_SUFFIX)
 	rm -f $(EXAMPLE_NAME)$(SRC_SUFFIX)
 	rm -f gmon.out
+	rm -f *.log

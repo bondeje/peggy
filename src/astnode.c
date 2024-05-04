@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <peggy/type.h>
 #include <peggy/astnode.h>
@@ -28,7 +29,7 @@ ASTNode ASTNode_lookahead = {
     .ntokens = 0, /* ntokens should be 0 because no tokens are consumed */
 };
 
-ASTNode * ASTNode_new(Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]) {
+ASTNode * ASTNode_new(Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode ** children) {
     ASTNode * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
@@ -40,7 +41,7 @@ ASTNode * ASTNode_new(Rule * rule, size_t token_key, size_t ntokens, size_t str_
     }
     return ret;
 }
-err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]) {
+err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode ** children) {
     self->children = children;
     self->rule = rule;
     self->str_length = str_length;

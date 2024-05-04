@@ -1,10 +1,15 @@
 #ifndef PEGGY_PARSER_H
 #define PEGGY_PARSER_H
 
+/* C std lib includes */
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
+/* lib includes */
+#include <logger.h>
+
+/* peggy include */
 #include <peggy/utils.h>
 //#include <peggy/type.h>
 #include <peggy/token.h>
@@ -35,8 +40,7 @@ typedef enum seek_origin {
                              .token_rule = NULL, \
                              .root_rule = NULL, \
                              .name = "", \
-                             .log_buffer = NULL, \
-                             .log_buffer_length = 0, \
+                             .logger = DEFAULT_LOGGER_INIT, \
                              .log_file = NULL, \
                              .loc_ = 0, \
                              .disable_cache_check = false, \
@@ -54,13 +58,12 @@ typedef enum seek_origin {
 struct Parser {
     struct ParserType * _class;
     PackratCache cache;
+    Logger logger;
     STACK(pASTNode) node_list; /* fucking stupid...need an arena allocator in an AST object */
     STACK(Token) tokens; /* only going to have a simple array */
     Rule * token_rule;
     Rule * root_rule;
     char const * name; /* usually file name */
-    char * log_buffer; 
-    size_t log_buffer_length; 
     char const * log_file;
     size_t loc_; /* location in token stream */
     size_t name_length;
@@ -82,12 +85,12 @@ extern struct ParserType {
     Parser * (*new)(char const * name, size_t name_length, char const * string, size_t string_length, Rule * token_rule, 
                     Rule * root_rule, size_t nrules, unsigned int line_offset, 
                     unsigned int col_offset, unsigned int flags, 
-                    char const * log_file);
+                    char const * log_file, unsigned char log_level);
     err_type (*init)(Parser * parser, char const * name, size_t name_length, 
                          char const * string, size_t string_length, Rule * token_rule, 
                          Rule * root_rule, size_t nrules, unsigned int line_offset, 
                          unsigned int col_offset, unsigned int flags, 
-                         char const * log_file);
+                         char const * log_file, unsigned char log_level);
     void (*dest)(Parser * parser);
     void (*del)(Parser * parser);
     size_t (*tell)(Parser * parser);
@@ -99,7 +102,7 @@ extern struct ParserType {
     err_type (*skip_token)(Parser * parser, ASTNode * node);
     size_t (*estimate_final_ntokens_)(Parser * self);
     err_type (*add_token)(Parser * parser, ASTNode * node);
-    ASTNode * (*add_node)(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]);
+    ASTNode * (*add_node)(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren], size_t size);
     bool (*gen_next_token_)(Parser * parser);
     err_type (*get)(Parser * parser, size_t key, Token * tok);
     Token * (*get_tokens)(Parser * parser, ASTNode * node, size_t * ntokens);
@@ -112,12 +115,12 @@ extern struct ParserType {
 
 Parser * Parser_new(char const * name, size_t name_length, char const * string, size_t string_length, Rule * token_rule, 
                     Rule * root_rule, size_t nrules, unsigned int line_offset, unsigned intcol_offset, 
-                    unsigned int flags, char const * log_file);
+                    unsigned int flags, char const * log_file, unsigned char log_level);
 err_type Parser_init(Parser * parser, char const * name, size_t name_length,
                          char const * string, size_t string_length, Rule * token_rule, 
                          Rule * root_rule, size_t nrules, unsigned int line_offset, 
                          unsigned int col_offset, unsigned int flags, 
-                         char const * log_file);
+                         char const * log_file, unsigned char log_level);
 void Parser_dest(Parser * parser);
 void Parser_del(Parser * parser);
 size_t Parser_tell(Parser * parser);
@@ -129,7 +132,7 @@ Token Parser_gen_final_token_(Parser * parser, ASTNode * node);
 err_type Parser_skip_token(Parser * parser, ASTNode * node);
 size_t Parser_estimate_final_ntokens(Parser * self);
 err_type Parser_add_token(Parser * parser, ASTNode * node);
-ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren]);
+ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren], size_t size);
 bool Parser_gen_next_token_(Parser * parser);
 err_type Parser_get(Parser * parser, size_t key, Token * tok);
 Token * Parser_get_tokens(Parser * parser, ASTNode * node, size_t * ntokens);
@@ -140,7 +143,7 @@ err_type Parser_traverse(Parser * parser, void (*traverse_action)(void * ctxt, A
 void Parser_print_ast(Parser * parser, char * buffer, size_t buffer_size);
 
 // use in e.g. WHITESPACE or comments
-ASTNode * skip_token(Parser * parser, ASTNode * node);
-ASTNode * token_action(Parser * parser, ASTNode * node);
+ASTNode * skip_token(Production * production, Parser * parser, ASTNode * node);
+ASTNode * token_action(Production * production, Parser * parser, ASTNode * node);
 
 #endif // PEGGY_PARSER_H

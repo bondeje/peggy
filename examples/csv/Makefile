@@ -8,10 +8,11 @@ PEGGY_IFLAGS = -I../../include
 PARSER_SRC := $(EXAMPLE_NAME)parser$(SRC_SUFFIX)
 EXPORT_SRC = $(EXAMPLE_NAME)$(SRC_SUFFIX)
 
-all: from_grammar build_parser
+all: transpile build_parser
 
-from_grammar:
-	$(PKG_PATH)/$(BIN_DIR)/$(EXE) $(GRAMMAR)
+transpile:
+	rm -f *.log
+	$(PKG_PATH)/$(BIN_DIR)/$(EXE) $(GRAMMAR) $(GRAMMAR).log LOG_LEVEL_INFO
 
 build_parser:
 	$(CC) $(CFLAGS) $(PEGGY_IFLAGS) $(PARSER_SRC) $(EXPORT_SRC) -o $(EXAMPLE_NAME)$(EXE_EXT) -L$(PKG_PATH)/$(BIN_DIR) -l:$(STATIC_LIB_FILE) $(LIBS)
@@ -21,6 +22,7 @@ clean:
 	rm -f $(EXAMPLE_NAME)$(HDR_SUFFIX)
 	rm -f $(EXAMPLE_NAME)$(SRC_SUFFIX)
 	rm -f gmon.out
+	rm -f *.log
 
 # run timing tests
 CSV_DIR = sample_files

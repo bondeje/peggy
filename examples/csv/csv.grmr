@@ -7,7 +7,7 @@ import: csvparser
 punctuator:
     ','
 
-/* different from the ABNF in RFC4180: the header portion as a whole is not optional; 
+/*  different from the ABNF in RFC4180: the header portion as a whole is not optional; 
     parser disambiguates from record. In order that a single line of csv is accepted,
     the internal '\r\f' on the header portion must be optional
 */

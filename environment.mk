@@ -49,7 +49,7 @@ else
 endif
 
 ifneq ($(origin NDEBUG), undefined)
-	CFLAGS += -DNDEBUG -O2
+	CFLAGS += -DNDEBUG -O2 -DMAX_LOGGING_LEVEL=LOG_LEVEL_WARN
 else
 	CFLAGS += -g3
 	ifeq (, $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
@@ -83,7 +83,7 @@ CFLAGS += -Wall -pedantic -Werror -Wextra -std=gnu99
 CLIBFLAGS = $(CFLAGS) -fPIC -c
 CFLAGS += -Wno-unused -Wno-unused-parameter
 
-IFLAGS += -I$(INC_DIR)
+IFLAGS += -I$(INC_DIR) -Ilib/logger/include
 
 DEPFLAGS = -MMD -MP -MF 
 
@@ -91,6 +91,8 @@ MAIN_SRCS = src/peggy.c src/peggyparser.c
 LIB_SRCS = src/astnode.c src/hash_map.c src/parser.c src/rule.c src/token.c src/type.c src/utils.c src/packrat_cache.c
 ALL_SRCS := $(shell find $(SRC_DIR) -name '*.c')
 LIB_OBJS := $(addprefix $(OBJ_DIR)/,$(LIB_SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(OBJ_SUFFIX)))
+LIB_OBJS += lib/logger/obj/logger.o
+LIB_SRCS += lib/logger/src/logger.c
 
 #OS specific changes
 ifeq ($(UNAME), $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))

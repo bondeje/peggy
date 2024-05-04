@@ -13,6 +13,9 @@ $(OBJ_DIR)/%$(OBJ_SUFFIX): $(SRC_DIR)/%$(SRC_SUFFIX) $(DEP_DIR)/%$(DEP_SUFFIX) |
 	$(CC) -MT $@ $(DEPFLAGS) $(DEP_DIR)/$*$(TEMP_DEP_SUFFIX) $(CLIBFLAGS) $(IFLAGS) -c $< -o $@
 	mv -f $(DEP_DIR)/$*$(TEMP_DEP_SUFFIX) $(DEP_DIR)/$*$(DEP_SUFFIX) && touch $@
 
+lib/logger/obj/logger.o: lib/logger/src/logger.c
+	cd lib/logger && make all && cd ../..
+
 static_lib: $(LIB_OBJS)
 	$(AR) r $(STATIC_LIB_FILE) $(LIB_OBJS)
 	mv -f $(STATIC_LIB_FILE) $(BIN_DIR)/$(STATIC_LIB_FILE)
@@ -38,6 +41,7 @@ clean: reset
 reset:
 	rm -rf $(DEP_DIR)
 	rm -rf $(OBJ_DIR)
+	rm -rf lib/logger/obj
 
 # must be at least after the initial, default target; otherwise last
 include $(wildcard $(DEPFILES))
