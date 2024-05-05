@@ -17,10 +17,10 @@ csv(handle_csv):
 token:
     whitespace | crlf | punctuator | field
 
-record:
+record(process_record):
     ','.field
 
-nonstring_field:
+nonstring_field(process_nonstring):
     "[^,\r\n]+"
     
 field:
@@ -32,7 +32,7 @@ whitespace(skip_token):
 crlf:
     '\r\n'
 
-string:
+string(process_string):
     "\"((\\\\\")|[^\"])*\""
 
 // allows escaped double quotes and accounts for characters production

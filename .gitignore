@@ -13,6 +13,7 @@ data/
 profile.txt
 gmon.out
 TODO.txt
+*.csv
 
 # development files
 main.c

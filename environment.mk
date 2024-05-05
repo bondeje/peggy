@@ -49,7 +49,7 @@ else
 endif
 
 ifneq ($(origin NDEBUG), undefined)
-	CFLAGS += -DNDEBUG -O2 -DMAX_LOGGING_LEVEL=LOG_LEVEL_WARN
+	CFLAGS += -DNDEBUG -DMAX_LOGGING_LEVEL=LOG_LEVEL_WARN
 else
 	CFLAGS += -g3
 	ifeq (, $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
@@ -58,7 +58,7 @@ else
 # ensure build is explicitly compatible with valgrind 
 # (https://github.com/google/sanitizers/issues/810, which still seems relevant)
 		CFLAGS += -fsanitize=address,undefined
-		LIBS = -lubsan -lasan
+		LIBS += -lubsan -lasan
 	endif
 	endif
 endif
@@ -79,7 +79,7 @@ DEP_SUFFIX = .d
 TEMP_DEP_SUFFIX = .Td
 EXE_EXT = 
 
-CFLAGS += -Wall -pedantic -Werror -Wextra -std=gnu99
+CFLAGS += -Wall -pedantic -Werror -Wextra -std=gnu99 -O2
 CLIBFLAGS = $(CFLAGS) -fPIC -c
 CFLAGS += -Wno-unused -Wno-unused-parameter
 
