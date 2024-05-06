@@ -4,7 +4,6 @@
 #include <stddef.h>
 
 #include <peggy/utils.h>
-#include <peggy/type.h>
 
 #define Token_DEFAULT_INIT {._class = &Token_class, \
                            }

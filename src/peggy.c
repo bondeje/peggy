@@ -260,7 +260,7 @@ PRODUCTION(peggy_string_literal,STRING_LITERAL,
 PRODUCTION(peggy_digit_seq,DIGIT_SEQ,
 	&peggy_digit_seq_re.Rule);
 LITERALRULE(peggy_nonws_printable_re,NONWS_PRINTABLE_RE,
-	"[^[:space:]]+");
+	"[^ \t\r\n\v\f]+"); // "[^[:space:]]+"
 PRODUCTION(peggy_special_production,SPECIAL_PRODUCTION,
 	&peggy_choice_2_56.ChainRule.Rule);
 PRODUCTION(peggy_peggy,PEGGY,
@@ -276,8 +276,8 @@ REPEATRULE(peggy_rep_0_1_65,REP_0_1_65,
 	0,
 	1);
 LITERALRULE(peggy_whitespace_re,WHITESPACE_RE,
-	"([[:space:]]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+");
-
+	"([ \t\r\n\v\f]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+"); // "([[:space:]]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+"
+// 
 
 Rule * peggyrules[PEGGY_NRULES + 1] = {
 	&peggy_choice_3_36.ChainRule.Rule,

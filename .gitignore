@@ -9,6 +9,7 @@ backup/
 old/
 .deps/
 .vscode/
+lib/pcre2/
 data/
 profile.txt
 gmon.out

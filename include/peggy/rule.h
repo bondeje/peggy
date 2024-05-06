@@ -1,25 +1,36 @@
 #ifndef PEGGY_RULE_H
 #define PEGGY_RULE_H
 
-/* C STD LIB */
+/* C standard library includes */
 #include <stddef.h>
 
 /* POSIX */
+#ifdef Linux
 #include <regex.h>
+#endif
 
+/* lib includes */
+#ifndef Linux
+#ifndef PCRE2_CODE_UNIT_WIDTH
+#define PCRE2_CODE_UNIT_WIDTH 8
+#endif
+#include <pcre2.h>
+#endif
+
+/* peggy includes */
 #include <peggy/utils.h>
 #include <peggy/parser_gen.h>
 #include <peggy/astnode.h>
 #include <peggy/token.h>
 
 /**
- * Consider:
- *      PackratCache has a different interface from a normal hash map and so should be a different structure
  * 
  * TODO:
  *      need to add a "name" to each rule for printing
- *      use an arena allocator in the node
- *
+ *      use an arena allocator in the hash map
+ *      fix nodes so that they are not individually allocated but managed as a single allocated stack by the Parser "node_list"
+ *      fix packrat cache to only lookup rule id and index in node_list (requires above)
+ *      fix token to only start a pointer to start of string and the length of the token. it will basically be another non-null terminated string with extra metadata
  */
 
 
@@ -175,10 +186,6 @@ ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser, size_t tok
 
 /* LiteralRule class definitions and declarations */
 
-#if defined(MSYS)
-#define LITERAL_N_MATCHES 1
-#endif
-
 /* this captures both StringRule and RegexRule from peggen.py since I only ever use regex anyway. punctuators have to go through a regex cleanup */
 
 #define LiteralRule_DEFAULT_INIT {  .Rule = { \
@@ -196,10 +203,13 @@ typedef struct LiteralRule LiteralRule;
 struct LiteralRule {
     Rule Rule;
     struct LiteralRuleType * _class;
+#ifdef Linux
     char const * regex_s;
     regex_t regex;
-#if defined(MSYS)
-    regmatch_t match[LITERAL_N_MATCHES]; // garbage POSIX interface
+#else
+    PCRE2_SPTR regex_s;
+    pcre2_code * regex;
+    pcre2_match_data * match;
 #endif
     bool compiled;
 };

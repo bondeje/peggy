@@ -87,17 +87,21 @@ IFLAGS += -I$(INC_DIR) -Ilib/logger/include
 
 DEPFLAGS = -MMD -MP -MF 
 
-MAIN_SRCS = src/peggy.c src/peggyparser.c
-LIB_SRCS = src/astnode.c src/hash_map.c src/parser.c src/rule.c src/token.c src/type.c src/utils.c src/packrat_cache.c
+MAIN_SRCS = $(SRC_DIR)/peggy.c $(SRC_DIR)/peggyparser.c
+LIB_SRCS = $(SRC_DIR)/astnode.c $(SRC_DIR)/hash_map.c $(SRC_DIR)/parser.c $(SRC_DIR)/rule.c $(SRC_DIR)/token.c $(SRC_DIR)/utils.c $(SRC_DIR)/packrat_cache.c
 ALL_SRCS := $(shell find $(SRC_DIR) -name '*.c')
 LIB_OBJS := $(addprefix $(OBJ_DIR)/,$(LIB_SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(OBJ_SUFFIX)))
-LIB_OBJS += lib/logger/obj/logger.o
-LIB_SRCS += lib/logger/src/logger.c
+LIB_OBJS += $(LIB_DIR)/logger/obj/logger.o
+LIB_SRCS += $(LIB_DIR)/logger/src/logger.c
 
 #OS specific changes
 ifeq ($(UNAME), $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
-	LIBS += -lregex -ltre
+# LIBS += -lregex -ltre # garbage. Don't use it
 	EXE_EXT = .exe
+endif
+
+ifneq ($(UNAME), Linux)
+    LIBS += -L$(BIN_DIR) -lpcre2-8
 endif
 
 EXE := $(PKG_NAME)$(EXE_EXT)

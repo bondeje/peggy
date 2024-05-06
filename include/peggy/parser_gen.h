@@ -1,11 +1,13 @@
 #include <peggy/utils.h>
 
-#if defined(MSYS)
-    #define REGEX_LEFT "^("
-    #define REGEX_RIGHT ")"
-#else 
-    #define REGEX_LEFT 
-    #define REGEX_RIGHT
+// maybe can eliminate this if pcre2 accepts the PCRE2_ANCHORED option as I expect
+#define REGEX_LEFT 
+#define REGEX_RIGHT
+
+#ifndef Linux
+    #define REGEX_CAST (PCRE2_SPTR)
+#else
+    #define REGEX_CAST
 #endif
 
 // variadic is a list of Rule *
@@ -45,7 +47,7 @@ LiteralRule IDENTIFIER = { \
         .id = ENUM_IDENTIFIER, \
     }, \
     ._class = &LiteralRule_class, \
-    .regex_s = REGEX_LEFT REGEX REGEX_RIGHT, \
+    .regex_s = REGEX_CAST (REGEX_LEFT REGEX REGEX_RIGHT), \
     .compiled = false \
 }
 

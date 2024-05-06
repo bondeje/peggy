@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <peggy/type.h>
 #include <peggy/astnode.h>
 #include <peggy/rule.h>
 

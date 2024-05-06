@@ -1,19 +1,17 @@
+/* C standard library includes */
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 
-// _POSIX_C_SOURCE is needed on gcc in linux when compiling with -std=c99 or really anything less than c11
-//#if defined (__STDC__) && defined(__STDC_VERSION__) && (__STDC_VERSION__ < 201112L)
-//#define _POSIX_C_SOURCE 199506L
-//#define _XOPEN_SOURCE 500
-//#endif
-
+/* POSIX  includes */
 #include <time.h>
 #include <sys/types.h>
 
+/* external lib includes */
 #include <logger.h>
 
+/* local includes */
 #include "csvparser.h"
 
 struct CSVData empty_csv = {0};
@@ -137,38 +135,6 @@ ASTNode * handle_csv(Production * csv_prod, Parser * parser, ASTNode * node) {
     return node;
 }
 
-/*
-err_type from_string(char const * string, size_t string_length, char const * name, size_t name_length, size_t * n_elem, double * time) {
-    //printf("processing string:\n%s", string);
-    if (time) {
-        
-        struct timespec t0, t1;
-        clockid_t clk = CLOCK_MONOTONIC;
-        //double clock_conversion = 1.0e-6;
-        clock_gettime(clk, &t0);
-        CSVParser_init(&csv, name, name_length, string, string_length);
-       
-        clock_gettime(clk, &t1);
-
-        if (t1.tv_nsec < t0.tv_nsec) {
-            *time = ((1 + 1.0e-9 * t1.tv_nsec) - 1.0e-9 * t0.tv_nsec) + t1.tv_sec - 1.0 - t0.tv_sec;
-        } else {
-            *time = ((1 + 1.0e-9 * t1.tv_nsec) - 1.0e-9 * t0.tv_nsec) + t1.tv_sec - 1.0 - t0.tv_sec;
-        }
-        
-    } else {
-        CSVParser_init(&csv, name, name_length, string, string_length);
-    }
-    printf("number of nodes found: %zu\n", csv.Parser.node_list.fill);
-    
-    csv.Parser._class->dest((Parser *)&csv);
-    if (n_elem) {
-        *n_elem = csv.ncols * csv.nrows;
-    }
-    return PEGGY_SUCCESS;
-}
-*/
-
 bool timeit = false;
 
 CSVData from_string(char * string, size_t string_length, char * name, size_t name_length, char * log_file, unsigned char log_level) {
@@ -254,6 +220,7 @@ int main(int narg, char ** args) {
     unsigned char log_level = LOG_LEVEL_INFO;
     int iarg = 1;
     while (iarg < narg) {
+        printf("arg %d: %s\n", iarg, args[iarg]);
         if (!timeit && !strcmp(args[iarg], "--timeit")) {
             timeit = true;
             iarg++;
@@ -271,6 +238,7 @@ int main(int narg, char ** args) {
         iarg++;
     }
     if (input_file) {
+        printf("processing file %s\n", input_file);
         CSVData csv_data = from_file(input_file, log_file, log_level);
 
         /* insert any code you want to handle the csv here */

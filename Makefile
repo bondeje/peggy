@@ -1,10 +1,18 @@
 include environment.mk
 
-all: build_hierarchy dynamic_lib static_lib main
+all: build_hierarchy move_regex dynamic_lib static_lib main
 	@echo environment: $(UNAME)
 	@echo architecture: $(UNAME_M)
 	@echo sanitize: $(SANITIZE)
 	@echo no debug: $(NDEBUG)
+
+ifneq ($(UNAME), Linux)
+move_regex:
+	cp $(LIB_DIR)/pcre2/bin/libpcre2-8.dll $(BIN_DIR)
+else
+move_regex:
+
+endif
 
 build_hierarchy: $(DEP_DIR) $(OBJ_DIR) $(BIN_DIR)
 

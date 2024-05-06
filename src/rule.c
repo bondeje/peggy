@@ -1,29 +1,32 @@
-// should break LiteralRule off so that the regex stuff is completely separate
+// this is really only available on Linux
+#ifdef Linux
 #define _GNU_SOURCE
-/**
- * High level TODO: 
- *      in each case of adding a new node, there is a separate line of allocating a new node within a *_check_rule_ and then notifying the parser, which holes the AST. I think the *_check_rule_ should request a new ASTNode from the parser which internally makes and stores a node. The rules should not be responsible for making new ASTNodes if the Parser is the one to manage it. This is needed anyway when the arena allocation for ASTNodes is done anyway
-*/
+#endif
 
-
-/* C STD LIB */
+/* C standard library includes  */
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h> // for unhandled error printfs
 #include <assert.h>
 
-/* POSIX */
+/* POSIX includes */
+#ifdef Linux
 #include <regex.h>
-#if defined(MSYS)
-#include <tre/tre.h>
 #endif
 
 /* lib includes */
 #include <logger.h>
+#ifndef Linux
+// basically anywhere that does not have _GNU_SOURCE, which is apparently everywhere other than non-Android Linux
+// regex alternative
+#ifndef PCRE2_CODE_UNIT_WIDTH
+#define PCRE2_CODE_UNIT_WIDTH 8
+#endif
+#include <pcre2.h>
+#endif
 
-/* peggy include */
+/* peggy includes */
 #include <peggy/utils.h>
-//#include <peggy/type.h>
 #include <peggy/rule.h>
 #include <peggy/parser.h>
 #include <peggy/token.h>
@@ -377,15 +380,15 @@ LiteralRule * LiteralRule_new(rule_id_type id, char const * regex_s) {
     return ret;
 }
 
+#ifndef Linux
+PCRE2_SIZE pcre2_err_offset;
+int pcre2_err_code;
+#endif
+
 err_type LiteralRule_compile_regex(LiteralRule * self) {
     LOG_EVENT(NULL, LOG_LEVEL_DEBUG, "INFO: %s - compiling regex %s\n", __func__, self->regex_s);
     //printf("
-#if defined(MSYS)
-    // use the shitty POSIX API but with internal fixes
-    if (regcomp(&(self->regex), self->regex_s, REG_EXTENDED)) {
-        return PEGGY_REGEX_FAILURE;
-    }
-#else
+#ifdef Linux
     re_set_syntax(DEFAULT_RE_SYNTAX);
     char const * err_message = re_compile_pattern(self->regex_s, strlen(self->regex_s), 
                     &self->regex);
@@ -393,6 +396,18 @@ err_type LiteralRule_compile_regex(LiteralRule * self) {
         LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - regex compile error message for pattern %s: %s\n", __func__, self->regex_s, err_message);
         return PEGGY_REGEX_FAILURE;
     }
+#else 
+    self->regex = pcre2_compile(self->regex_s, 
+        PCRE2_ZERO_TERMINATED,
+        PCRE2_ANCHORED /* must search only at start of string */ | PCRE2_DOTALL /* .* matches newlines */,
+        &pcre2_err_code,    /* for error number */
+        &pcre2_err_offset,  /* for error offset */
+        NULL);              /* use default compile context */
+    if (!self->regex) {
+        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - pcre2 regex compile error code for pattern %s: %d\n", __func__, (char *)self->regex_s, pcre2_err_code);
+        return PEGGY_REGEX_FAILURE;
+    }
+    self->match = pcre2_match_data_create(1, NULL); // only include the first match
 #endif    
     self->compiled = true;
     return PEGGY_SUCCESS;
@@ -401,7 +416,12 @@ err_type LiteralRule_compile_regex(LiteralRule * self) {
 err_type LiteralRule_init(LiteralRule * self, rule_id_type id, char const * regex_s) {
     Rule * rule = (Rule *)self;
     rule->_class->init(rule, id);
+#ifndef Linux
+    self->regex_s = (PCRE2_SPTR)regex_s;
+    /* TODO: add failure check */
+#else
     self->regex_s = regex_s;
+#endif
     self->compiled = false;
     if (regex_s) {
         LiteralRule_compile_regex(self);
@@ -411,7 +431,12 @@ err_type LiteralRule_init(LiteralRule * self, rule_id_type id, char const * rege
 
 void LiteralRule_dest(LiteralRule * self) {
     LOG_EVENT(NULL, LOG_LEVEL_DEBUG, "INFO: %s - freeing regex data for rule id %d with regex %s\n", __func__, self->Rule.id, self->regex_s);
+#ifdef Linux
     regfree(&(self->regex));
+#else
+    pcre2_code_free(self->regex);
+    pcre2_match_data_free(self->match);
+#endif
     self->compiled = false;
     Rule_dest(&(self->Rule));
 }
@@ -429,13 +454,6 @@ void LiteralRule_as_Rule_dest(Rule * literal_rule) {
     LiteralRule_dest((LiteralRule *)literal_rule);
 }
 
-/*
-err_type LiteralRule_build(Rule * literal_rule, ParserGenerator * pg, char * buffer, size_t buffer_size) {
-    LiteralRule * self = DOWNCAST_P(literal_rule, Rule, LiteralRule);
-    return PEGGY_NOT_IMPLEMENTED;
-}
-*/
-
 ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t token_key) {
     LiteralRule * self = (LiteralRule *)literal_rule;
     LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - checking literal rule. id: %d, %s\n", __func__, literal_rule->id, self->regex_s);
@@ -447,35 +465,37 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t t
     }
     Token tok;
     status = parser->_class->get(parser, token_key, &tok);
-    //Token_print(tok);
-    //printf("\n");
     if (status) {
         LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to get token_key %zu from parser tokens list of length %zu\n", __func__, token_key, parser->tokens.fill);
         return NULL;
     }
-    // since the parser->_class->get might have triggered
-    //if (!parser->disable_cache_check) { // 
-    //    ASTNode * res = literal_rule->_class->check_cache_(literal_rule, parser, token_key);
-    //}
     if (tok._class->len(&tok) == 0) { // token retrieved is empty
         return &ASTNode_fail;
     }
-#if defined(MSYS)
-    // garbage POSIX interface, fixed up by tre
-    if (!tre_regnexec(&(self->regex), tok->string + tok->start, tok->end - tok->start, LITERAL_N_MATCHES, self->match, 0)) {
-        // the regex succeed to match
-        parser->_class->seek(parser, 1, P_SEEK_CUR);
-        size_t length = self->match[0].rm_eo - self->match[0].rm_so;
-        //printf("LiteralRule (id %d) regex matched with length %zu!\n", literal_rule->id, length);
-        return parser->_class->add_node(parser, literal_rule, token_key, length ? 1 : 0, length, 0, NULL, 0);
-    }
-#else
+#ifdef Linux
     int length = re_match(&self->regex,
           tok.string + tok.start, tok.end - tok.start, 
           0, NULL);
     if (length >= 0) {
         parser->_class->seek(parser, 1, P_SEEK_CUR);
         LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - literal rule (id %d) regex %s matched with length %d!\n", __func__, literal_rule->id, self->regex_s, length);
+        return parser->_class->add_node(parser, literal_rule, token_key, length ? 1 : 0, length, 0, NULL, 0);
+    }
+#else 
+    int rc = pcre2_match(
+        self->regex,                   /* the compiled pattern */
+        (PCRE2_SPTR)(tok.string + tok.start),              /* the subject string */
+        (PCRE2_SIZE)(tok.end - tok.start),       /* the length of the subject */
+        0,                    /* start at offset 0 in the subject */
+        0,                    /* default options. Don't need to enforce PCRE2_ANCHORED when pattern was compiled as such */
+        self->match,           /* block for storing the result */
+        NULL                  /* use default match context */
+        );
+    if (rc >= 0) { // I think this means successful return. The official documentation does not say anything along the lines of "returns X on success, Y on failure", but pcre2demo handles errors when rc < 0
+        PCRE2_SIZE * result = pcre2_get_ovector_pointer(self->match);
+        int length = (int)(result[1] - result[0]);
+        parser->_class->seek(parser, 1, P_SEEK_CUR);
+        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - literal rule (id %d) regex %s matched with length %d!\n", __func__, literal_rule->id, (char *)self->regex_s, length);
         return parser->_class->add_node(parser, literal_rule, token_key, length ? 1 : 0, length, 0, NULL, 0);
     }
 #endif
