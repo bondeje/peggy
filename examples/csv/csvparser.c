@@ -16,13 +16,18 @@
 
 #include "csvparser.h"
 
-typedef struct CSVData {
-    char * data; // holds all the string data (with null terminators)
-    size_t * offsets;
-    size_t ncols;
-    size_t nrows;
-    size_t nbytes; // accumulated during parsing. number of bytes allocated for data
-} CSVData;
+struct CSVData empty_csv = {0};
+
+void CSVData_dest(CSVData * csv_data) {
+    if (csv_data->data) {
+        free(csv_data->data);
+        csv_data->data = NULL;
+    }
+    if (csv_data->offsets) {
+        free(csv_data->offsets);
+        csv_data->offsets = NULL;
+    }
+}
 
 typedef struct CSVParser {
     Parser Parser;
@@ -166,9 +171,13 @@ err_type from_string(char const * string, size_t string_length, char const * nam
 
 bool timeit = false;
 
-err_type from_string(char * string, size_t string_length, char * name, size_t name_length, char * log_file, unsigned char log_level) {
+CSVData from_string(char * string, size_t string_length, char * name, size_t name_length, char * log_file, unsigned char log_level) {
+    err_type status = PEGGY_SUCCESS;
     if (!timeit) {
-        return CSVParser_init(&csv, name, name_length, string, string_length, log_file, log_level);
+        if ((status = CSVParser_init(&csv, name, name_length, string, string_length, log_file, log_level))) {
+            return empty_csv;
+        }
+        return csv.csv;
     }
     static char const * const record_format = "%zu, %10.8lf, %s\n";
     char buffer[1024] = {'\0'};
@@ -179,7 +188,7 @@ err_type from_string(char * string, size_t string_length, char * name, size_t na
     clockid_t clk = CLOCK_MONOTONIC;
     //double clock_conversion = 1.0e-6;
     clock_gettime(clk, &t0);
-    err_type status = CSVParser_init(&csv, name, name_length, string, string_length, log_file, log_level);
+    status = CSVParser_init(&csv, name, name_length, string, string_length, log_file, log_level);
     clock_gettime(clk, &t1);
 
     if (t1.tv_nsec < t0.tv_nsec) {
@@ -193,10 +202,10 @@ err_type from_string(char * string, size_t string_length, char * name, size_t na
     printf("%s", buffer);
     
     fclose(time_records);
-    return status;
+    return csv.csv;
 }
 
-err_type from_file(char * filename, char * log_file, unsigned char log_level) {
+CSVData from_file(char * filename, char * log_file, unsigned char log_level) {
     FILE * pfile = fopen(filename, "rb");
     if (!pfile) {
         LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - failed to open file %s\n", __func__, filename);
@@ -207,13 +216,13 @@ err_type from_file(char * filename, char * log_file, unsigned char log_level) {
 
     char * string = malloc(file_size + 1);
     if (!string) {
-        return PEGGY_MALLOC_FAILURE;
+        return empty_csv;
     }
     size_t nbytes = fread(string, 1, file_size, pfile);
     if (ferror(pfile)) {
         LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - failed to read file: %s\n", __func__, filename);
         free(string);
-        return PEGGY_FILE_IO_ERROR;
+        return empty_csv;
     }
     string[file_size] = '\0';
 
@@ -232,13 +241,10 @@ err_type from_file(char * filename, char * log_file, unsigned char log_level) {
     if (strstr(name, ".grmr")) {
         name_length = (size_t)(strstr(name, ".grmr") - name);
     }
-    err_type status = from_string(string, (size_t) file_size, filename, name_length, log_file, log_level);
-    if (status) {
-        return status;
-    }
+    CSVData csv_data = from_string(string, (size_t) file_size, filename, name_length, log_file, log_level);
 
     free(string);
-    return PEGGY_SUCCESS;
+    return csv_data;
 }
 
 int main(int narg, char ** args) {
@@ -265,13 +271,14 @@ int main(int narg, char ** args) {
         iarg++;
     }
     if (input_file) {
-        from_file(input_file, log_file, log_level);
-        //printf("destroying CSVParser\n");
-        //CSVParser_dest(&csv);
+        CSVData csv_data = from_file(input_file, log_file, log_level);
+
+        /* insert any code you want to handle the csv here */
+
+        CSVParser_dest(&csv);
+        CSVData_dest(&csv_data);
     }
-    //printf("destroying csv\n");
-    //csv_dest();
-    //printf("tear down\n");
-    //Logger_tear_down();
+    csv_dest();
+    Logger_tear_down();
     return 0;
 }
