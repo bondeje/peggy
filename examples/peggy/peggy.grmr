@@ -16,6 +16,9 @@ regex_literal:
 punctuator:
     '!' | '|' | ',' | '?' | '.' | '&' | ':' | '+' | '*' | '(' | ')' | '{' | '}' // to include '/' in the future for a proper "first_choice"
 
+digit_seq:
+    "[0-9]+"
+
 keyword:
     'import' | 'export' | 'punctuator' | 'keyword' | 'token'
 
@@ -23,10 +26,10 @@ identifier:
     "[A-Za-z0-9_]+"
 
 token:
-    whitespace | string_literal | regex_literal | punctuator | keyword | identifier
+    whitespace | string_literal | regex_literal | punctuator | keyword | identifier | digit_seq
 
 nonws_printable:
-    "[^[:space:]]+"
+    "[^ \t\r\n\v\f]+"
 
 nonterminal:
     identifier
@@ -43,11 +46,10 @@ lookahead_rule(simplify_rule):
 list_rule(simplify_rule):
     '.'.lookahead_rule
 
-digit_seq:
-    "[0-9]*"
+
 
 repeated_rule(simplify_rule):
-    list_rule, ('+' | '*' | '?' | '{', digit_seq, ':', digit_seq, '}')?
+    list_rule, ('+' | '*' | '?' | '{', digit_seq?, ':', digit_seq?, '}')?
 
 sequence(simplify_rule):
     ','.repeated_rule

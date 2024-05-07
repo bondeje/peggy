@@ -330,8 +330,7 @@ err_type Parser_get(Parser * self, size_t key, Token * tok) {
     LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - index %zu out of bounds %zu\n", __func__, key, self->tokens.fill);
     return PEGGY_INDEX_OUT_OF_BOUNDS;
 }
-Token * Parser_get_tokens(Parser * self, ASTNode * node, size_t * ntokens) {
-    *ntokens = node->ntokens;
+Token * Parser_get_tokens(Parser * self, ASTNode * node) {
     return self->tokens.bins + node->token_key;
 }
 void Parser_parse(Parser * self) {

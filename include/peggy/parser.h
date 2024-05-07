@@ -107,7 +107,7 @@ extern struct ParserType {
     ASTNode * (*add_node)(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode ** children, size_t size);
     bool (*gen_next_token_)(Parser * parser);
     err_type (*get)(Parser * parser, size_t key, Token * tok);
-    Token * (*get_tokens)(Parser * parser, ASTNode * node, size_t * ntokens);
+    Token * (*get_tokens)(Parser * parser, ASTNode * node);
     void (*parse)(Parser * parser);
     ASTNode * (*check_cache)(Parser * self, rule_id_type rule_id, size_t token_key);
     void (*cache_check)(Parser * self, rule_id_type rule_id, size_t token_key, ASTNode * node);
@@ -137,7 +137,7 @@ err_type Parser_add_token(Parser * parser, ASTNode * node);
 ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode ** children, size_t size);
 bool Parser_gen_next_token_(Parser * parser);
 err_type Parser_get(Parser * parser, size_t key, Token * tok);
-Token * Parser_get_tokens(Parser * parser, ASTNode * node, size_t * ntokens);
+Token * Parser_get_tokens(Parser * parser, ASTNode * node);
 void Parser_parse(Parser * parser);
 ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, size_t token_key);
 void Parser_cache_check(Parser * self, rule_id_type rule_id, size_t token_key, ASTNode * node);

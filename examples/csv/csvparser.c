@@ -90,10 +90,10 @@ void handle_field(CSVParser * csv_parser, ASTNode * node, size_t index) {
     char const * src;
     size_t N = 0;
     if (node->children[0]->rule->id == NONSTRING_FIELD) {
-        src = tok.string + tok.start;
+        src = tok.string;
         N = node->str_length;
     } else { // STRING
-        src = tok.string + tok.start + 1;
+        src = tok.string + 1;
         N = node->str_length - 2;
     }
     memcpy(dest, src, N);

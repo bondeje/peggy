@@ -19,6 +19,8 @@ size_t PeggyString_hash(PeggyString a, size_t bin_size);
 #define ELEMENT_COMP PeggyString_comp
 #include <peggy/stack.h>
 
+
+/* TODO: add a field to note where the production was defined for the case of troubleshooting duplicate productions */
 typedef struct PeggyProduction { 
     PeggyString name; // the string identifying its definition. taken from input. prefixed by export name
     PeggyString identifier; // allocated later to be an appropriate identifier for the associated Rule. Allocated. The enum name is the same name without a prefix and capitalized

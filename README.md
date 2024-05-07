@@ -71,23 +71,29 @@ make all NDEBUG=1
 
 ## Examples
 
-A very simple example (and possibly the worst application of PEGs) is an ipv4 parser for dot-decimal notation
+A very simple example (and one of the worst application of PEGs) is an ipv4 parser for dot-decimal notation
 
 ```
 // ipv4.grmr
-import: ipv4parser
+export: ipv4                // redundant but allows change of file name
+import: ipv4parser          // check_ipv4 is declared in ipv4parser.h
 
-punctuator: '.'         // needed to be able to use '.' in ipv4
-octet(check_octet): "[0-9]{:3}"
-token: punctuator | octet
-ipv4(check_ipv4): '.'.octet
+punctuator: '.'             // needed to be able to use '.' in ipv4
+digit: "[0-9]"              
+octet: digit{1:3}           // 0 digits and more than 3 are definitely errors
+token: punctuator | digit
+ipv4(check_ipv4): '.'.octet // check_ipv4 as a build transform function triggers AST traversal
 
 // ipv4parser.h
+#ifndef IPV4PARSER_H
+#define IPV4PARSER_H
+
 #include <peggy/astnode.h>
 #include <peggy/rule.h>
 #include <peggy/parser.h>
-ASTNode * check_octet(Production * octet, Parser * parser, ASTNode * node);
 ASTNode * check_ipv4(Production * octet, Parser * parser, ASTNode * node);
+
+#endif 
 
 // ipv4parser.c
 #include <stdio.h>
@@ -98,41 +104,57 @@ ASTNode * check_ipv4(Production * octet, Parser * parser, ASTNode * node);
 #include "ipv4.h"
 #include "ipv4parser.h"
 
-ASTNode * check_octet(Production * octet, Parser * parser, ASTNode * node) {
+ASTNode ASTNode_syntax_error = {0}; // used to signal a failure that has already been addressed
+
+int check_octet(Parser * parser, ASTNode * node, unsigned char loc) {
     // only success of the subrule will make it here. Do not have to check node for failure, node == NULL is a more serious failure so assume it is non-null
-    Token * toks = parser->_class->get_tokens(node);
-    char const * str = (char const *)(toks->string + tokes->start);
-    unsigned char len = (unsigned char)(toks->end - toks->start);
+    Token * toks = parser->_class->get_tokens(parser, node);
+    char const * str = (char const *)toks[0].string;
+    unsigned char len = (unsigned char)(toks[node->ntokens - 1].length + (unsigned char)(toks[node->ntokens - 1].string - toks[0].string));
     // if the octet is < 3 decimals or numerically <= 255, it is valid
-    if (len < 3 || str[0] < '2' || str[0] == '2' && (str[1] < '5' || str[1] == '5' && str[2] <= '5')) {
-        return node; // simply returning node actually changes default behavior, but we don't care about the structure of this node after is has been validated
+    if (len < 3 || str[0] < '2' || (str[0] == '2' && (str[1] < '5' || (str[1] == '5' && str[2] <= '5')))) {
+        return 0;
     }
-    printf("ipv4 failed. invalid octet at %.*s. must be in range 0-255\n", len, str);
-    return &ASTNode_fail; // fail the entire parse at this octet
+    printf("ipv4 failed. invalid octet at %hu (%.*s). must be in range 0-255\n", loc, len, str);
+    return 1;
 }
 ASTNode * check_ipv4(Production * octet, Parser * parser, ASTNode * node) {
     // if the parser has already failed or resulted in something other than than 3 '.' + 4 octets = 7, fail
-    if (node->nchildren != 7) { children
-        printf("%s is NOT valid ipv4. 4 octets not found.\n", parser->string);
-        return &ASTNode_fail;
+    ASTNode * result = node;
+    if (node->nchildren != 7) { 
+        printf("%s is NOT valid ipv4. %zu octets not found, need 4.\n", parser->string, (node->nchildren + 1) / 2);
+        result = &ASTNode_syntax_error;
     }
-    printf("%s is valid ipv4\n", parser->string);
-    return node;
+    for (size_t i = 0; i < node->nchildren; i += 2) {
+        if (check_octet(parser, node->children[i], i / 2 + 1)) {
+            result = &ASTNode_syntax_error;
+        }
+    }
+    if (result == node) {
+        printf("%s is valid ipv4\n", parser->string);
+    }
+    return result;
 }
 
 int main(int narg, char ** args) {
     if (narg > 1) {
-        Parser parser;
+        Parser parser = Parser_DEFAULT_INIT;
         while (--narg > 0) {
             // will print
-            Parser_init(&parser, "ipv4", 4, args[narg], strlen(args[narg])
-                         &TOKEN, &IPV4, IPV4_NRULES, 0, 0, 0, NULL, 0);
+            Parser_init(&parser, "ipv4", strlen("ipv4"), args[narg], strlen(args[narg]), (Rule *)&ipv4_token, 
+                         (Rule *)&ipv4_ipv4, IPV4_NRULES, 0,0,0,NULL,0);
+            // parser.ast should hold
+            //      a valid node if passed,
+            //      &ASTNode_syntax_error for any failure having been found
+            //      &ASTNode_fail for any unhandled failures of the parser
             if (parser.ast == &ASTNode_fail) {
-                printf("malformed ipv4 syntax error\n");
+                printf("unhandled ipv4 check error\n");
             }
         }
         Parser_dest(&parser);   // clean up the parser
         ipv4_dest();            // clean up the ipv4 module
+    } else {
+        printf("no candidate ip address provided\n");
     }
     return 0;
 }
