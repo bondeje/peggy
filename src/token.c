@@ -22,32 +22,31 @@ struct TokenType Token_class = {
     .equal_value = &Token_equal,
 };
 
-Token * Token_new(char const * string, size_t start, size_t end, unsigned int line, unsigned int col) {
+Token * Token_new(char const * string, size_t length, unsigned int line, unsigned int col) {
     Token * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
     // initialize class structure
     memcpy((void*)ret, (void *)&((Token)Token_DEFAULT_INIT), sizeof(Token));
-    if (ret->_class->init(ret, string, start, end, line, col)) {
+    if (ret->_class->init(ret, string, length, line, col)) {
         free(ret);
         return NULL;
     }
     return ret;
 }
-err_type Token_init(Token * self, char const * string, size_t start, size_t end, unsigned int line, unsigned int col) {
+err_type Token_init(Token * self, char const * string, size_t length, unsigned int line, unsigned int col) {
     self->coords.col = col;
     self->coords.line = line;
-    memcpy((void *)&(self->string), (void *)&string, sizeof(string));
-    memcpy((void *)&(self->start), (void *)&start, sizeof(start));
-    self->end = end;
+    self->string = string;
+    self->length = length;
     return PEGGY_SUCCESS;
 }
 void Token_del(Token * self) {
     free(self);
 }
 size_t Token_len(Token * self) {
-    return self->end - self->start;
+    return self->length;
 }
 struct TokenCoords Token_coords(Token * self) {
     return self->coords;
@@ -59,7 +58,7 @@ int Token_str(Token * self, char * buffer, size_t buf_size) {
 }
 err_type Token_get(Token * self, size_t key, char * chr) {
     if (key < self->_class->len(self)) {
-        *chr = self->string[self->start + key];
+        *chr = self->string[key];
         return PEGGY_SUCCESS;
     }
     return PEGGY_INDEX_OUT_OF_BOUNDS;
@@ -72,8 +71,8 @@ bool Token_equal_value(Token * self, Token * other) {
     if (length != self->_class->len(other)) {
         return false;
     }
-    char const * string_s = self->string + self->start;
-    char const * string_o = other->string + other->start;
+    char const * string_s = self->string;
+    char const * string_o = other->string;
     size_t i = 0;
     while (i < length) {
         if (string_s[i] != string_o[i]) {
@@ -85,10 +84,5 @@ bool Token_equal_value(Token * self, Token * other) {
 }
 
 void Token_print(Token * self) {
-    char const * start = self->string + self->start;
-    char const * end = self->string + self->end;
-    while (start != end) {
-        printf("%c", *start);
-        start++;
-    }
+    printf("%.*s", (int)self->length, self->string);
 }

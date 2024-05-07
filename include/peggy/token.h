@@ -19,15 +19,14 @@ typedef struct TokenCoords {
 struct Token {
     struct TokenCoords coords;
     struct TokenType * _class;
-    char const * const string; /* the string of which Token is a substring. This is not modifiable so that it can be safely hashed. It is NOT null terminated */
-    size_t const start; /* the start of the token in the string. This is not modifiable so that it can be safely hashed */
-    size_t end; /* 1 after the final character in the token */
+    char const * string; /* the string represented by the token*/
+    size_t length;
 };
 
 extern struct TokenType {
     char const * type_name;
-    Token * (*new)(char const * string, size_t start, size_t end, unsigned int line, unsigned int col);
-    err_type (*init)(Token * self, char const * string, size_t start, size_t end, unsigned int line, unsigned int col);
+    Token * (*new)(char const * string, size_t length, unsigned int line, unsigned int col);
+    err_type (*init)(Token * self, char const * string, size_t length, unsigned int line, unsigned int col);
     void (*del)(Token * self);
     size_t (*len)(Token * self);
     struct TokenCoords (*coords)(Token * self);
@@ -37,8 +36,8 @@ extern struct TokenType {
     bool (*equal_value)(Token * self, Token * other);
 } Token_class;
 
-Token * Token_new(char const * string, size_t start, size_t end, unsigned int line, unsigned int col);
-err_type Token_init(Token * self, char const * string, size_t start, size_t end, unsigned int line, unsigned int col);
+Token * Token_new(char const * string, size_t length, unsigned int line, unsigned int col);
+err_type Token_init(Token * self, char const * string, size_t length, unsigned int line, unsigned int col);
 void Token_del(Token * self);
 size_t Token_len(Token * self);
 struct TokenCoords Token_coords(Token * self);

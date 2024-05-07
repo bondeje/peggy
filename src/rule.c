@@ -247,12 +247,9 @@ ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t
     for (size_t i = 0; i < self->ChainRule.deps_size; i++) {
         ASTNode * child_res = self->ChainRule.deps[i]->_class->check(self->ChainRule.deps[i], parser);
         if (child_res == &ASTNode_fail) {
-            //printf("sequence rule id %d failed at index %zu\n", sequence_rule->id, i);
             free(children);
             return child_res;
-        }// else {
-            //printf("index %zu in sequence %d succeeds\n", i, sequence_rule->id);
-        //}
+        }
         if (!is_skip_node(child_res)) {
             children[nchildren++] = child_res;
         }
@@ -268,7 +265,7 @@ ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t
     if (status) {
         printf("unhandled error (%d) in SequenceRule_check_rule_ getting starting token from parser\n", status);
     }
-    return parser->_class->add_node(parser, sequence_rule, token_key, token_cur - token_key, cur.start - start.start, nchildren, children, 0);
+    return parser->_class->add_node(parser, sequence_rule, token_key, token_cur - token_key, (size_t)(cur.string - start.string), nchildren, children, 0);
 }
 
 /* ChoiceRule implementations */
@@ -474,7 +471,7 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t t
     }
 #ifdef Linux
     int length = re_match(&self->regex,
-          tok.string + tok.start, tok.end - tok.start, 
+          tok.string, tok.length, 
           0, NULL);
     if (length >= 0) {
         parser->_class->seek(parser, 1, P_SEEK_CUR);
@@ -484,8 +481,8 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t t
 #else 
     int rc = pcre2_match(
         self->regex,                   /* the compiled pattern */
-        (PCRE2_SPTR)(tok.string + tok.start),              /* the subject string */
-        (PCRE2_SIZE)(tok.end - tok.start),       /* the length of the subject */
+        (PCRE2_SPTR)tok.string,              /* the subject string */
+        (PCRE2_SIZE)tok.length,       /* the length of the subject */
         0,                    /* start at offset 0 in the subject */
         0,                    /* default options. Don't need to enforce PCRE2_ANCHORED when pattern was compiled as such */
         self->match,           /* block for storing the result */
@@ -658,7 +655,6 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
     }
 
     // populate children
-    //printf("populating children\n");
     size_t token_index = token_key;
     ASTNode * (*check_cache)(Parser *, rule_id_type, size_t) = parser->_class->check_cache;
     for (size_t i = 0; i < nchildren; i++) {
@@ -669,7 +665,6 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
         token_index += children[i]->ntokens;
     }
 
-    //printf("building node parameters\n");
     Token token_cur;
     err_type status = parser->_class->get(parser, token_key, &token_cur);
     if (status) {
@@ -681,7 +676,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
         printf("unhandled error (%d) in ListRule_check_rule_ getting starting token from parser\n", status);
     }
     //printf("list rule building new node\n");
-    return parser->_class->add_node(parser, list_rule, token_key, token_index - token_key, token_cur.start - token_start.start, nchildren, children, 0);
+    return parser->_class->add_node(parser, list_rule, token_key, token_index - token_key, (size_t)(token_cur.string - token_start.string), nchildren, children, 0);
 }
 
 /* RepeatRule implementations */
@@ -781,43 +776,8 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t tok
     ASTNode * (*check_cache)(Parser *, rule_id_type, size_t) = parser->_class->check_cache;
     for (size_t i = 0; i < nchildren; i++) {
         children[i] = check_cache(parser, derived_rule->id, token_index); // this should never not be null
-        //if (!children[i]) {
-        //    printf("cache retrieval returned null pointer (%p) for child rule %d in list rule with id %d at location %zu. disable_check_cache = %d!!!!!!!\n", (void*)(children[i]), i & 1 ? self->delim->id : self->DerivedRule.rule->id, list_rule->id, token_index, parser->disable_cache_check);
-        //}
         token_index += children[i]->ntokens;
     }
-
-    /*
-    ASTNode * node = derived_rule->_class->check(derived_rule, parser);
-    // TODO: when stack implementation is available, replace
-    size_t capacity = 0;
-    
-    ASTNode ** children = NULL;
-    size_t nchildren = 0;
-
-    while (node != &ASTNode_fail) {
-        //printf("did not find fail node: trying repeat again, %p, list size %zu\n", (void*)node, nchildren);
-        
-        if (nchildren == capacity) { // realloc more space
-            size_t new_capacity = (2 * capacity + 3);
-            //printf("RepeatRule_check_rule_ realloc to %zu\n", new_capacity);
-            ASTNode ** new_children = realloc(children, sizeof(*new_children) * new_capacity);
-            if (!new_children) {
-                free(children); // will work if children is NULL as well                
-                return &ASTNode_fail;
-            }
-            children = new_children;
-            capacity = new_capacity;
-        }
-        children[nchildren++] = node; // append node
-        node = derived_rule->_class->check(derived_rule, parser);        
-    }
-    if (nchildren < self->min_rep || (self->max_rep && nchildren > self->max_rep)) {
-        free(children);
-        return &ASTNode_fail;
-    }
-    size_t cur_token_key = parser->_class->tell(parser);
-    */
     
     Token token_cur;
     err_type status = parser->_class->get(parser, token_key, &token_cur);
@@ -829,7 +789,7 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t tok
     if (status) {
         printf("unhandled error (%d) in RepeatRule_check_rule_ getting starting token from parser\n", status);
     }
-    return parser->_class->add_node(parser, repeat_rule, token_key, token_index - token_key, token_cur.start - token_start.start, nchildren, children, 0);
+    return parser->_class->add_node(parser, repeat_rule, token_key, token_index - token_key, (size_t)(token_cur.string - token_start.string), nchildren, children, 0);
 }
 
 /* NegativeLookahead implementations */

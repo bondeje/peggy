@@ -158,7 +158,7 @@ size_t PeggyString_hash(PeggyString a, size_t bin_size) {
 PeggyString get_string_from_parser(PeggyParser * parser, ASTNode * node) {
     size_t ntokens;
     Token * toks = parser->_class->Parser_class.get_tokens(&parser->Parser, node, &ntokens);
-    return (PeggyString){.str = (char *)(toks[0].string + toks[0].start), .len = toks[ntokens-1].end - toks[0].start};
+    return (PeggyString){.str = (char *)toks[0].string, .len = toks[ntokens-1].length + (size_t)(toks[ntokens-1].string - toks[0].string)};
 }
 
 PeggyString get_rule_pointer(PeggyParser * parser, PeggyString name) {
@@ -204,6 +204,7 @@ int PeggyProduction_define(void * parser_, PeggyString name, PeggyProduction pro
 
     fputc('(', parser->source_file);
     PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_NONE);
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building definition for production %.*s\n", __func__, (int)prod.identifier.len, prod.identifier.str);
     fputc(',', parser->source_file);
 
     unsigned int offset = 0;
@@ -929,7 +930,7 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
     PeggyString arg;
     size_t ntokens = 0;
     Token * toks = parser->_class->Parser_class.get_tokens(&parser->Parser, node->children[2], &ntokens);
-    arg.len = toks[ntokens-1].end - toks[0].start;
+    arg.len = toks[ntokens - 1].length + (size_t)(toks[ntokens - 1].string - toks[0].string);
     arg.len = 4 * arg.len + 1 + REGEX_LIB_OFFSET_LEFT + REGEX_LIB_OFFSET_RIGHT; 
     arg.str = malloc(sizeof(char) * arg.len); 
     size_t written = 0;
@@ -1105,7 +1106,7 @@ void handle_export(PeggyParser * parser, ASTNode * node) {
     }
     size_t ntokens = 0;
     Token * toks = parser_class->get_tokens(&parser->Parser, node, &ntokens);
-    parser->export = (PeggyString){.str = (char *)(toks[0].string + toks[0].start), .len = toks[ntokens-1].end - toks[0].start};
+    parser->export = (PeggyString){.str = (char *)toks[0].string, .len = toks[ntokens-1].length};
 
     open_output_files(parser);
     prep_output_files(parser);
@@ -1307,8 +1308,8 @@ void PeggyParser_parse(Parser * self) {
         LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - parser failure. null node returned.\n", __func__);
     } else if (self->ast == &ASTNode_fail) {
         LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - parser failure\n", __func__); // TODO: need better messaging
-    } else if (self->ast != &ASTNode_fail && self->tokens.bins[self->tokens.fill - 1].start < self->tokens.bins[self->tokens.fill - 1].end) {
-        LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - tokenizer failure. string was not fully tokenized. Remaining string at line %u, col %u\n", __func__, self->tokens.bins[self->tokens.fill - 1].coords.line, self->tokens.bins[self->tokens.fill - 1].coords.col);
+    } else if (self->ast != &ASTNode_fail && self->tokens.bins[self->tokens.fill - 1].length) {
+        LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - tokenizer failure. string was not fully tokenized. Remaining string of length %zu at line %u, col %u\n", __func__, self->tokens.bins[self->tokens.fill - 1].length, self->tokens.bins[self->tokens.fill - 1].coords.line, self->tokens.bins[self->tokens.fill - 1].coords.col);
     } else {
         LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - parsing successful\n", __func__);
     }

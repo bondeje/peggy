@@ -62,6 +62,8 @@ err_type Parser_init(Parser * self, char const * name, size_t name_length,
                          char const * log_file, unsigned char log_level) {
     self->name = name;
     self->name_length = name_length;
+    self->string = string;
+    self->string_length = string_length;
     self->token_rule = token_rule;
     self->root_rule = root_rule;
     self->loc_ = 0;
@@ -97,7 +99,7 @@ err_type Parser_init(Parser * self, char const * name, size_t name_length,
 
     // initialize first token
     Token final_token = Token_DEFAULT_INIT;
-    final_token._class->init(&final_token, string, 0, string_length, line_offset, col_offset);
+    final_token._class->init(&final_token, string, string_length, line_offset, col_offset);
     self->tokens._class->push(&self->tokens, final_token);
 
     // initialize garbage collection list of ASTNode *s
@@ -198,8 +200,8 @@ void Parser_log_check_fail_(Parser * self, size_t loc, Rule * rule) {
     /* TODO */
 }
 void Parser_get_line_col_end(Parser * self, Token * tok, unsigned int * line_out, unsigned int * col_out) {
-    char const * start = tok->string + tok->start;
-    char const * end = tok->string + tok->end;
+    char const * start = tok->string;
+    char const * end = tok->string + tok->length;
     unsigned int line = tok->coords.line;
     char const * chr = strchr(start, '\n');
     while (chr && chr < end) {
@@ -218,14 +220,10 @@ void Parser_get_line_col_end(Parser * self, Token * tok, unsigned int * line_out
     *line_out = line;
 }
 Token Parser_gen_final_token_(Parser * self, ASTNode * node) {
-    //printf("gen final token\n");
-    /* TODO: when "longest_rule" is implemented, clear it */
-    // tok and final may refer to the same token (in the case of Parser_skip_token)
     Token * final = self->tokens.bins + self->tokens.fill - 1;
-    //err_type status = self->tokens._class->peek(&self->tokens, final);
-    size_t end = final->end;
-    final->end = final->start + node->str_length;
-    size_t start = final->end;
+    size_t length = final->length - node->str_length;
+    final->length = node->str_length;
+    char const * string = final->string + final->length;
     unsigned int line;
     unsigned int col;
 
@@ -234,7 +232,7 @@ Token Parser_gen_final_token_(Parser * self, ASTNode * node) {
     /* override const in initializing "tok" */
     //return final->_class->new(final->string, start, end, line, col);
     Token new_tok = Token_DEFAULT_INIT;
-    new_tok._class->init(&new_tok, final->string, start, end, line, col);
+    new_tok._class->init(&new_tok, string, length, line, col);
     return new_tok;
 }
 err_type Parser_skip_token(Parser * self, ASTNode * node) {
@@ -257,7 +255,7 @@ err_type Parser_skip_token(Parser * self, ASTNode * node) {
 }
 
 size_t Parser_estimate_final_ntokens(Parser * self) {
-    double remaining_frac = ((self->tokens.bins[self->tokens.fill - 1].end - self->tokens.bins[self->tokens.fill - 1].start) / (1.0 * self->tokens.bins[self->tokens.fill - 1].start));
+    double remaining_frac = ((self->tokens.bins[self->tokens.fill - 1].length) / (1.0 * ((size_t)(self->tokens.bins[self->tokens.fill - 1].string - self->string))));
     if (remaining_frac < 2.0) {
         remaining_frac = 2.0;
     }
@@ -276,14 +274,10 @@ err_type Parser_add_token(Parser * self, ASTNode * node) {
     Token new_final = self->_class->gen_final_token_(self, node);
     Token final;
     self->tokens._class->peek(&self->tokens, &final);
-    //printf("\nnew token added(%zu/%zu): %p, start %zu, end %zu, len %zu", self->tokens.fill, self->tokens.capacity, final.string, final.start, final.end, final.end - final.start);
-    /*Token_print(&final);
-    printf("\n\n");
-    */
     return self->tokens._class->push(&self->tokens, new_final);
 }
 
-ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children[nchildren], size_t size) {
+ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode ** children, size_t size) {
     LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - adding node with ntokens %zu, str_length %zu, nchildren %zu, at %p", __func__, ntokens, str_length, nchildren, (void*)children);
     if (!size) {
         size = sizeof(ASTNode);
