@@ -41,8 +41,7 @@ err_type CSVParser_init(CSVParser * parser, char const * name, size_t name_lengt
         .nrows = 0,
         .nbytes = 0
     };
-    parser->Parser._class->init(&parser->Parser, name, name_length, string, string_length, (Rule *)&csv_token, (Rule *)&csv_csv, CSV_NRULES, 0, 0, 0, log_file, log_level);
-    return PEGGY_SUCCESS;
+    return parser->Parser._class->init(&parser->Parser, name, name_length, string, string_length, (Rule *)&csv_token, (Rule *)&csv_csv, CSV_NRULES, 0, 0, 0, log_file, log_level);
 }
 
 /* does not destroy the CSVData, which is expected to be returned/used elsewhere */

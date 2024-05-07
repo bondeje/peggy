@@ -9,30 +9,27 @@ keyword:
     'true' | 'false' | 'null'
 
 token:
-    whitespace | string | keyword | number | punctuator
+    whitespace | keyword | string | number | punctuator
 
 whitespace(skip_token):
-    "[[:space:]]+"
+    "[ \t\r\n\v\f]+"
 
-string:
+string(build_string):
     "\"((\\\\\")|[^\"])*\"" // allows escaped double quotes and accounts for characters production
 
-int_constant(build_int):
+int_constant:
     "[-+]?(([1-9][0-9]*)|(0(x|X)[A-Fa-f0-9]+)|(0[0-7]*))"
 
-decimal_float_constant(build_decimal):
+decimal_float_constant:
     "[-+]?(((([0-9]*\\.[0-9]+)|([0-9]+\\.))([eE][-+]?[0-9]+)?)|([0-9]+[eE][-+]?[0-9]+))"
 
 number:
     decimal_float_constant | int_constant
-
-boolean:
-    'true' | 'false'
     
 value(build_value):
-    object | array | boolean | null_value | string | number
+    object | array | keyword | string | number
 
-object(build_object):
+object:
     '{', members?, '}'
 
 members:
@@ -41,7 +38,7 @@ members:
 member:
     string, ':', value
 
-array(build_array):
+array:
     '[', elements?, ']'
 
 elements:

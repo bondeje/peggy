@@ -196,19 +196,19 @@ Parser_init(&parser, quite a few arguments, this interface is likely not stable)
 Parser_dest(&parser) // releases memory
 ```
 
-To navigate an AST, the node structure and use is as follows:
+To navigate an AST, the node structure and use are as follows:
 ```
-/* // for reference
+/* // for reference, likely not stable
 struct ASTNode {
     struct ASTNodeType * _class; // vtable for functions. 
-    ASTNode ** children; // the subrules associated with the rule that generated the node
-    Rule * rule;        // the rule that generated the node. 
-                        // To access its identifying enum, rule->id
-    size_t str_length;  // the length of the str encompased by the node and its children. 
-                        //Do NOT take this as the sum length of all tokens
-    size_t nchildren;   // the number of nodes in children
-    size_t token_key;   // an internal register
-    size_t ntokens;     // number of tokens encompased by the node and its children
+    ASTNode ** children;    // the subrules associated with the rule that generated the node
+    Rule * rule;            // the rule that generated the node. 
+                            // To access its identifying enum, rule->id
+    size_t str_length;      // the length of the str encompased by the node and its children. 
+                            // Do NOT take this as the sum length of all tokens, it is not.
+    size_t nchildren;       // the number of nodes in children
+    size_t token_key;       // an internal register
+    size_t ntokens;         // number of tokens encompased by the node and its children
 };
 
 example grammar production (a, b, c, and d are all (non)terminals):
@@ -249,15 +249,12 @@ typedef struct TokenCoords {
     unsigned int line;  // line number of token
     unsigned int col;   // column number of token
 } TokenCoords;
-// for refernce, likely not stable
+// for reference, likely not stable
 struct Token {
     struct TokenCoords coords;  // line, col coordinates where token found
     struct TokenType * _class;  // vtable of functions
-    char const * const string;  // non-null-terminated string
-    size_t const start;         // start index in string
-                                // the start of the token in the string. 
-                                // not modifiable for hashing
-    size_t end;                 // index 1 after the final character in string
+    char const * string;        // non-null-terminated string
+    size_t length;              // lenth of the string
 };
 */
 
