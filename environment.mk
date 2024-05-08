@@ -100,8 +100,16 @@ ifeq ($(UNAME), $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
 	EXE_EXT = .exe
 endif
 
+# probably wrong
+ifeq (, $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN Linux))
+    MAKE_BIN = make
+else
+    MAKE_BIN = gmake
+endif
+
 ifneq ($(UNAME), Linux)
     LIBS += -L$(BIN_DIR) -lpcre2-8
+    IFLAGS += -Ilib/pcre2/include
 endif
 
 EXE := $(PKG_NAME)$(EXE_EXT)

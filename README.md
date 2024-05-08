@@ -13,7 +13,7 @@ Since it is packrat, the base generated parsers have run-time complexity O(n) wh
 Summary: [pcre2](https://www.pcre.org/) but possibly no other 3rd party libraries (mostly on Linux). GNU make (to use provided Makefiles). Some limitations on the regex style but with workarounds. Left recursion not (yet) supported.
 
 <details> <summary>Environmental Dependency Details</summary>
-On OSes with GNU standard implementations, there are no 3rd party library dependencies. For other OSes, pcre2 provides a regex backend. It is slightly slower than the GNU regex, but still works. To be able to use <b>peggy</b> cross-platform, your grammar should try to define terminals using the considerable cross-over between POSIX Extended regex and Perl regex. I have found that I only really need to avoid POSIX character classes and write them out explicitly in ASCII. Many cases where either POSIX or Perl regex expressions cannot be expressed in the other, the PEG grammar file has a way around it by composing multiple regex into a single rule.
+On OSes with GNU standard implementations, there are no 3rd party library dependencies. For other OSes, pcre2 provides a regex backend. It is sometimes slower, sometimes faster than GNU regex but works. To be able to use <b>peggy</b> cross-platform, your grammar should try to define terminals using the considerable cross-over between POSIX Extended regex and Perl regex. I have found that I only really need to avoid POSIX character classes and write them out explicitly in ASCII. Many cases where either POSIX or Perl regex expressions cannot be expressed in the other, the PEG grammar file has a way around it by composing multiple regex into a single rule.
 
 There are no facilities or testing yet for inputs beyond 8-bit character encodings. The regex and input strings must be composed of `char` characters. To parse anything beyond that, the regex characters must still be expressed in this type.
 
@@ -21,9 +21,11 @@ Build Environment: compilation and the makefiles that come in this repo should w
 
 <b>Linux</b> - the GNU implementation of `regex.h` is used. The given makefile compiles with `-std=gnu99` and flag `_GNU_SOURCE`, which may change the behavior of some libraries. The `_GNU_SOURCE` is needed because the posix `regex.h` interface is uterly unsuitable for a recursive descent parser that does lazy token evaluation, which <b>peggy</b> generated parsers are. The posix API forces O(n^2) time complexity for this style by requiring null-terminated strings and internal `strlen` calls.
 
-<b>Non-Linux OSes</b> - [pcre2](https://www.pcre.org/) is required. I am still working on my build system and do not include pcre2 so for now, the header must be placed in `lib/pcre2/include` and the shared library in `lib/pcre2/bin` in order to use the provided makefiles.
+<b>Non-Linux OSes</b> - [pcre2](https://www.pcre.org/) compiled with 8-bit character strings is required. I am still working on my build system and do not include pcre2 so for now, the header must be placed in `lib/pcre2/include` and the shared library in `lib/pcre2/bin` in order to use the provided makefiles.
 
 <b>Windows</b> - I highly recommend MSYS. Do not try to switch to the tre implementation of `regex.h` to avoid the pcre2 dependency. The tre library has something wrong with it where the API extension for the non-null-terminated extensions still results in an O(n^2) parse despite appearing like it doesn't depend on internal `strlen` calls. I haven't yet had time to find root cause.
+
+<b>NetBSD</b> - libpcre2-8.so.* must be put into /usr/lib for runtime link
 </details>
 
 <details> <summary>Major Open Issues/TODO</summary>
@@ -62,14 +64,14 @@ PEG parsers, especially implemented with packrat parsers, are very memory hungry
 
 <b>Linux</b>
 ```
-git clone https://github.com/bondeje/peggy.git
+git clone --recurse-submodules https://github.com/bondeje/peggy.git
 
 make all NDEBUG=1
 ```
 
 <b>Non-Linux (Unix-like environment)</b>
 ```
-git clone https://github.com/bondeje/peggy.git
+git clone --recurse-submodules https://github.com/bondeje/peggy.git
 ```
 
 follow [here](https://www.pcre.org/current/doc/html/pcre2build.html#SEC1) to build pcre2. Put the `pcre2.h` in /path/to/peggy/lib/pcre2/include/ and the shared library in /path/to/peggy/lib/pcre2/bin/
@@ -82,6 +84,7 @@ When including files to customize, use, or include in other projects the generat
 
 ## Examples
 
+<!--
 A very simple example (and one of the worst application of PEGs) is an ipv4 parser for dot-decimal notation
 
 ```
@@ -170,8 +173,8 @@ int main(int narg, char ** args) {
     return 0;
 }
 ```
-
-I have included a couple toy parsers generated with <b>peggy</b> in `examples/`. They are of limited use but can be used as templates for your needs. I will add more as time goes on. If you have any interesting ones, let me know.
+-->
+I have included a couple toy parsers generated with <b>peggy</b> in `examples/`. They are of limited practical use but can be used as templates for your needs. I will add more as time goes on. If you have any interesting ones, let me know.
 
 csv - a simple csv parser. Generates a `CSVData` struct from an input file. Data is not converted to any data types but kept as strings. Customizing to convert empty data, integers, floating point, etc is a simple enough exercise
 
@@ -339,6 +342,16 @@ For any of the following operators that fail, a sentinel node pointer is returne
 - `(` subrule `)` - encapsulation rule to alter binding order of subrules. Creates a single node based on the subrule.
 
 **Currently, in order for these to be present in a subrule of a production, they must already appear as either a subrule of `punctuator` or `keyword` special productions or as a lone terminal for another production
+
+### Operator precedence (Highest to Lowest top to bottom)
+| operator punctuation | meaning/use                        |
+|----------------------|------------------------------------|
+| `"`, `'`, `()`       | `LiteralRule`s and parenthesizing  |
+| `&`, `!`             | `Lookahead` rules                  |
+| `.`                  | `ListRule`s                        |
+| `+`, `*`, `?`, `{:}` | `RepeatRule`s                      |
+| `,`                  | `SequenceRule`s                    |
+| `\|`                 | `ChoiceRule`s                      |
 
 ## Testing <b>peggy</b>
 

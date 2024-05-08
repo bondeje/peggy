@@ -8,7 +8,7 @@ all: build_hierarchy move_regex dynamic_lib static_lib main
 
 ifneq ($(UNAME), Linux)
 move_regex:
-	cp $(LIB_DIR)/pcre2/bin/libpcre2-8.dll $(BIN_DIR)
+	cp $(LIB_DIR)/pcre2/bin/libpcre2-8.* $(BIN_DIR)
 else
 move_regex:
 
@@ -22,7 +22,7 @@ $(OBJ_DIR)/%$(OBJ_SUFFIX): $(SRC_DIR)/%$(SRC_SUFFIX) $(DEP_DIR)/%$(DEP_SUFFIX) |
 	mv -f $(DEP_DIR)/$*$(TEMP_DEP_SUFFIX) $(DEP_DIR)/$*$(DEP_SUFFIX) && touch $@
 
 lib/logger/obj/logger.o: lib/logger/src/logger.c
-	cd lib/logger && make all && cd ../..
+	cd lib/logger && $(MAKE_BIN) all && cd ../..
 
 static_lib: $(LIB_OBJS)
 	$(AR) r $(STATIC_LIB_FILE) $(LIB_OBJS)
