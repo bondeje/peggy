@@ -10,7 +10,7 @@ Since it is packrat, the base generated parsers have run-time complexity O(n) wh
 
 ## Dependencies/Limitations
 
-Summary: [pcre2](https://www.pcre.org/) but possibly no other 3rd party libraries. Some limitations on the regex style but with workarounds. Left recursion not (yet) supported.
+Summary: [pcre2](https://www.pcre.org/) but possibly no other 3rd party libraries (mostly on Linux). GNU make (to use provided Makefiles). Some limitations on the regex style but with workarounds. Left recursion not (yet) supported.
 
 <details> <summary>Environmental Dependency Details</summary>
 On OSes with GNU standard implementations, there are no 3rd party library dependencies. For other OSes, pcre2 provides a regex backend. It is slightly slower than the GNU regex, but still works. To be able to use <b>peggy</b> cross-platform, your grammar should try to define terminals using the considerable cross-over between POSIX Extended regex and Perl regex. I have found that I only really need to avoid POSIX character classes and write them out explicitly in ASCII. Many cases where either POSIX or Perl regex expressions cannot be expressed in the other, the PEG grammar file has a way around it by composing multiple regex into a single rule.
@@ -31,8 +31,17 @@ Approximately in order of importance/dependence
 
 - refactor node object allocation to minimize use of `malloc`
 - refactor PackratCache back to a hashmap
-- implement arena allocator for Parser
-- Left recursion implementation
+- implement arena allocator for Parser.
+- implement left recursion for packrat
+- token->length are set equal to node->str-length for nodes generated as output of successful LiteralRules, however, in json example, I found that if I calculate the total string size allocation using node->str_length, I run out of buffer space in creating JSONStrings, but if I use token->length (in a 1-1 change), no problem. Need to resolve this as they should be the same and getting the raw token is a more expensive operation (traversal functions generally do not have access to the token, but they all get the node) than just getting node->str_length. node->str_length is used elsewhere in similar manners but asan is not complaining.
+</details>
+
+<details> <summary>Wish List</summary>
+
+- add serialization capabilities
+- add automatic building of traversal functions (this will force traversal functions to have only specific input arguments and require all traversal context to be in the parser)
+- (low priority) add ability to attribute destructor function to productions to handle custom ASTNode memory allocations. Right now, ASTNodes can be customized but all memory handling must be done manually by user.
+- add serialization function attributes to productions
 </details>
 
 ## Who should use <b>peggy</b>
@@ -69,6 +78,8 @@ follow [here](https://www.pcre.org/current/doc/html/pcre2build.html#SEC1) to bui
 make all NDEBUG=1
 ```
 
+When including files to customize, use, or include in other projects the generated parsers, only include headers from include/peggy/. Do not use the other headers in include/ as they are for building <b>peggy</b> itself and will likely break whatever you are doing.
+
 ## Examples
 
 A very simple example (and one of the worst application of PEGs) is an ipv4 parser for dot-decimal notation
@@ -82,7 +93,7 @@ punctuator: '.'             // needed to be able to use '.' in ipv4
 digit: "[0-9]"              
 octet: digit{1:3}           // 0 digits and more than 3 are definitely errors
 token: punctuator | digit
-ipv4(check_ipv4): '.'.octet // check_ipv4 as a build transform function triggers AST traversal
+ipv4(check_ipv4): '.'.octet // check_ipv4 as a build action triggers AST traversal
 
 // ipv4parser.h
 #ifndef IPV4PARSER_H
@@ -191,7 +202,12 @@ To build an AST:
 Parser parser;
 Parser_init(&parser, quite a few arguments, this interface is likely not stable);
 
-/* navigate AST */
+/**
+ * navigate AST. if you don't use a build action to trigger traversal in 
+ * Parser_init or do lazy parsing, you can trigger a traversal using parser.ast
+ * (which holds a reference to root node if successful or &ASTNode_fail if 
+ * parsing failed) or initiate parsing with parser._class->parse, respectively 
+ */
 
 Parser_dest(&parser) // releases memory
 ```
@@ -220,23 +236,24 @@ example grammar production (a, b, c, and d are all (non)terminals):
 
 handle_a(ASTNode * node_a) {
     // select traversal behavior based on which choide element comprises a
-    switch (node_a->nchildren) { 
-        case 1: {
+    switch (node_a->children[0]->rule->id) { 
+        case B: // all standard productions can be switched with the name of the production in all caps
+        {
             // handle the 'b' (non)terminal
             handle_b(node->children[0]);
             break;
         }
-        case 2: {
+        case C: {
             // handle the 'c' (non)terminal
             handle_c(node->children[0]);
-            if (node->children[1]->nchildren) {
+            if (node->children[1]->nchildren) { // if d is found in d?
                 // handle the 'd' (non)terminal
                 handle_d(node->children[1]->children[0]);
             }
             break;
         }
         default: {
-            // handle error. 'a' cannot have more than 2 child rules
+            // handle error. branches do not match structure of 'a'
         }
     }
 }
@@ -253,7 +270,7 @@ typedef struct TokenCoords {
 struct Token {
     struct TokenCoords coords;  // line, col coordinates where token found
     struct TokenType * _class;  // vtable of functions
-    char const * string;        // non-null-terminated string
+    char const * string;        // non-null-terminated string. char const to support string literals for parsing
     size_t length;              // lenth of the string
 };
 */
@@ -265,7 +282,7 @@ Token * toks = parser._class->get_tokens(&parser, node, NULL);
 
 // example print of the tokens:
 for (size_t i = 0; i < node->ntokens; i++) {
-    printf("%.*s ", toks[i].end - toks[i].end, (char *)(toks[i].string + toks[i].start));
+    printf("%.*s ", toks[i].length, toks[i].string);
 }
 ```
 
@@ -281,15 +298,15 @@ Every entry in the grammar either is or resembles a `<key>`: `<value>` pair defi
       - Ex. `import: csvparser export: csv` This will cause <b>peggy</b> to generate `csv.h` and `csv.c`. `csv.c` will have `#include "csvparser.h"` for inclusion of external customization code. A production `csv: <some definition>` must exist in the grammar file as an entry point
 2. productions - These are grammar productions that mostly follow common EBNF syntax. Only 1 production is required and its name must either be set by the grammar file name or the `export` config option. The syntax of the productions and grammar operators have two main differences with EBNF:
     - instead of whitespace separated terminals and nonterminals for the sequence operation, I use a comma `,`. I find that whitespace too often creates unnecessary ambiguities in parsing that require annoying, special handling.
-    - productions are annotated with attributes by a comma-separated list enclosed in parentheses. e.g. `A(a): 'key', ':', B` indicates a production named `A` annotated with an attribute (in this case a build transform function `a`) that is defined as a sequence of the string literal `key` followed by string literal `:` followed by the production `B`.
-3. Special productions - These are identical to productions but with restrictions on attributes and specifically defined behavior and rules. None of these may have transform functions.
+    - productions are annotated with attributes by a comma-separated list enclosed in parentheses. e.g. `A(a): 'key', ':', B` indicates a production named `A` annotated with an attribute (in this case a build action `a`) that is defined as a sequence of the string literal `key` followed by string literal `:` followed by the production `B`.
+3. Special productions - These are identical to productions but with restrictions on attributes and specifically defined behavior and rules. None of these may have actions.
     - punctuator - optional - This is a production that must be defined as a choice rule of string literals. For each string literal a separate rule will be made for the tokenizer/parser to use. The enums corresponding to the punctuation will be generated based on a predefined table `PUNCTUATION_LOOKUP` in `peggyparser.c` or with a generated named with format: `PUNC` + `_`-separated list of conversions to int of the punctuator characters. 
     - keyword - optional - This is similar to the punctuator production but string literals must be valid identifiers and the generated name will be of the format "[capitalized keyword]_KW". E.x. `'unsigned'` becomes `UNSIGNED_KW`.
     - token - required - This is a special production that defines how tokens are generated. No attributes can be applied and can only comprise ChoiceRule and LiteralRule subrule types.
 
 #### A note on whitespace
 
-A common production used in tokenization is `whitespace`, which is generally ignored. This is not the behavior of <b>peggy</b>, which does not have any special productions for whitespace. Instead, there is a built-in transform function `skip_token` that can be used on any productions used in the `token` production to tell the parser to skip over that part of the string entirely. Example usage, which excludes all ASCII whitespace and C/C++ style comments (this is used by <b>peggy</b>)
+A common production used in tokenization is `whitespace`, which is generally ignored. This is not the behavior of <b>peggy</b>, which does not have any special productions for whitespace. Instead, there is a built-in action `skip_token` that can be used on any productions used in the `token` production to tell the parser to skip over that part of the string entirely. Example usage, which excludes all ASCII whitespace and C/C++ style comments (this is used by <b>peggy</b>)
 
 ```
 whitespace(skip_token):
@@ -314,7 +331,7 @@ For any of the following operators that fail, a sentinel node pointer is returne
 - `+` - foregoing subrule must succeed at least once for the overall rule to succeed, otherwise failure. Equivalent to `{1:}`
 - `*` - foregoing subrule may appear any number of times. Always succeeds. Equivalent to `{:}`
 - `?` - foregoing rule may appear once if at all. Always succeeds. Equivalent to `{:1}`.
-- `.` ListRule - the foregoing subrule denotes a delimiter of the subrule following the `.`. The following subrule must succeed at least once for overall success, otherwise failure. Note that `a.b` is semantically equivalent to `b, (a, b)*`, but navigation is quite different. The resulting rule for ListRule is a single list of children nodes - one for each of the delimiter and following subrule in order, but the semantically equivalent form must be navigated as a SequenceRule and then RepeateRule of SequenceRules. The advantage of the longer form is that the single element and repeat element can be captured in productions with separate transform functions and better error handling or context evaluation.
+- `.` ListRule - the foregoing subrule denotes a delimiter of the subrule following the `.`. The following subrule must succeed at least once for overall success, otherwise failure. Note that `a.b` is semantically equivalent to `b, (a, b)*`, but navigation is quite different. The resulting rule for ListRule is a single list of children nodes - one for each of the delimiter and following subrule in order, but the semantically equivalent form must be navigated as a SequenceRule and then RepeateRule of SequenceRules. The advantage of the longer form is that the single element and repeat element can be captured in productions with separate actions and better error handling or context evaluation.
 - `&` PositiveLookahead - the following subrule must succeed in order for the rule to succeed, otherwise failure. Upon success, the corresponding tokens are NOT consumed.
 - `!` NegativeLookahead - the following subrule must fail in order for the rule to succeed, otherwise failure. Upon success, the corresponding tokens are NOT consumed.
 - `"` LiteralRule** - regex type - The contents between two double-quotes is treated as a regular expressions following GNU regex syntax with syntax options `RE_SYNTAX_POSIX_EXTENDED | RE_BACKSLASH_ESCAPE_IN_LISTS | RE_DOT_NEWLINE` or PCRE2 syntax with syntax options `PCRE2_ANCHORED | PCRE2_DOTALL`. No special treatment of characters. 

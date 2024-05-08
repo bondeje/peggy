@@ -17,6 +17,24 @@
 /* local includes */
 #include "jsonparser.h"
 
+// -9223372036854775807 + '\0'
+#define MAX_LLONG_STR_LENGTH 21 
+
+// SIGN, 53 fraction digits, DEC, e/E, SIGN, 4 digit exponent  + '\0' + a few bytes
+#define MAX_DBL_STR_LENGTH 64
+
+/* globals */
+bool timeit = false;
+
+struct JSONDoc empty_json = {0};
+
+JSONParser json = {
+    .Parser = {
+        ._class = &Parser_class,
+        .logger = DEFAULT_LOGGER_INIT,
+    }
+};
+
 int JSONString_comp(JSONString a, JSONString b) {
     if (a.len != b.len) {
         return 1;
@@ -72,27 +90,32 @@ ASTNode * build_value(Production * prod, Parser * parser_, ASTNode * node) {
 }
 
 JSONValue * handle_integer(JSONParser * parser, ASTNode * node) {
+    static char integer_buffer[MAX_LLONG_STR_LENGTH] = {'\0'};
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
     Token * tok = parser->Parser._class->get_tokens(&parser->Parser, node);
-    size_t N = tok->_class->len(tok); // should probably flag error if > MAX_LLONG_STR_LEN - 1
-    char * str = (char *)tok->string; // super dangerous!!!!
-    char stor = str[N]; // temporary storage of the character
-    str[N] = '\0'; // make str a null-terminated C-string
-    jval->value.decimal = strtoll(str, NULL, 10);
-    str[N] = stor; // reset character
+    if (tok->length >= MAX_LLONG_STR_LENGTH) {
+        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - integer value at line %u, col %u has too many digits to fit in long long. cannot convert\n", __func__, tok->coords.line, tok->coords.col);
+        return NULL;
+    }
+    memcpy(integer_buffer, tok->string, tok->length);
+    integer_buffer[tok->length] = '\0';
+    jval->value.integer = strtoll(integer_buffer, NULL, 10);
     jval->type = JSON_INTEGER;
     return jval;
 }
 
 JSONValue * handle_decimal(JSONParser * parser, ASTNode * node) {
+    static char decimal_buffer[MAX_DBL_STR_LENGTH] = {'\0'};
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
     Token * tok = parser->Parser._class->get_tokens(&parser->Parser, node);
-    size_t N = tok->_class->len(tok); // should probably flag error if > MAX_LLONG_STR_LEN - 1
-    char * str = (char *)tok->string; // super dangerous!!!!
-    char stor = str[N]; // temporary storage of the character
-    str[N] = '\0'; // make str a null-terminated C-string
-    jval->value.decimal = strtod(str, NULL);
-    str[N] = stor; // reset character
+    if (tok->length >= MAX_DBL_STR_LENGTH) {
+        /* this is technically correctable if the exponent is in range [0-2047] which means fraction bit is too long...trim it*/
+        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - decimal value at line %u, col %u has too many digits to fit in double. cannot convert\n", __func__, tok->coords.line, tok->coords.col);
+        return NULL;
+    }
+    memcpy(decimal_buffer, tok->string, tok->length);
+    decimal_buffer[tok->length] = '\0';
+    jval->value.decimal = strtod(decimal_buffer, NULL);
     jval->type = JSON_DECIMAL;
     return jval;
 }
@@ -293,17 +316,6 @@ ASTNode * handle_json(Production * prod, Parser * parser_, ASTNode * node) {
     }
     return node;
 }
-
-bool timeit = false;
-
-struct JSONDoc empty_json = {0};
-
-JSONParser json = {
-    .Parser = {
-        ._class = &Parser_class,
-        .logger = DEFAULT_LOGGER_INIT,
-    }
-};
 
 JSONDoc from_string(char * string, size_t string_length, char * name, size_t name_length, char * log_file, unsigned char log_level) {
     err_type status = PEGGY_SUCCESS;
