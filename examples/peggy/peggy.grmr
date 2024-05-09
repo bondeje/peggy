@@ -1,8 +1,6 @@
-// peggen.grmr without comments
-export:
-    peggy
-import:
-    peggyparser
+// peggy.grmr
+export = peggy
+import = peggyparser
 
 whitespace(skip_token):
     "([ \t\r\n\v\f]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+" // includes C-style comments as whitespace
@@ -14,13 +12,13 @@ regex_literal:
     "\"((\\\\\")|[^\"])*\""
 
 punctuator:
-    '!' | '|' | ',' | '?' | '.' | '&' | ':' | '+' | '*' | '(' | ')' | '{' | '}' // to include '/' in the future for a proper "first_choice"
+    '!' | '|' | ',' | '?' | '.' | '&' | ':' | '+' | '*' | '(' | ')' | '{' | '}' | '='
 
 digit_seq:
     "[0-9]+"
 
 keyword:
-    'import' | 'export' | 'punctuator' | 'keyword' | 'token'
+    'punctuator' | 'keyword' | 'token'
 
 identifier:
     "[A-Za-z0-9_]+"
@@ -66,7 +64,7 @@ production:
     identifier, ('(', transform_functions, ')')?, ':', choice
 
 config: 
-    ('import' | 'export'), ':', nonws_printable
+    identifier, '=', nonws_printable
 
 peggy(handle_peggy):
     (config | special_production | production)+

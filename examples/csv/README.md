@@ -11,13 +11,13 @@ This will use the csv.grmr file as a walkthrough to explain the components of a 
 The csv.grmr file in this repository is mostly taken from the ABNF in RFC4180, but in a more ENBF format and to keep it a little simpler, I have not included the "headers" portion. Syntactically, they are identical to any other "record" that appears later in the grammar--just the very first record--so it creates an ambiguity that must be handled by the parser to separate out the headers. It can be as simple as a flag in the initializer from the user saying to specially separate the first record as the header.
 
 ```
-export: csv
+export = csv
 ```
 
 The export configuration entry should almost always be the very first entry in the grammar file. It explicitly tells peggy that the module(header/source pair) generated should be title "csv" + extensions. If this were not present, peggy would just trim the extension, which would also be "csv" in this case. The export config option merely gives the user the ability to change filenames or switch between files without changing the output header/source pair.
 
 ```
-import: csvparser
+import = csvparser
 ```
 
 The import entry tells peggy that there are customization to the parser located in an external module. In this case, the csvparser header file.

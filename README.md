@@ -89,8 +89,8 @@ A very simple example (and one of the worst application of PEGs) is an ipv4 pars
 
 ```
 // ipv4.grmr
-export: ipv4                // redundant but allows change of file name
-import: ipv4parser          // check_ipv4 is declared in ipv4parser.h
+export = ipv4                // redundant but allows change of file name
+import = ipv4parser          // check_ipv4 is declared in ipv4parser.h
 
 punctuator: '.'             // needed to be able to use '.' in ipv4
 digit: "[0-9]"              
@@ -293,12 +293,12 @@ for (size_t i = 0; i < node->ntokens; i++) {
 
 Grammar files are composed of whitespace (ignored), C/C++ style comments (ignored) and entries.
 
-Every entry in the grammar either is or resembles a `<key>`: `<value>` pair definition. All the keys share the same namespace so avoid multiple definitions for the same `<key>`. There are (so far) 2 main types of entries with a subtype.
+Every entry in the grammar either is or resembles a `<key>` : or = `<value>` pair definition.
 
-1. config options - These are `<key>`: `<value>` pairs that configuration attributes of the generated parser. The supported key list is limited to 2:
+1. config options - These are `<key>` = `<value>` pairs that configuration attributes of the generated parser. The supported key list is limited to 2:
     - import - specify external modules (headers that you wrote) to import into the generated parser. If you customize transforms functions for productions, point this to the headers that declare those functions. This can be specified multiple times per grammar
     - export - specify the parser output name and entry point for AST generation. This can only be specified once within a grammar file. If not specified, the default will be the name of the grammar file with the outermost extension removed. Whatever the export name, a production with a corresponding name must be defined in the grammar.
-      - Ex. `import: csvparser export: csv` This will cause <b>peggy</b> to generate `csv.h` and `csv.c`. `csv.c` will have `#include "csvparser.h"` for inclusion of external customization code. A production `csv: <some definition>` must exist in the grammar file as an entry point
+      - Ex. `import = csvparser export = csv` This will cause <b>peggy</b> to generate `csv.h` and `csv.c`. `csv.c` will have `#include "csvparser.h"` for inclusion of external customization code. A production `csv: <some definition>` must exist in the grammar file as an entry point
 2. productions - These are grammar productions that mostly follow common EBNF syntax. Only 1 production is required and its name must either be set by the grammar file name or the `export` config option. The syntax of the productions and grammar operators have two main differences with EBNF:
     - instead of whitespace separated terminals and nonterminals for the sequence operation, I use a comma `,`. I find that whitespace too often creates unnecessary ambiguities in parsing that require annoying, special handling.
     - productions are annotated with attributes by a comma-separated list enclosed in parentheses. e.g. `A(a): 'key', ':', B` indicates a production named `A` annotated with an attribute (in this case a build action `a`) that is defined as a sequence of the string literal `key` followed by string literal `:` followed by the production `B`.

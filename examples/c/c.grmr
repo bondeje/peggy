@@ -1,0 +1,523 @@
+export = c
+import = cparser
+
+c(handle_c):
+	external_declaration+
+
+punctuator: '...' | '<<=' | '>>=' | '->' | '++' | '--' | '&=' | '##' | '*=' | '+=' | 
+    '-=' | '/=' | '%=' | '<=' | '>=' | '>>' | '==' | '!=' | '^=' | '||' | '&&' | '|=' | 
+    '<<' | ';' | '=' | '*' | '/' | '%' | '+'  | '-' | '>' | '&' | '^' | '|' | ',' | '#' | 
+    '<' | '[' | ']' | '(' | ')' | '{' | '}' | '.' | '~' | '!' | '?' | ':'
+
+
+keyword:
+	'__asm__' | 		// gcc extension
+	'__asm' | 			// msvc extension
+	'__based' | 		// msvc extension
+	'__cdecl' | 		// msvc extension
+	'__clrcall' | 		// msvc extension
+	'__declspec' | 		// msvc declaration-specifier extensions
+	'__extension__' | 	// gcc extension to silence -pedantic: https://gcc.gnu.org/onlinedocs/gcc/Alternate-Keywords.html
+	'__fastcall' | 		// msvc extension
+	'__inline__' |		// gcc extension
+	'__inline' | 		// msvc extension
+	'__int8' | 			// msvc extension
+	'__int16' | 		// msvc extension
+	'__int32' | 		// msvc extension
+	'__int64' | 		// msvc extension
+	'__restrict__' | 	// gcc extension
+	'__stdcall' | 		// msvc extension
+	'__thiscall' | 		// msvc extension
+	'__typeof__' |		// gcc extension
+	'__vectorcall' | 	// msvc extension
+	'__volatile__' |	// gcc extension
+    '__attribute__' |
+	'asm' | 			// standard C extension (see Annex J). used by gcc, etc.
+	'auto' | 
+	'bool' | 
+    'break' | 
+    'case' | 
+    'char' | 
+    'const' |
+    'continue' | 
+    'default' | 
+    'do' | 
+    'double' | 
+    'else' | 
+    'enum' | 
+    'extern' | 
+    'float' | 
+    'for' | 
+    'goto' | 
+    'if' | 
+    'inline' | 
+    'int' | 
+    'long' | 
+	'macro' |
+	'pragma' |
+    'register' | 
+    'restrict' | 
+    'return' | 
+    'short' | 
+    'signed' | 
+    'sizeof' | 
+    'static' | 
+    'struct' | 
+    'switch' | 
+    'typedef' |
+	'typeof' | 			// gcc extension for pre-C23
+    'union' | 
+    'unsigned' | 
+    'void' | 
+    'volatile' |
+    'while' | 
+    '_Alignas' |
+    '_Alignof' |
+    '_Atomic' | 
+    '_Bool' |
+    '_Complex' | 
+    '_Generic' | 
+    '_Imaginary' | 
+    '_Noreturn' | 
+    '_Static_assert' |
+    '_Thread_local'
+
+token:
+    whitespace | punctuator | constant | string_literal | identifier | keyword  // whitespace is added to remove comments. It is skipped anyway
+
+whitespace(skip_token):
+    "([ \t\r\n\v\f]+|(\\\\\n)|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+"
+
+identifier:
+    "[a-zA-Z_][a-zA-Z0-9_]*"
+
+digit:
+    "[0-9]"
+
+nondigit:
+    "[a-zA-Z_]"
+
+// includes octal and hex integer constants
+int_constant:
+    "(([1-9][0-9]*)|(0(x|X)[A-Fa-f0-9]+)|(0[0-7]*))(((u|U)(l|L)?)|((l|L|LL|ll)(u|U)?))?"
+
+hex_float_constant:
+    "0(x|X)((([A-Fa-f0-9]*\\.[A-Fa-f0-9]+)|([A-Fa-f0-9]+\\.))|([A-Fa-f0-9]+))p[-+]?[0-9]+(f|l|F|L)?"
+
+decimal_float_constant:
+    "(((([0-9]*\\.[0-9]+)|([0-9]+\\.))([eE][-+]?[0-9]+)?)|([0-9]+[eE][-+]?[0-9]+))(f|l|F|L)?"
+
+float_constant:
+    decimal_float_constant | hex_float_constant
+
+enum_constant:
+    identifier
+
+char_constant:
+    "[LuU]?'([^\\\\]*?(\\\\.)?)*?'"
+
+constant:
+    float_constant | int_constant | char_constant // | enum_constant
+
+// check to make sure the inner double quotes work
+string_literal:
+    "(u8|u|U|L)?\"((\\\\\")|[^\"])*\"" // this is literally everything between two double quotes including escaped double quotes
+
+// below are for parsing
+
+primary_expression:
+	  identifier
+	| constant
+	| string_literal
+	| '(', expression, ')'
+	| generic_selection
+
+generic_selection:
+	'_Generic', '(', assignment_expression, ',', generic_assoc_list, ')'
+
+generic_assoc_list:
+	','.generic_association
+
+generic_association:
+	(type_name | 'default'), ':', assignment_expression
+
+// fix left recursion
+postfix_expression:
+	postfix_expression_start, ( get_expression
+                              | call_expression
+                              | namespace_access_expression
+                              | pointer_access_expression
+                              | '++'
+                              | '--'
+                              )*
+
+postfix_expression_start:
+    primary_expression | compound_literal
+	
+compound_literal:
+	'(', type_name, ')', '{', initializer_list, ','?, '}'
+
+// arrays, [] operator overloading, and templates
+get_expression:
+	'[', expression, ']'
+
+call_expression:
+	'(', argument_expression_list?, ')'
+
+argument_expression_list:
+	','.assignment_expression
+	
+namespace_access_expression:
+	'.', identifier // namespace, struct, or union member access
+	
+pointer_access_expression:
+	'->', identifier	// struct or union pointer member access
+
+// unary_expression is a good test of PEG operator precedence
+unary_expression:
+	  'sizeof', unary_expression // right-recursive
+	| 'sizeof', '(', type_name, ')'
+	| '_Alignof', '(', type_name, ')'
+	|  postfix_expression // postfix_expression can be matched by an identifier so sizeof/_Alignof operators must come first
+	| '++', unary_expression
+	| '--', unary_expression
+	| unary_operator, cast_expression
+	// typeof is in gcc only
+
+unary_operator:
+	  '&'
+	| '*'
+	| '+'
+	| '-'
+	| '~'
+	| '!'
+	
+cast_expression:
+	  '(', type_name, ')', cast_expression
+	| unary_expression
+
+multiplicative_expression:
+	cast_expression, (('*' | '/' | '%'), cast_expression)*
+
+additive_expression:
+	multiplicative_expression, (('+' | '-'), multiplicative_expression)*
+
+shift_expression:
+	additive_expression, (('<<' | '>>'), additive_expression)*
+	
+relational_expression:
+	shift_expression, (('<' | '>' | '<=' | '>='), shift_expression)*
+	
+equality_expression:
+	relational_expression, (('==' | '!='), relational_expression)*
+	
+AND_expression:
+	equality_expression, ('&', equality_expression)*
+	
+XOR_expression:
+	AND_expression, ('^', AND_expression)*
+	
+OR_expression:
+	XOR_expression, ('|', XOR_expression)*
+
+logAND_expression:
+	OR_expression, ('&&', OR_expression)*
+
+logOR_expression:
+	logAND_expression, ('||', logAND_expression)*
+	
+conditional_expression:
+	  logOR_expression, '?', expression, ':', conditional_expression
+	| logOR_expression
+
+assignment_expression:
+	  unary_expression, assignment_operator, assignment_expression
+	| conditional_expression
+
+assignment_operator:
+	  '='
+	| '*='
+	| '/='
+	| '%='
+	| '+='
+	| '-='
+	| '<<='
+	| '>>='
+	| '&='
+	| '^='
+	| '|='
+
+expression:
+	','.assignment_expression
+	
+constant_expression:
+	conditional_expression
+
+
+
+
+
+// DECLARATIONS
+
+declaration:
+	  declaration_specifiers, init_declarator_list?, ';'
+	| static_assert_declaration
+
+// non_paren and paren_block to accommodate arbitrary gcc and msvc declaration specifier attribute syntax
+non_paren:
+	"[^|()]+"
+	
+paren_block:
+	'(', non_paren*, paren_block?, non_paren*, ')'
+
+msattribute:
+	  '__asm'
+	| '__based'
+	| '__cdecl'
+	| '__clrcall'
+	| '__fastcall'
+	| '__inline'
+	| '__stdcall'
+	| '__thiscall'
+	| '__vectorcall'
+
+attribute_specifier: // gcc specific declaration_specifiers
+	'__attribute__', paren_block
+	| '__extension__'
+
+init_declarator:
+	declarator, attribute_specifier*, ('=', initializer)?
+	
+init_declarator_list:
+	','.init_declarator
+
+storage_class_specifier:
+	  'auto' // C11
+	| 'extern'
+	| 'register'
+	| 'static'
+	| '_Thread_local'
+	| 'typedef'
+
+msdeclspec: // msvc specific declaration_specifiers
+	'__declspec', '(', identifier*,')'
+
+struct_or_union_specifier:
+	struct_or_union, ((identifier?, '{', struct_declaration+, '}') | identifier)
+
+struct_or_union:
+	'struct' | 'union'
+
+struct_declaration:
+	  specifier_qualifier_list, struct_declarator_list?, attribute_specifier*, ';'
+	| static_assert_declaration
+
+specifier_qualifier_list:
+	(type_qualifier | attribute_specifier)*, type_specifier, (type_qualifier | attribute_specifier)*
+
+struct_declarator_list:
+	','.struct_declarator
+
+struct_declarator:
+	  declarator?, ':', constant_expression
+	| declarator
+
+enum_specifier:
+	'enum', ((identifier?, '{', enumerator_list, ','?, '}') | identifier)
+
+enumerator_list:
+	','.enumerator
+
+enumerator:
+	enum_constant, ('=', constant_expression)?
+
+atomic_type_specifier:
+	'_Atomic', '(', type_name, ')'
+
+type_qualifier:
+	  'const'
+	| 'volatile'
+	| '__volatile__' // gcc extension
+	| 'restrict'
+	| '__restrict__' // gcc extension
+	| '_Atomic'
+	
+function_specifier:
+	  'inline' 
+	| '__inline__' // gcc extension
+	| '__inline' // alternate gcc bullshit
+	| '_Noreturn' 
+	
+alignment_specifier:
+	'_Alignas', '(', (type_name | constant_expression), ')'
+
+declarator:
+	pointer?, direct_declarator // forward declare direct_declarator
+
+direct_declarator: 
+	(identifier | '(', attribute_specifier*, declarator, ')'), (array_declarator | function_declarator)*
+
+array_declarator:
+	'[', 'static'?, type_qualifier*, 'static'?, (assignment_expression | '*')?, ']' // static and assignment_expression cannot be together
+
+
+// excluded the identifier_list to remove K&R style
+function_declarator:
+	'(', parameter_type_list?, ')' 
+
+pointer:
+	('*', (type_qualifier | attribute_specifier)*)+ // attribute_specifier for the poorly described gcc-specific attributes
+
+parameter_type_list:
+	parameter_list, (',', '...')?
+
+parameter_list:
+	','.parameter_declaration
+
+// the real requirement is that the every parameter declaration must have at least 1 type specifier (auto will not work here). 
+// A typedef would appear as the sole type specifier. If a typedef is found, the identifier in the declarator must be the variable identifier
+// say we have declaration_specifiers that do not have type specifiers and type specifiers are reworked to separate those that may be more than one token:
+multi_type: // these may or may not appear alone, but if they are accompanied, they are accompanied by other keywords
+	  'char'
+	| 'short'
+	| 'int'
+	| '__int8' // msvc extension
+	| '__int16' // msvc extension
+	| '__int32' // msvc extension
+	| '__int64' // msvc extension
+	| 'long'
+	| 'float'
+	| 'double'
+	| '_Complex'
+	| 'signed'
+	| 'unsigned'
+	| 'void'  // not really multi, but it makes type_specifier easier to have it here
+	| '_Bool' // not really multi, but it makes type_specifier easier to have it here
+	| 'bool'  // not really multi, but it makes type_specifier easier to have it here
+	
+type_specifier: // cannot be mixed with another type specifier
+	  multi_type+
+	| atomic_type_specifier
+	| struct_or_union_specifier
+	| enum_specifier
+	| typedef_name
+
+// placement of msattribute: https://learn.microsoft.com/en-us/previous-versions/visualstudio/visual-studio-2010/zxk0tw93(v=vs.100)?redirectedfrom=MSDN
+declaration_qualifier:
+	  storage_class_specifier
+	| type_qualifier
+	| function_specifier
+	| alignment_specifier
+	| attribute_specifier // compiler declaration_specifier extensions: https://gcc.gnu.org/onlinedocs/gcc/Attribute-Syntax.html
+	| msdeclspec
+	| msattribute
+
+declaration_specifiers:
+      declaration_qualifier*, type_specifier, declaration_qualifier*
+    | declaration_qualifier+, type_specifier?, declaration_qualifier* 
+    | declaration_qualifier*, type_specifier?, declaration_qualifier+
+
+	
+parameter_declaration:
+	declaration_specifiers, (declarator | abstract_declarator)?
+
+
+identifier_list:
+	','.identifier
+	
+type_name: // since abstract_declarator does not have an identifier, this should not pose an ambiguity issue for typedef_name & identifier
+	specifier_qualifier_list, abstract_declarator? // forward declare abstract declarator
+
+abstract_declarator:
+	  pointer
+	| pointer?, direct_abstract_declarator // forward declare direct_abstract_declarator	
+
+direct_abstract_declarator:
+	  '(', abstract_declarator, ')'
+	| ('(', abstract_declarator, ')')?, (array_abs_declarator | function_abs_declarator)+
+
+array_abs_declarator:
+	'[', (('static'?, type_qualifier*, 'static'?, assignment_expression?) | '*'), ']' // static and assignment_expression cannot be together
+
+function_abs_declarator:
+	'(', parameter_type_list?, ')'
+	
+typedef_name:
+	identifier
+	
+initializer:
+	assignment_expression | '{', initializer_list, ','?, '}'
+
+initializer_list:
+	','.(designation?, initializer)
+
+designation:
+	designator+, '='
+
+designator:
+	  '[', constant_expression, ']'
+	| '.', identifier
+	
+static_assert_declaration:
+	'_Static_assert', '(', constant_expression, ',', string_literal, ')', ';'
+
+	
+// STATEMENTS
+
+statement:
+	  asm_statement // gcc (only?) extension. grammar at https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html
+	| labeled_statement
+	| compound_statement
+	| selection_statement
+	| iteration_statement
+	| jump_statement
+	| expression_statement // this should be last since it can simply be a ';'
+
+asm_statement:
+	('asm' | '__asm__'), asm_qualifiers*, paren_block
+
+asm_qualifiers:
+	'volatile' | '__volatile__' | '__inline__' | 'inline' | 'goto'
+
+labeled_statement:
+	(identifier | ('case', constant_expression) | 'default'), ':', statement
+
+compound_statement:
+	'{', block_item*, '}'
+	
+//block_item_list:
+//	block_item+
+	
+block_item:
+	statement | declaration // OOOOooohh...this is backwards from spec, but otherwise it will succeed on e.g. return statements as declarations before statements
+	
+expression_statement:
+	expression?, ';'
+	
+selection_statement:
+	  'if', '(', expression, ')', statement, ('else', statement)?
+	| 'switch', '(', expression, ')', statement
+	
+iteration_statement:
+	  'while', '(', expression, ')', statement
+	| 'do', statement, 'while', '(', expression, ')', ';'
+	| 'for', '(', (expression?, ';' | declaration), expression?, ';', expression?, ')', statement
+
+jump_statement:
+	(('goto', identifier) | 'continue' | 'break' | ('return', expression?)), ';'
+
+// REMOVE declaration* for old-style K&R?
+function_definition:
+	declaration_specifiers, declarator, compound_statement
+
+non_line_end:
+	"[^\n]+"
+
+pragma_directive(directive_line): // line_capture will identify the whole line as a directive, capture it in a node and skip over
+	'#', 'pragma'
+	
+external_declaration:
+	  pragma_directive
+	| function_definition
+	| declaration
+	| ';' // an empty line is apparently OK. Is this an extension? it is definitely not in the standard. string.h in Mingw64-gcc has it

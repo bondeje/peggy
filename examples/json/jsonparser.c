@@ -269,10 +269,9 @@ void JSONDoc_dest(JSONDoc * json) {
     }
 }
 
-err_type JSONParser_init(JSONParser * parser, char const * name, size_t name_length,
-                         char const * string, size_t string_length, char * log_file, unsigned char log_level) {
+err_type JSONParser_init(JSONParser * parser, char const * string, size_t string_length, char * log_file, unsigned char log_level) {
     parser->json = (JSONDoc) {0};
-    return parser->Parser._class->init(&parser->Parser, name, name_length, 
+    return parser->Parser._class->init(&parser->Parser, "", 0, 
         string, string_length, (Rule *)&json_token, (Rule *)&json_json, 
         JSON_NRULES, 0, 0, 0, log_file, log_level);
 }
@@ -317,7 +316,7 @@ ASTNode * handle_json(Production * prod, Parser * parser_, ASTNode * node) {
     return node;
 }
 
-JSONDoc from_string(char * string, size_t string_length, char * name, size_t name_length, char * log_file, unsigned char log_level) {
+JSONDoc from_string(char * string, size_t string_length, char * log_file, unsigned char log_level) {
     err_type status = PEGGY_SUCCESS;
     if (!timeit) {
         if ((status = JSONParser_init(&json, name, name_length, string, string_length, log_file, log_level))) {
@@ -334,7 +333,7 @@ JSONDoc from_string(char * string, size_t string_length, char * name, size_t nam
     clockid_t clk = CLOCK_MONOTONIC;
     //double clock_conversion = 1.0e-6;
     clock_gettime(clk, &t0);
-    status = JSONParser_init(&json, name, name_length, string, string_length, log_file, log_level);
+    status = JSONParser_init(&json, string, string_length, log_file, log_level);
     clock_gettime(clk, &t1);
 
     if (t1.tv_nsec < t0.tv_nsec) {
@@ -387,7 +386,7 @@ JSONDoc from_file(char * filename, char * log_file, unsigned char log_level) {
     if (strstr(name, ".grmr")) {
         name_length = (size_t)(strstr(name, ".grmr") - name);
     }
-    JSONDoc json_data = from_string(string, (size_t) file_size, filename, name_length, log_file, log_level);
+    JSONDoc json_data = from_string(string, (size_t) file_size, log_file, log_level);
 
     free(string);
     return json_data;

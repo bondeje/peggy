@@ -1,6 +1,6 @@
 // ipv4.grmr
-export: ipv4                // redundant but allows change of file name
-import: ipv4parser          // check_ipv4 is declared in ipv4parser.h
+export = ipv4                // redundant but allows change of file name
+import = ipv4parser          // check_ipv4 is declared in ipv4parser.h
 
 punctuator: '.'             // needed to be able to use '.' in ipv4
 digit: "[0-9]"              

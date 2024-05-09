@@ -13,6 +13,11 @@
 #ifndef PARSER_LOGGER_BUFFER_SIZE
     #define PARSER_LOGGER_BUFFER_SIZE 1024
 #endif
+#define PARSER_PRINT_BUFFER_SIZE 4096
+#ifndef PARSER_PRINT_TAB_SIZE 
+    #define PARSER_PRINT_TAB_SIZE 4
+#endif
+
 
 struct ParserType Parser_class = {
     .type_name = Parser_NAME,
@@ -236,21 +241,13 @@ Token Parser_gen_final_token_(Parser * self, ASTNode * node) {
     return new_tok;
 }
 err_type Parser_skip_token(Parser * self, ASTNode * node) {
-    //printf("Parser_skip_token\n");
     Token new_final = self->_class->gen_final_token_(self, node);
-    /*
-    if (!new_final) {
-        return PEGGY_MALLOC_FAILURE;
-    }
-    */
     /* swap new final token for old final token and delete the old one */
     Token final;
     err_type status = self->tokens._class->pop(&self->tokens, &final);
     if (status) {
         return status;
     }
-    //final._class->del(final);
-    
     return self->tokens._class->push(&self->tokens, new_final);
 }
 
@@ -311,19 +308,6 @@ bool Parser_gen_next_token_(Parser * self) {
     return result != &ASTNode_fail;
 }
 err_type Parser_get(Parser * self, size_t key, Token * tok) {
-    /* // not sure if I have to keep this for things to work, but need to get rid of it.
-    if (!self->disable_cache_check) {
-        // this could segment should never actually be called as token generation is now handle in Parser_tell
-        LOG_EVENT(&self->logger, LOG_LEVEL_WARN, "WARN: %s - triggered tokenization. This action in this function is deprecated. Try to eliminate\n", __func__);
-        while (key >= self->tokens.fill - 1) {
-            Token final;
-            err_type status = self->tokens._class->peek(&self->tokens, &final);
-            if (final._class->len(&final) == 0 || !self->_class->gen_next_token_(self)) {
-                break;
-            }
-        }
-    }
-    */
     if (key < self->tokens.fill) {
         return self->tokens._class->get(&self->tokens, key, tok);
     }
@@ -354,8 +338,82 @@ err_type Parser_traverse(Parser * self, void (*traverse_action)(void * ctxt, AST
     /* requires a stack implementation */
     return PEGGY_NOT_IMPLEMENTED;
 }
-void Parser_print_ast(Parser * self, char * buffer, size_t buffer_size) {
-    /* requires a deque implementation */
+typedef struct ASTNodeTabSize {
+    ASTNode * node;
+    int ntabs;
+} ASTNodeTabSize;
+#define ELEMENT_TYPE ASTNodeTabSize
+#include <peggy/stack.h>
+
+err_type Parser_print_ast(Parser * self, FILE * stream) {
+    if (self->ast == &ASTNode_fail) {
+        LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - invalid AST for printing\n", __func__);
+        return PEGGY_SUCCESS;
+    }
+    if (!stream) {
+        stream = stdout;
+    }
+    
+    char print_buffer[PARSER_PRINT_BUFFER_SIZE];
+    char * buffer = &print_buffer[0];
+    int buffer_size = PARSER_PRINT_BUFFER_SIZE;
+    int ntabs = 0;
+    STACK(ASTNodeTabSize) st;
+    STACK_INIT(ASTNodeTabSize)(&st, self->node_list.fill);
+
+    ASTNodeTabSize pair;
+    Token * toks = NULL;
+    st._class->push(&st, (ASTNodeTabSize){.node = self->ast, .ntabs = 0});
+    err_type status = PEGGY_SUCCESS;
+    int snp_size = 0;
+    while (st.fill) {
+        if ((status = st._class->pop(&st, &pair))) {
+            fprintf(stream, "%.*s\nERROR: status %d retrieving node...aborting Parser_print_ast\n", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer, status);
+            fflush(stream);
+            goto print_ast_fail;
+        }
+
+        // print the information to the buffer
+        if (!pair.node->nchildren) { // the node is a token leaf in the AST tree. Print the node and token into the buffer
+            toks = self->_class->get_tokens(self, pair.node);
+            snp_size = snprintf(buffer, buffer_size, "%*s%s: rule id: %d, ntokens: %zu, nchildren: %zu, token: %.*s\n", ntabs * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->ntokens, pair.node->nchildren, (int)toks->length, toks->string);
+        } else { // the node is not a leaf. Print the node into the buffer
+            snp_size = snprintf(buffer, buffer_size, "%*s%s: rule id: %d, ntokens: %zu, nchildren: %zu\n", ntabs * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->ntokens, pair.node->nchildren);
+            // increment the number of tabs and add the children in reverse order (pre-order traversal)
+            pair.ntabs++;
+            size_t i = pair.node->nchildren;
+            while (i--) {
+                pair.node = pair.node->children[i];
+                st._class->push(&st, pair);
+            }
+        }
+
+        // update the buffer data based on how many characters were printed to the buffer
+        if (snp_size >= 0) {
+            if (snp_size < buffer_size) {
+                buffer_size -= snp_size;
+                buffer += snp_size;
+            } else if (snp_size < PARSER_PRINT_BUFFER_SIZE) {
+                fprintf(stream, "%.*s", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer);
+                fflush(stream);
+                buffer = &print_buffer[0];
+                buffer_size = PARSER_PRINT_BUFFER_SIZE;
+            } else {
+                fprintf(stream, "%.*sERROR: static buffer of insufficient size %d, need %d\n", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer, PARSER_PRINT_BUFFER_SIZE, snp_size);
+                fflush(stream);
+                buffer = &print_buffer[0];
+                buffer_size = PARSER_PRINT_BUFFER_SIZE;
+            }
+        } else {
+            fprintf(stream, "%.*s\nERROR: status %d retrieving node...aborting Parser_print_ast\n", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer, status);
+            fflush(stream);
+            goto print_ast_fail;
+        }
+    }
+
+print_ast_fail:
+    st._class->dest(&st);
+    return status;
 }
 
 // use in e.g. WHITESPACE or comments

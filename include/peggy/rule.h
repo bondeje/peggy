@@ -31,6 +31,7 @@
  *      fix nodes so that they are not individually allocated but managed as a single allocated stack by the Parser "node_list"
  *      fix packrat cache to only lookup rule id and index in node_list (requires above)
  *      fix token to only start a pointer to start of string and the length of the token. it will basically be another non-null terminated string with extra metadata
+ *      separate out LiteralRule into a different header/source to isolate regex dependencies
  */
 
 

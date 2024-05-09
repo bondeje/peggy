@@ -1,8 +1,8 @@
 
 // https://datatracker.ietf.org/doc/html/rfc4180
 
-export: csv
-import: csvparser
+export = csv
+import = csvparser
 
 punctuator:
     ','

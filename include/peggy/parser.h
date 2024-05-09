@@ -112,7 +112,7 @@ extern struct ParserType {
     ASTNode * (*check_cache)(Parser * self, rule_id_type rule_id, size_t token_key);
     void (*cache_check)(Parser * self, rule_id_type rule_id, size_t token_key, ASTNode * node);
     err_type (*traverse)(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
-    void (*print_ast)(Parser * parser, char * buffer, size_t buffer_size);
+    err_type (*print_ast)(Parser * parser, FILE * stream);
 } Parser_class;
 
 Parser * Parser_new(char const * name, size_t name_length, char const * string, size_t string_length, Rule * token_rule, 
@@ -142,7 +142,7 @@ void Parser_parse(Parser * parser);
 ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, size_t token_key);
 void Parser_cache_check(Parser * self, rule_id_type rule_id, size_t token_key, ASTNode * node);
 err_type Parser_traverse(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
-void Parser_print_ast(Parser * parser, char * buffer, size_t buffer_size);
+err_type Parser_print_ast(Parser * parser, FILE * stream);
 
 // use in e.g. WHITESPACE or comments
 ASTNode * skip_token(Production * production, Parser * parser, ASTNode * node);

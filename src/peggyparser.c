@@ -807,6 +807,29 @@ char * PUNCTUATION_LOOKUP[][2] = {
     {"|", "vbar"},
     {"}", "rbrace"},
     {"~", "tilde"},
+    {"...", "ellipsis"},
+    {"<<=", "lshifteq"},
+    {">>=", "rshifteq"},
+    {"->", "rarrow"},
+    {"++", "increment"},
+    {"--", "decrement"},
+    {"&=", "andeq"},
+    {"##", "dpound"},
+    {"*=", "timeseq"},
+    {"+=", "pluseq"},
+    {"-=", "minuseq"},
+    {"/=", "diveq"},
+    {"%=", "modeq"},
+    {"<=", "leq"},
+    {">=", "req"},
+    {">>", "rshift"},
+    {"==", "equiv"},
+    {"!=", "neq"},
+    {"^=", "xoreq"},
+    {"||", "logor"},
+    {"&&", "logand"},
+    {"|=", "oreq"},
+    {"<<", "lshift"},
     {NULL, NULL},
 };
 
@@ -857,6 +880,7 @@ void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyStri
                     j += 3;
                 }
             }
+            prod.identifier.len = j;
         }
         
     } else if (!strncmp("keyword", parent_id.str, parent_id.len)) {
@@ -1139,20 +1163,22 @@ void handle_export(PeggyParser * parser, ASTNode * node) {
     prep_output_files(parser);
 }
 
+
+/*
+Should probably include a hash map of handlers mapping PeggyString identifier -> void handle_[identifier](PeggyParser * parser, ASTNode *)
+*/
 void handle_config(PeggyParser * parser, ASTNode * node) {
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling config at line %u, col %u\n", __func__, parser->Parser.tokens.bins[node->token_key].coords.line, parser->Parser.tokens.bins[node->token_key].coords.col);
-    switch (node->children[0]->rule->id) {
-        case IMPORT_KW: {
-            handle_import(parser, node->children[2]);
-            break;
-        }
-        case EXPORT_KW: {
-            handle_export(parser, node->children[2]);
-            break;
-        }
-        default: {
-            LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - config type not understood with rule id: %d\n", __func__, node->children[0]->rule->id);
-        }
+    Token * tok = parser->Parser._class->get_tokens(&parser->Parser, node->children[0]);
+    if (!tok) {
+        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to retrieve config name for rule id: %d\n", __func__, node->rule->id);
+    }
+    if (!strncmp("import", tok->string, tok->length)) {
+        handle_import(parser, node->children[2]);
+    } else if (!strncmp("export", tok->string, tok->length)) {
+        handle_export(parser, node->children[2]);
+    } else {
+        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - config type not understood with rule id: %d\n", __func__, node->rule->id);
     }
 }
 

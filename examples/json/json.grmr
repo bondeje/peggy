@@ -1,6 +1,6 @@
-export: json
+export = json
 
-import: jsonparser
+import = jsonparser
 
 punctuator:
     ',' | '{' | '}' | '[' | ']' | ':'
