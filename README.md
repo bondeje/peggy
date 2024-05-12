@@ -38,6 +38,7 @@ Approximately in order of importance/dependence
 - refactor PackratCache back to a hashmap
 - implement left recursion for packrat
 - token->length are set equal to node->str-length for nodes generated as output of successful LiteralRules, however, in json example, I found that if I calculate the total string size allocation using node->str_length, I run out of buffer space in creating JSONStrings, but if I use token->length (in a 1-1 change), no problem. Need to resolve this as they should be the same and getting the raw token is a more expensive operation (traversal functions generally do not have access to the token, but they all get the node) than just getting node->str_length. node->str_length is used elsewhere in similar manners but asan is not complaining.
+- Add APIs in parser struct to properly access token values. Token objects are likely to become opaque structures in the future.
 </details>
 
 <details> <summary>Wish List</summary>
@@ -291,6 +292,16 @@ for (size_t i = 0; i < node->ntokens; i++) {
 }
 ```
 
+To clean up parser memory (releases all memory associated with the parse)
+```
+parser._class->dest(&parser);
+```
+
+To clean up at module level. Optional as these are globals cleaned up at program exit. It is OK to call this without exiting the program, but next parser use will trigger reinitialization of a lot of structs and memory allocations.
+```
+[module export name]_dest();
+```
+
 ### Grammar Structure
 
 Grammar files are composed of whitespace (ignored), C/C++ style comments (ignored) and entries.
@@ -304,6 +315,8 @@ Every entry in the grammar either is or resembles a `<key>` : or = `<value>` pai
 2. productions - These are grammar productions that mostly follow common EBNF syntax. Only 1 production is required and its name must either be set by the grammar file name or the `export` config option. The syntax of the productions and grammar operators have two main differences with EBNF:
     - instead of whitespace separated terminals and nonterminals for the sequence operation, I use a comma `,`. I find that whitespace too often creates unnecessary ambiguities in parsing that require annoying, special handling.
     - productions are annotated with attributes by a comma-separated list enclosed in parentheses. e.g. `A(a): 'key', ':', B` indicates a production named `A` annotated with an attribute (in this case a build action `a`) that is defined as a sequence of the string literal `key` followed by string literal `:` followed by the production `B`.
+
+    <b>WARNING</b> if the production is referenced at all on the tokenizer ([export name]_token production), the build action must not use Token.length. The value is invalid within the tokenizer. A more appropriate API will be built.
 3. Special productions - These are identical to productions but with restrictions on attributes and specifically defined behavior and rules. None of these may have actions.
     - punctuator - optional - This is a production that must be defined as a choice rule of string literals. For each string literal a separate rule will be made for the tokenizer/parser to use. The enums corresponding to the punctuation will be generated based on a predefined table `PUNCTUATION_LOOKUP` in `peggyparser.c` or with a generated named with format: `PUNC` + `_`-separated list of conversions to int of the punctuator characters. 
     - keyword - optional - This is similar to the punctuator production but string literals must be valid identifiers and the generated name will be of the format "[capitalized keyword]_KW". E.x. `'unsigned'` becomes `UNSIGNED_KW`.
