@@ -1,0 +1,88 @@
+export = calculator
+import = calculatorparser
+
+punctuator:
+    '+' | '-' | '/' | '*' | '^' | '(' | ')' | '%' | ',' | ';' | '[' | ']'
+
+keyword:
+    'pi' | 'e' | 'gamma' | 'PREV'
+
+calculator(handle_calculator):
+    statement+
+
+statement(calc_pass0):
+    expression, statement_end
+
+token:
+    punctuator | statement_end | whitespace | number | identifier | keyword // keyword will not actually trigger here
+
+whitespace(skip_token):
+    "[ \t\v\f]+"
+
+statement_end:
+    "[;\n\r\n']+"
+
+add_sub_expression(calc_add_sub):
+    unary_operator.mul_div_mod_expression
+
+mul_div_mod_expression(calc_mul_div_mod):
+    mul_div_mod.power_expression
+
+// note: to get same binding as python, need to expand the first unary_expression in a hacky way
+power_expression(calc_pow):
+    power.unary_expression
+
+evaluated_expression(calc_eval):
+    number | array | '(', expression, ')' | function_call
+
+unary_expression(calc_unary):
+    unary_operator*, evaluated_expression
+
+function_call(func_eval):
+    identifier, '(', ','.expression, ')'
+
+expression(calc_pass):
+    add_sub_expression
+
+identifier:
+    "[a-zA-Z_][a-zA-Z0-9_]*"
+
+unary_operator(calc_pass):
+    add | subtract
+
+mul_div_mod(calc_pass):
+    multiply | divide | mod
+
+add:
+    '+'
+
+subtract:
+    '-'
+
+divide:
+    '/'
+
+multiply:
+    '*'
+
+power:
+    '^'
+
+mod:
+    '%'
+
+// need to have a separate one other than keywords since keywords does not allow attributes
+constants(build_constants):
+    'pi' | 'e' | 'gamma' | 'PREV'
+
+array(build_array):
+    '[', ','.expression, ']' // no empty arrays
+
+number(calc_pass):
+    float | integer | constants
+
+integer(build_int):
+    "([1-9][0-9]*)|0"
+
+float(build_float):
+    "(((([0-9]*\\.[0-9]+)|([0-9]+\\.))([eE][-+]?[0-9]+)?)|([0-9]+[eE][-+]?[0-9]+))"

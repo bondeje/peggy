@@ -460,6 +460,7 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t t
             return &ASTNode_fail; // failed to compile the regular expression
         }
     }
+    
     Token tok;
     status = parser->_class->get(parser, token_key, &tok);
     if (status) {
@@ -644,6 +645,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
     }
     if (delim != &ASTNode_fail) {
         parser->_class->seek(parser, -delim->ntokens, P_SEEK_CUR);
+        nchildren--; // don't include the successful delim the preceeded the failed node
     }
     
     // success, so allocate memory for the children

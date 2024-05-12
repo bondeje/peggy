@@ -35,6 +35,8 @@ struct ParserType Parser_class = {
     .estimate_final_ntokens_ = &Parser_estimate_final_ntokens,
     .add_token = &Parser_add_token,
     .add_node = &Parser_add_node,
+//    .move_node = &Parser_move_node,
+//    .extend_node = &Parser_extend_node,
     .gen_next_token_ = &Parser_gen_next_token_,
     .get = &Parser_get,
     .get_tokens = &Parser_get_tokens,
@@ -133,6 +135,7 @@ int Parser_dest_pToken(void * data, Token * token) {
 }
 
 int Parser_dest_pASTNode(void * data, ASTNode * node) {
+    LOG_EVENT(&((Parser *)data)->logger, LOG_LEVEL_TRACE, "TRACE: %s - freeing node at %p, children %p\n", __func__, (void *)node, (void*)node->children);
     node->_class->del(node);
     return 0;
 }
@@ -141,7 +144,7 @@ void Parser_dest(Parser * self) {
     LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - destroying parser with %zu nodes and %zu tokens\n", __func__, self->node_list.fill, self->tokens.fill);
     
     /* clear out the ASTNodes */
-    self->node_list._class->for_each(&self->node_list, &Parser_dest_pASTNode, NULL);
+    self->node_list._class->for_each(&self->node_list, &Parser_dest_pASTNode, self);
     self->node_list._class->dest(&self->node_list);
     
     self->ast = NULL;
@@ -275,7 +278,7 @@ err_type Parser_add_token(Parser * self, ASTNode * node) {
 }
 
 ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode ** children, size_t size) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - adding node with ntokens %zu, str_length %zu, nchildren %zu, at %p", __func__, ntokens, str_length, nchildren, (void*)children);
+    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - adding node with ntokens %zu, str_length %zu, nchildren %zu (%p) at %zu", __func__, ntokens, str_length, nchildren, (void*)children, token_key);
     if (!size) {
         size = sizeof(ASTNode);
     }
@@ -284,6 +287,7 @@ ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t n
         LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to malloc new node\n", __func__);
         return NULL;
     }
+    //printf("allocated node at %p (%zu)\n", (void*)new_node, size);
     *new_node = (ASTNode) ASTNode_DEFAULT_INIT;
     new_node->_class->init(new_node, rule, token_key, ntokens, str_length, nchildren, children);
     if (self->node_list.fill >= self->node_list.capacity - 1) {
@@ -298,6 +302,11 @@ ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t n
     }
     return new_node;
 }
+
+//ASTNode * Parser_extend_node(Parser * self, ASTNode * node)
+//void Parser_move_node(Parser * self, ASTNode * node)
+
+
 bool Parser_gen_next_token_(Parser * self) {
     LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - generating next token at %zu\n", __func__, self->tokens.fill);
 
@@ -346,6 +355,7 @@ typedef struct ASTNodeTabSize {
 #include <peggy/stack.h>
 
 err_type Parser_print_ast(Parser * self, FILE * stream) {
+    LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - starting ast print %p\n", __func__, (void*)self->ast);
     if (self->ast == &ASTNode_fail) {
         LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - invalid AST for printing\n", __func__);
         return PEGGY_SUCCESS;
@@ -353,11 +363,9 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
     if (!stream) {
         stream = stdout;
     }
-    
     char print_buffer[PARSER_PRINT_BUFFER_SIZE];
     char * buffer = &print_buffer[0];
     int buffer_size = PARSER_PRINT_BUFFER_SIZE;
-    int ntabs = 0;
     STACK(ASTNodeTabSize) st;
     STACK_INIT(ASTNodeTabSize)(&st, self->node_list.fill);
 
@@ -367,18 +375,19 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
     err_type status = PEGGY_SUCCESS;
     int snp_size = 0;
     while (st.fill) {
+        //printf("starting ast traversal loop with %zu elements in stack\n", st.fill);
         if ((status = st._class->pop(&st, &pair))) {
             fprintf(stream, "%.*s\nERROR: status %d retrieving node...aborting Parser_print_ast\n", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer, status);
             fflush(stream);
             goto print_ast_fail;
         }
-
         // print the information to the buffer
         if (!pair.node->nchildren) { // the node is a token leaf in the AST tree. Print the node and token into the buffer
             toks = self->_class->get_tokens(self, pair.node);
-            snp_size = snprintf(buffer, buffer_size, "%*s%s: rule id: %d, ntokens: %zu, nchildren: %zu, token: %.*s\n", ntabs * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->ntokens, pair.node->nchildren, (int)toks->length, toks->string);
+            snp_size = snprintf(buffer, buffer_size, "%*s%s: rule id: %d, ntokens: %zu, nchildren: %zu, token: %.*s\n", pair.ntabs * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->ntokens, pair.node->nchildren, (int)toks->length, toks->string);
         } else { // the node is not a leaf. Print the node into the buffer
-            snp_size = snprintf(buffer, buffer_size, "%*s%s: rule id: %d, ntokens: %zu, nchildren: %zu\n", ntabs * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->ntokens, pair.node->nchildren);
+            //printf("printing branch to buffer\n");
+            snp_size = snprintf(buffer, buffer_size, "%*s%s: rule id: %d, ntokens: %zu, nchildren: %zu\n", pair.ntabs * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->ntokens, pair.node->nchildren);
             // increment the number of tabs and add the children in reverse order (pre-order traversal)
             pair.ntabs++;
             size_t i = pair.node->nchildren;
@@ -393,6 +402,7 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
             if (snp_size < buffer_size) {
                 buffer_size -= snp_size;
                 buffer += snp_size;
+                //printf("successfully updated buffer");
             } else if (snp_size < PARSER_PRINT_BUFFER_SIZE) {
                 fprintf(stream, "%.*s", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer);
                 fflush(stream);
@@ -409,7 +419,12 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
             fflush(stream);
             goto print_ast_fail;
         }
+        //printf("buffer contents: %.*s\n", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer);
     }
+
+    // print remainder of buffer to stream
+    fprintf(stream, "%.*s", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer);
+    fflush(stream);
 
 print_ast_fail:
     st._class->dest(&st);

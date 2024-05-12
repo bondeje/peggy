@@ -92,6 +92,7 @@ struct ASTNodeIteratorType ASTNodeIterator_class = {
     .next = &ASTNodeIterator_next,
     .iter = &ASTNodeIterator_iter,
     .reverse = &ASTNodeIterator_reverse,
+//    .copy = &ASTNode_copy,
 };
 
 ASTNodeIterator * ASTNodeIterator_new(ASTNode * parent_node, size_t start, size_t stop, ptrdiff_t step) {

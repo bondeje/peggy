@@ -1,3 +1,5 @@
+<!-- need to warn users that build actions on productions used in the tokenizer should not access token->length. It will be invalid. instead use node->str_length or I should just make a parser API to get the string and deal with it in the parser -->
+
 # peggy
 
 A PEG parser generator library that aids in rapid development of customizable (packrat) parsers given a grammar with a format similar to EBNF. 
@@ -31,9 +33,9 @@ Build Environment: compilation and the makefiles that come in this repo should w
 <details> <summary>Major Open Issues/TODO</summary>
 Approximately in order of importance/dependence
 
+- implement arena allocator for Parser.
 - refactor node object allocation to minimize use of `malloc`
 - refactor PackratCache back to a hashmap
-- implement arena allocator for Parser.
 - implement left recursion for packrat
 - token->length are set equal to node->str-length for nodes generated as output of successful LiteralRules, however, in json example, I found that if I calculate the total string size allocation using node->str_length, I run out of buffer space in creating JSONStrings, but if I use token->length (in a 1-1 change), no problem. Need to resolve this as they should be the same and getting the raw token is a more expensive operation (traversal functions generally do not have access to the token, but they all get the node) than just getting node->str_length. node->str_length is used elsewhere in similar manners but asan is not complaining.
 </details>

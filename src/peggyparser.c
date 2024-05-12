@@ -830,6 +830,11 @@ char * PUNCTUATION_LOOKUP[][2] = {
     {"&&", "logand"},
     {"|=", "oreq"},
     {"<<", "lshift"},
+    {"\\\r\\\n", "CRLF"},
+    {"\\\r", "CR"},
+    {"\\\n", "LF"},
+    {"\\\f", "FF"},
+    {"\\\t", "TAB"},
     {NULL, NULL},
 };
 
@@ -846,7 +851,7 @@ char * punctuator_lookup(char * punctuation, size_t len) {
         return PUNCTUATION_LOOKUP[i][1];
     }
     // eww global variable direct access in low-level function
-    LOG_EVENT(&peggy.Parser.logger, LOG_LEVEL_WARN, "WARN: %s - punctuator lookup failed\n", __func__);
+    LOG_EVENT(&peggy.Parser.logger, LOG_LEVEL_WARN, "WARN: %s - punctuator lookup failed: %.*s\n", __func__, len, punctuation);
     return NULL;
 }
 
