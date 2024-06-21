@@ -11,6 +11,13 @@ char const * const hm_messages[HASH_MAP_N_MESSAGES] = {
     "failure to malloc a key-value pair",
 };
 
+#define HASH_SET_N_MESSAGES 3
+char const * const hs_messages[HASH_SET_N_MESSAGES] = {
+    "No error",
+    "value not found in search",
+    "failure to malloc the set storage"
+};
+
 int uint_comp(size_t a, size_t b) {
     if (a > b) {
         return 1;
@@ -58,10 +65,18 @@ int address_comp(void const * a, void const * b) {
     return 0;
 }
 
-void hm_print_error_message(hash_map_err status) {
+void hm_print_error_message(int status) {
     if (status < 0 || status > HASH_MAP_N_MESSAGES) {
         printf("error message %d not understood\n", status);
     } else {
         printf("error code %d: %s\n", status, hm_messages[status]);
+    }
+}
+
+void hs_print_error_message(int status) {
+    if (status < 0 || status > HASH_SET_N_MESSAGES) {
+        printf("error message %d not understood\n", status);
+    } else {
+        printf("error code %d: %s\n", status, hs_messages[status]);
     }
 }

@@ -88,7 +88,7 @@ IFLAGS += -I$(INC_DIR) -Ilib/logger/include
 DEPFLAGS = -MMD -MP -MF 
 
 MAIN_SRCS = $(SRC_DIR)/peggy.c $(SRC_DIR)/peggyparser.c
-LIB_SRCS = $(SRC_DIR)/astnode.c $(SRC_DIR)/hash_map.c $(SRC_DIR)/parser.c $(SRC_DIR)/rule.c $(SRC_DIR)/token.c $(SRC_DIR)/utils.c $(SRC_DIR)/packrat_cache.c
+LIB_SRCS = $(SRC_DIR)/astnode.c $(SRC_DIR)/hash_utils.c $(SRC_DIR)/parser.c $(SRC_DIR)/rule.c $(SRC_DIR)/token.c $(SRC_DIR)/utils.c $(SRC_DIR)/packrat_cache.c
 ALL_SRCS := $(shell find $(SRC_DIR) -name '*.c')
 LIB_OBJS := $(addprefix $(OBJ_DIR)/,$(LIB_SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(OBJ_SUFFIX)))
 LIB_OBJS += $(LIB_DIR)/logger/obj/logger.o
@@ -101,7 +101,7 @@ ifeq ($(UNAME), $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
 endif
 
 # probably wrong
-ifeq (, $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN Linux))
+ifeq ($(UNAME), $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN Linux))
     MAKE_BIN = make
 else
     MAKE_BIN = gmake

@@ -5,7 +5,7 @@ punctuator:
     '+' | '-' | '/' | '*' | '^' | '(' | ')' | '%' | ',' | ';' | '[' | ']'
 
 keyword:
-    'pi' | 'e' | 'gamma' | 'PREV'
+    'pi' | 'e' | 'gamma' | 'tau' | 'PREV'
 
 calculator(handle_calculator):
     statement+
@@ -14,7 +14,7 @@ statement(calc_pass0):
     expression, statement_end
 
 token:
-    punctuator | statement_end | whitespace | number | identifier | keyword // keyword will not actually trigger here
+    punctuator | statement_end | whitespace | identifier | number | keyword // keyword will not actually trigger here
 
 whitespace(skip_token):
     "[ \t\v\f]+"
@@ -33,7 +33,7 @@ power_expression(calc_pow):
     power.unary_expression
 
 evaluated_expression(calc_eval):
-    number | array | '(', expression, ')' | function_call
+    function_call | number | array | '(', expression, ')'
 
 unary_expression(calc_unary):
     unary_operator*, evaluated_expression
@@ -73,7 +73,7 @@ mod:
 
 // need to have a separate one other than keywords since keywords does not allow attributes
 constants(build_constants):
-    'pi' | 'e' | 'gamma' | 'PREV'
+    'pi' | 'tau' | 'e' | 'gamma' | 'PREV'
 
 array(build_array):
     '[', ','.expression, ']' // no empty arrays

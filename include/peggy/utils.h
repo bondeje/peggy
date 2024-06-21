@@ -5,6 +5,9 @@
 #include <stdbool.h>
 #include <assert.h>
 
+extern unsigned char const CHAR_BIT_DIV_SHIFT;
+extern unsigned char const CHAR_BIT_MOD_MASK;
+
 #ifndef CAT
     #define CAT_(A, B) A##B
     #define CAT(A, B) CAT_(A, B)

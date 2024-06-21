@@ -45,7 +45,7 @@ list_rule(simplify_rule):
     '.'.lookahead_rule
 
 repeated_rule(simplify_rule):
-    list_rule, ('+' | '*' | '?' | '{', digit_seq?, ':', digit_seq?, '}')?
+    list_rule, ('+' | '*' | '?' | '{', digit_seq?, ',', digit_seq?, '}')?
 
 sequence(simplify_rule):
     ','.repeated_rule

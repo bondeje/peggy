@@ -1,18 +1,22 @@
 #ifndef CALCPARSER_H
 #define CALCPARSER_H
 
+#include <complex.h>
+
 #include <peggy/parser.h>
 
-#include "calculator.h"
+//#include "calculator.h"
 
-typedef enum CalcType {
-    CALC_NOTSET,
-    CALC_INTEGER,
-    CALC_FLOAT,
-    CALC_ARRAY
-} CalcType;
+#define CALC_NOTSET 0
+#define CALC_INTEGER 1
+#define CALC_FLOAT 2
+#define CALC_COMPLEX 3
+#define CALC_ARRAY 4
 
 typedef struct CalcArray CalcArray;
+typedef struct CalcArrayInteger CalcArrayInteger;
+typedef struct CalcArrayFloat CalcArrayFloat;
+typedef struct CalcArrayComplex CalcArrayComplex;
 typedef struct CalcValue CalcValue;
 
 struct CalcArray {
@@ -21,13 +25,19 @@ struct CalcArray {
 };
 
 struct CalcValue {
-    CalcType type;
     union {
         double d;
         long long ll;
+        double _Complex cd;
         CalcArray arr;
     } value;
+    unsigned char type;
 };
+
+#define IS_ARRAY(calc_value) ((calc_value).type == CALC_ARRAY)
+#define ARRAY_SIZE(calc_value) ((calc_value).type == CALC_ARRAY ? (calc_value).value.arr.length : 1)
+#define IS_SCALAR(calc_value) ((calc_value).type != CALC_ARRAY)
+#define IS_REAL_SCALAR(calc_value) ((calc_value).type && (calc_value).type < CALC_COMPLEX)
 
 typedef struct CalcNode CalcNode;
 struct CalcNode {

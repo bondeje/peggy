@@ -12,7 +12,7 @@ LIBS += -lm
 PARSER_SRC := $(EXAMPLE_NAME)parser$(SRC_SUFFIX)
 EXPORT_SRC = $(EXAMPLE_NAME)$(SRC_SUFFIX)
 
-SUPPORT_SRCS = replmath.c
+SUPPORT_SRCS = mathrepl.c
 
 all: generate_parser build_parser
 

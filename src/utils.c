@@ -4,6 +4,17 @@
 #include <stdio.h>
 #include <peggy/utils.h>
 
+#if CHAR_BIT == 8
+unsigned char const CHAR_BIT_DIV_SHIFT = 3;
+unsigned char const CHAR_BIT_MOD_MASK = 7;
+#elif CHAR_BIT == 4
+unsigned char const CHAR_BIT_MOD_SHIFT = 2;
+unsigned char const CHAR_BIT_MOD_MASK = 3;
+#elif CHAR_BIT == 16
+unsigned char const CHAR_BIT_MOD_SHIFT = 4;
+unsigned char const CHAR_BIT_MOD_MASK = 15;
+#endif
+
 // inspired by Implementation 5 https://stackoverflow.com/questions/4475996/given-prime-number-n-compute-the-next-prime
 bool is_prime(size_t x) {
     if (x == 2 || x == 3) {

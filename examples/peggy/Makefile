@@ -12,7 +12,15 @@ PARSER_SRC := $(PKG_NAME)parser$(SRC_SUFFIX)
 PARSER_INC := $(PKG_NAME)parser$(HDR_SUFFIX)
 EXPORT_SRC = $(EXAMPLE_NAME)$(SRC_SUFFIX)
 
-all: generate_parser build_parser
+all: generate_parser build_parser move_regex
+
+ifneq ($(UNAME), Linux)
+move_regex:
+	cp ../../$(LIB_DIR)/pcre2/bin/libpcre2-8.* .
+else
+move_regex:
+
+endif
 
 build_parser:
 	$(COPY) $(PKG_PATH)/$(SRC_DIR)/$(PARSER_SRC) $(PARSER_SRC)
@@ -31,3 +39,4 @@ clean:
 	rm -f $(EXAMPLE_NAME)$(SRC_SUFFIX)
 	rm -f gmon.out
 	rm -f *.log
+	rm -f libpcre2-8.*
