@@ -24,10 +24,16 @@ endif
 STATIC_LFLAGS := -L$(SLIB_PATH) -l:$(SLIB) $(LIBS)
 DYNAMIC_LFLAGS = 
 
+all: clean testlang #$(SLIB) packrat_cache testlang
+
 $(SLIB): $($SLIB)
-	cd $(PKG_PATH) && $(MAKE) all && cd $(PKG_RETURN)
+	(cd $(PKG_PATH) && $(MAKE) all && cd $(PKG_RETURN))
 
 PackratCache: $(SLIB)
 	$(CC) $(CFLAGS) $(IFLAGS) test_$@.c -o test_$@.exe $(STATIC_LFLAGS)
 
-all: $(SLIB) packrat_cache
+testlang:
+	$(SLIB_PATH)/peggy testlang.grmr testlangparser.log
+
+clean:
+	rm -rf testlangparser.log testlang.c testlang.h testdeque.exe test_PackratCache.exe

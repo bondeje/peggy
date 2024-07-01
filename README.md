@@ -345,7 +345,7 @@ For any of the following operators that fail, a sentinel node pointer is returne
 
 - `,` SequenceRule - set of subrules that must all succeed in order for the overall rule to succeed, otherwise failure. The resulting successful node has `N` children where `N` is the size of the set of subrules in the sequence.
 - `|` ChoiceRule - set of subrules the first of which in order is returned upon success, otherwise failure. The resulting successful node has a single element in `children` corresponding to the successful subrule.
-- `{min:max}` RepeateRule - The foregoing subrule must succeed a number of times in the range of `min` to `max` for the whole operation to succeed otherwise failure. `min` and `max` are each optional with defaults of 0. `max == 0` means an infinite number. The resulting node will have a list of `children` nodes of length `min` to `max`.
+- `{min,max}` RepeateRule - The foregoing subrule must succeed a number of times in the range of `min` to `max` for the whole operation to succeed otherwise failure. `min` and `max` are each optional with defaults of 0. `max == 0` means an infinite number. The resulting node will have a list of `children` nodes of length `min` to `max`.
 - `+` - foregoing subrule must succeed at least once for the overall rule to succeed, otherwise failure. Equivalent to `{1:}`
 - `*` - foregoing subrule may appear any number of times. Always succeeds. Equivalent to `{:}`
 - `?` - foregoing rule may appear once if at all. Always succeeds. Equivalent to `{:1}`.
@@ -364,7 +364,7 @@ For any of the following operators that fail, a sentinel node pointer is returne
 | `"`, `'`, `()`       | `LiteralRule`s and parenthesizing  |
 | `&`, `!`             | `Lookahead` rules                  |
 | `.`                  | `ListRule`s                        |
-| `+`, `*`, `?`, `{:}` | `RepeatRule`s                      |
+| `+`, `*`, `?`, `{,}` | `RepeatRule`s                      |
 | `,`                  | `SequenceRule`s                    |
 | `\|`                 | `ChoiceRule`s                      |
 

@@ -263,7 +263,7 @@ size_t Parser_estimate_final_ntokens(Parser * self) {
 }
 
 err_type Parser_add_token(Parser * self, ASTNode * node) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding new token at line %u, col %u of length %zu\n", __func__, self->tokens.bins[node->token_key].coords.line, self->tokens.bins[node->token_key].coords.col, node->str_length);
+    LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding new token at line %u, col %u of length %zu: %.*s\n", __func__, self->tokens.bins[node->token_key].coords.line, self->tokens.bins[node->token_key].coords.col, node->str_length, (int)self->tokens.bins[node->token_key].length, self->tokens.bins[node->token_key].string);
     
     if (self->tokens.fill >= self->tokens.capacity - 1) {
         size_t new_cap = Parser_estimate_final_ntokens(self);

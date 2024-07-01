@@ -1,0 +1,2 @@
+ASTNode * check_triplet(Production * prod, Parser * parser, ASTNode * node);
+Parser * from_string(char const * string, size_t string_length, char const * name, size_t name_length, char const * log_file, unsigned char log_level);

@@ -372,12 +372,6 @@ void handle_lookahead_rule(PeggyParser * parser, ASTNode * node, PeggyString nam
             size_t written = (size_t)(buffer - prod.identifier.str);
             written += sprintf(buffer, "_neg_%zu", parser->productions.fill);
             prod.identifier.str[written] = '\0';
-
-            PeggyProduction_declare(parser, prod);
-            parser->productions._class->set(&parser->productions, prod.name, prod);
-
-            handle_base_rule(parser, node->children[0], NULL_STRING, get_string_from_parser(parser, node->children[1]));
-
             // add arguments
             break;
         }
@@ -442,7 +436,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
             memcpy((void*)m.str, "1", 1);
             m.len = 1;
 
-            prod.identifier.len = parser->export.len + 1 + strlen("rep_1_0") + 1 + size_t_strlen(parser->productions.fill);
+            prod.identifier.len = parser->export.len + 9 /* 1 + strlen("rep_1_0") + 1 */ + size_t_strlen(parser->productions.fill);
             prod.identifier.str = malloc(sizeof(char) * (prod.identifier.len + 1));
             char * buffer = copy_export(parser, prod.identifier.str);
             size_t written = (size_t)(buffer - prod.identifier.str);
@@ -454,7 +448,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
         }
         case ASTERISK: { // repeat 0 or more
             //printf("zero or more\n");
-            prod.identifier.len = parser->export.len + 1 + strlen("rep_0_0") + 1 + size_t_strlen(parser->productions.fill);
+            prod.identifier.len = parser->export.len + 9 /* 1 + strlen("rep_0_0") + 1 */ + size_t_strlen(parser->productions.fill);
             prod.identifier.str = malloc(sizeof(char) * (prod.identifier.len + 1));
             char * buffer = copy_export(parser, prod.identifier.str);
             size_t written = (size_t)(buffer - prod.identifier.str);
@@ -473,7 +467,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
             memcpy((void*)n.str, "1", 1);
             n.len = 1;
 
-            prod.identifier.len = parser->export.len + 1 + strlen("rep_0_1") + 1 + size_t_strlen(parser->productions.fill);
+            prod.identifier.len = parser->export.len + 9 /* 1 + strlen("rep_0_1") + 1 */ + size_t_strlen(parser->productions.fill);
             prod.identifier.str = malloc(sizeof(char) * (prod.identifier.len + 1));
             char * buffer = copy_export(parser, prod.identifier.str);
             size_t written = (size_t)(buffer - prod.identifier.str);
@@ -485,7 +479,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
         default: { // repeat m to n
             PeggyString mstr = get_string_from_parser(parser, repeat_type->children[1]);
             PeggyString nstr = get_string_from_parser(parser, repeat_type->children[3]);
-            printf("mstr: %zu, %.*s, nstr: %zu, %.*s\n", mstr.len, (int)mstr.len, mstr.str, nstr.len, (int)nstr.len, nstr.str);
+            //printf("mstr: %zu, %.*s, nstr: %zu, %.*s\n", mstr.len, (int)mstr.len, mstr.str, nstr.len, (int)nstr.len, nstr.str);
             if (mstr.len) {
                 m.str = malloc(sizeof(char) * mstr.len);
                 memcpy((void*)m.str, (void*)mstr.str, mstr.len);
@@ -506,7 +500,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
                 n.len = 1;
             }
 
-            prod.identifier.len = parser->export.len + 1 + strlen("rep__") + mstr.len + nstr.len + 1 + size_t_strlen(parser->productions.fill);
+            prod.identifier.len = parser->export.len + 6 /* 1 + strlen("rep__") */ + mstr.len + nstr.len + 1 + size_t_strlen(parser->productions.fill);
             prod.identifier.str = malloc(sizeof(char) * (prod.identifier.len + 1));
             char * buffer = copy_export(parser, prod.identifier.str);
             size_t written = (size_t)(buffer - prod.identifier.str);
