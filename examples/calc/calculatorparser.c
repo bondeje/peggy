@@ -653,14 +653,18 @@ void print_help(void) {
           "\tFunctions available: type 'functions for a full list\n");
 }
 
+inline void new_input(void) {
+    printf("> ");
+}
+
 int main(int narg, char ** args) {
     static char buffer[1024] = {'\0'};
     print_help();
-    printf("> ");
+    new_input();
     size_t N = strlen(fgets(buffer, 1024, stdin));
     CalcParser calc = {.Parser = Parser_DEFAULT_INIT};
     char * log_file = NULL;
-    unsigned char log_level = 0;
+    unsigned char log_level = LOG_LEVEL_WARN; // default to logging warning
     if (narg > 1) {
         log_file = args[1];
     }
@@ -680,7 +684,7 @@ int main(int narg, char ** args) {
             //Parser_print_ast(&calc.Parser, NULL);
             calc.Parser._class->dest(&calc.Parser);
         }
-        printf("> ");
+        new_input();
         N = strlen(fgets(buffer, 1024, stdin));
         EXIT_COND = strcmp("exit\n", buffer) == 0;
     }

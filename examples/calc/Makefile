@@ -14,7 +14,15 @@ EXPORT_SRC = $(EXAMPLE_NAME)$(SRC_SUFFIX)
 
 SUPPORT_SRCS = mathrepl.c
 
-all: generate_parser build_parser
+all: generate_parser build_parser move_regex
+
+ifneq ($(UNAME), Linux)
+move_regex:
+	cp ../../$(LIB_DIR)/pcre2/bin/libpcre2-* .
+else
+move_regex:
+
+endif
 
 generate_parser:
 	rm -f *.log

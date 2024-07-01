@@ -16,7 +16,7 @@ all: generate_parser build_parser move_regex
 
 ifneq ($(UNAME), Linux)
 move_regex:
-	cp ../../$(LIB_DIR)/pcre2/bin/libpcre2-8.* .
+	cp ../../$(LIB_DIR)/pcre2/bin/libpcre2-* .
 else
 move_regex:
 

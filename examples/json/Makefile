@@ -11,7 +11,15 @@ endif
 PARSER_SRC := $(EXAMPLE_NAME)parser$(SRC_SUFFIX)
 EXPORT_SRC = $(EXAMPLE_NAME)$(SRC_SUFFIX)
 
-all: generate_parser build_parser
+all: generate_parser build_parser move_regex
+
+ifneq ($(UNAME), Linux)
+move_regex:
+	cp ../../$(LIB_DIR)/pcre2/bin/libpcre2-* .
+else
+move_regex:
+
+endif
 
 generate_parser:
 	rm -f *.log
