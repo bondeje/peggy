@@ -263,7 +263,7 @@ size_t Parser_estimate_final_ntokens(Parser * self) {
 }
 
 err_type Parser_add_token(Parser * self, ASTNode * node) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding new token at line %u, col %u of length %zu: %.*s\n", __func__, self->tokens.bins[node->token_key].coords.line, self->tokens.bins[node->token_key].coords.col, node->str_length, (int)self->tokens.bins[node->token_key].length, self->tokens.bins[node->token_key].string);
+    LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding new token at line %u, col %u of length %zu: %.*s\n", __func__, self->tokens.bins[node->token_key].coords.line, self->tokens.bins[node->token_key].coords.col, node->str_length, (int)node->str_length, self->tokens.bins[node->token_key].string);
     
     if (self->tokens.fill >= self->tokens.capacity - 1) {
         size_t new_cap = Parser_estimate_final_ntokens(self);
@@ -347,12 +347,35 @@ err_type Parser_traverse(Parser * self, void (*traverse_action)(void * ctxt, AST
     /* requires a stack implementation */
     return PEGGY_NOT_IMPLEMENTED;
 }
-typedef struct ASTNodeTabSize {
+typedef struct ASTNodeSize {
     ASTNode * node;
-    int ntabs;
-} ASTNodeTabSize;
-#define ELEMENT_TYPE ASTNodeTabSize
+    size_t size;
+} ASTNodeSize;
+#define ELEMENT_TYPE ASTNodeSize
 #include <peggy/stack.h>
+
+// this is unused and probably should be unused. delete
+size_t ast_depth(ASTNode * root) {
+    if (!root) {
+        return 0;
+    }
+    size_t depth = 1;
+    STACK(ASTNodeSize) st;
+    STACK_INIT(pASTNode)(&st, 0);
+    st._class->push(&st, (ASTNodeSize) {.node = root, .size = 1});
+    while (st.fill) {
+        ASTNodeSize nodesize;
+        st._class->pop(&st, &nodesize);
+        ASTNode * node = nodesize.node;        
+        size_t nchildren = node->nchildren;
+        size_t new_depth = nodesize.size + 1;
+        depth = depth * (new_depth <= depth) + new_depth * (new_depth > depth);
+        while (nchildren--) {
+            st._class->push(&st, (ASTNodeSize) {.node = node->children[nchildren], .size = new_depth});
+        }
+    }
+    return depth;
+}
 
 err_type Parser_print_ast(Parser * self, FILE * stream) {
     LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - starting ast print %p\n", __func__, (void*)self->ast);
@@ -366,12 +389,12 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
     char print_buffer[PARSER_PRINT_BUFFER_SIZE];
     char * buffer = &print_buffer[0];
     int buffer_size = PARSER_PRINT_BUFFER_SIZE;
-    STACK(ASTNodeTabSize) st;
-    STACK_INIT(ASTNodeTabSize)(&st, self->node_list.fill);
+    STACK(ASTNodeSize) st;
+    STACK_INIT(ASTNodeSize)(&st, 0); // this is huge. should just get depth of ast
 
-    ASTNodeTabSize pair;
+    ASTNodeSize pair;
     Token * toks = NULL;
-    st._class->push(&st, (ASTNodeTabSize){.node = self->ast, .ntabs = 0});
+    st._class->push(&st, (ASTNodeSize){.node = self->ast, .size = 0});
     err_type status = PEGGY_SUCCESS;
     int snp_size = 0;
     while (st.fill) {
@@ -384,12 +407,12 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
         // print the information to the buffer
         if (!pair.node->nchildren) { // the node is a token leaf in the AST tree. Print the node and token into the buffer
             toks = self->_class->get_tokens(self, pair.node);
-            snp_size = snprintf(buffer, buffer_size, "%*s%s: rule id: %d, ntokens: %zu, nchildren: %zu, token: %.*s\n", pair.ntabs * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->ntokens, pair.node->nchildren, (int)toks->length, toks->string);
+            snp_size = snprintf(buffer, buffer_size, "%*s%s: rule id: %d, ntokens: %zu, nchildren: %zu, token: %.*s\n", (int)pair.size * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->ntokens, pair.node->nchildren, (int)toks->length, toks->string);
         } else { // the node is not a leaf. Print the node into the buffer
             //printf("printing branch to buffer\n");
-            snp_size = snprintf(buffer, buffer_size, "%*s%s: rule id: %d, ntokens: %zu, nchildren: %zu\n", pair.ntabs * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->ntokens, pair.node->nchildren);
+            snp_size = snprintf(buffer, buffer_size, "%*s%s: rule id: %d, ntokens: %zu, nchildren: %zu\n", (int)pair.size * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->ntokens, pair.node->nchildren);
             // increment the number of tabs and add the children in reverse order (pre-order traversal)
-            pair.ntabs++;
+            pair.size++;
             size_t i = pair.node->nchildren;
             while (i--) {
                 pair.node = pair.node->children[i];

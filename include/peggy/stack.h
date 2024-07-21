@@ -12,6 +12,7 @@
 #define STACK_INIT(k) CAT(k, Stack_init)
 
 #define STACK(k) CAT(k, Stack)
+#define STACK_CLASS(k) CAT(k, Stack_class) 
 
 #endif // STACK_H
 
@@ -44,7 +45,7 @@ typedef struct STACK_TYPE STACK_TYPE;
 typedef struct CAT(STACK_TYPE, _Type) {
     bool (*in)(STACK_TYPE * stack, ELEMENT_TYPE el);
     size_t (*len)(STACK_TYPE * stack);
-    err_type (*get)(STACK_TYPE * stack, size_t index, ELEMENT_TYPE * value);
+    err_type (*get)(STACK_TYPE const * stack, size_t index, ELEMENT_TYPE * value);
     err_type (*set)(STACK_TYPE * stack, size_t index, ELEMENT_TYPE value);
     void (*dest)(STACK_TYPE * stack);
     err_type (*pop)(STACK_TYPE * stack, ELEMENT_TYPE * value);
@@ -64,7 +65,7 @@ struct STACK_TYPE {
 static err_type CAT(STACK_TYPE, _pop)(STACK_TYPE * stack, ELEMENT_TYPE * value);
 static err_type CAT(STACK_TYPE, _peek)(STACK_TYPE * stack, ELEMENT_TYPE * value);
 static err_type CAT(STACK_TYPE, _push)(STACK_TYPE * stack, ELEMENT_TYPE value);
-static err_type CAT(STACK_TYPE, _get)(STACK_TYPE * stack, size_t key, ELEMENT_TYPE * value);
+static err_type CAT(STACK_TYPE, _get)(STACK_TYPE const * stack, size_t key, ELEMENT_TYPE * value);
 static bool CAT(STACK_TYPE, _in)(STACK_TYPE * stack, ELEMENT_TYPE el);
 static size_t CAT(STACK_TYPE, _len)(STACK_TYPE * stack);
 static err_type CAT(STACK_TYPE, _set)(STACK_TYPE * stack, size_t key, ELEMENT_TYPE value);
@@ -113,7 +114,7 @@ static err_type CAT(STACK_TYPE, _push)(STACK_TYPE * stack, ELEMENT_TYPE value) {
     stack->fill++; // before set to ensure it succeeds
     return CAT(STACK_TYPE, _set)(stack, stack->fill - 1, value);
 }
-static err_type CAT(STACK_TYPE, _get)(STACK_TYPE * stack, size_t key, ELEMENT_TYPE * value) {
+static err_type CAT(STACK_TYPE, _get)(STACK_TYPE const * stack, size_t key, ELEMENT_TYPE * value) {
     if (key < stack->fill) {
         memcpy((void *)value, (void *)(stack->bins + key), sizeof(ELEMENT_TYPE));
         return PEGGY_SUCCESS;

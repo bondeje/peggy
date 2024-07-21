@@ -70,7 +70,6 @@ OBJ_DIR = obj
 BIN_DIR = bin
 DEP_DIR := .deps
 PKG_NAME = peggy
-STATIC_LIB_FILE := lib$(PKG_NAME).a
 
 OBJ_SUFFIX = .o
 SRC_SUFFIX = .c
@@ -78,6 +77,8 @@ HDR_SUFFIX = .h
 DEP_SUFFIX = .d
 TEMP_DEP_SUFFIX = .Td
 EXE_EXT = 
+STATIC_EXT = .a
+SHARED_EXT = .so
 
 CFLAGS += -Wall -pedantic -Werror -Wextra -std=gnu99 -O2
 CLIBFLAGS = $(CFLAGS) -fPIC -c
@@ -98,7 +99,10 @@ LIB_SRCS += $(LIB_DIR)/logger/src/logger.c
 ifeq ($(UNAME), $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN))
 # LIBS += -lregex -ltre # garbage. Don't use it
 	EXE_EXT = .exe
+	SHARED_EXT = .dll
 endif
+STATIC_LIB_FILE := lib$(PKG_NAME)$(STATIC_EXT)
+DYN_LIB_FILE := lib$(PKG_NAME)$(SHARED_EXT)
 
 # probably wrong
 ifeq ($(UNAME), $(filter $(UNAME), Windows_NT MSYS MINGW CYGWIN Linux))

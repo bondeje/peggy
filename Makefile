@@ -1,6 +1,6 @@
 include environment.mk
 
-all: environment build_hierarchy move_regex dynamic_lib static_lib main
+all: environment build_hierarchy move_regex static_lib dynamic_lib main
 	
 environment:
 	@echo make binary: $(MAKE_BIN)
@@ -32,6 +32,8 @@ static_lib: $(LIB_OBJS)
 	mv -f $(STATIC_LIB_FILE) $(BIN_DIR)/$(STATIC_LIB_FILE)
 
 dynamic_lib:
+	$(CC) -shared -fPIC $(LIB_OBJS) -o $(DYN_LIB_FILE) $(LIBS)
+	mv -f $(DYN_LIB_FILE) $(BIN_DIR)/$(DY_LIB_FILE)
 
 $(DEP_DIR): ; @mkdir -p $@
 

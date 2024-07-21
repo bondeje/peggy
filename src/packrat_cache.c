@@ -14,7 +14,6 @@ struct PackratCacheType PackratCache_class = {
     .set = &PackratCache_set,
     .rebase = &PackratCache_rebase,
     .dest = &PackratCache_dest,
-    //.resize = &PackratCache_resize
 };
 
 err_type PackratCache_init(PackratCache * cache, size_t nrules, unsigned int flags) {
@@ -39,13 +38,6 @@ err_type PackratCache_init(PackratCache * cache, size_t nrules, unsigned int fla
     }
     cache->_class = &PackratCache_class;
 
-    /*
-    if (flags & PACKRAT_SPARSE) {
-        cache->_class = &PackratCache_sparse_class;
-    } else {
-        
-    }
-    */
     return status;
 }
 
@@ -71,21 +63,6 @@ ASTNode * PackratCache_get(PackratCache * cache, rule_id_type rule_id, size_t to
     }
     return node.node;
 }
-/*
-err_type PackratCache_resize(PackratCache * cache, size_t new_min_capacity) {
-    //printf("resizing PackratCache\n");
-    err_type status = PEGGY_SUCCESS;
-    for (size_t i = 0; i < cache->nrules; i++) {
-        STACK(PackratCacheNode) * rule_stack = cache->cache_ + i;
-        if ((status = rule_stack->_class->resize(rule_stack, new_min_capacity))) {
-            printf("stack resize failed\n");
-            return status;
-        }
-        rule_stack->fill = rule_stack->capacity;
-    }
-    return PEGGY_SUCCESS;
-}
-*/
 
 //err_type PackratCache_get_sparse(PackratCache * cache, rule_id_type rule_id, size_t token_key);
 err_type PackratCache_set(PackratCache * cache, Parser * parser, rule_id_type rule_id, size_t token_key, ASTNode * node) {
