@@ -361,7 +361,7 @@ size_t ast_depth(ASTNode * root) {
     }
     size_t depth = 1;
     STACK(ASTNodeSize) st;
-    STACK_INIT(pASTNode)(&st, 0);
+    STACK_INIT(ASTNodeSize)(&st, 0);
     st._class->push(&st, (ASTNodeSize) {.node = root, .size = 1});
     while (st.fill) {
         ASTNodeSize nodesize;
