@@ -22,6 +22,9 @@ move_regex:
 
 endif
 
+clean_logs:
+	rm -f *.log
+
 build_parser:
 	$(COPY) $(PKG_PATH)/$(SRC_DIR)/$(PARSER_SRC) $(PARSER_SRC)
 	$(COPY) $(PKG_PATH)/$(INC_DIR)/$(PARSER_INC) $(PARSER_INC)
@@ -29,14 +32,13 @@ build_parser:
 
 generate_parser:
 	rm -f $(GRAMMAR).log
-	$(PKG_PATH)/$(BIN_DIR)/$(EXE) $(GRAMMAR) $(GRAMMAR).log LOG_LEVEL_INFO
+	$(PKG_PATH)/$(BIN_DIR)/$(EXE) $(GRAMMAR) $(GRAMMAR).log LOG_LEVEL_DEBUG
 
-clean:
+clean: clean_logs
 	rm -f $(PARSER_SRC)
 	rm -f $(PARSER_INC)
 	rm -f $(EXAMPLE_NAME)$(EXE_EXT)
 	rm -f $(EXAMPLE_NAME)$(HDR_SUFFIX)
 	rm -f $(EXAMPLE_NAME)$(SRC_SUFFIX)
 	rm -f gmon.out
-	rm -f *.log
 	rm -f libpcre2-8.*

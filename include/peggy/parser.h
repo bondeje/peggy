@@ -104,7 +104,7 @@ extern struct ParserType {
     err_type (*skip_token)(Parser * parser, ASTNode * node);
     size_t (*estimate_final_ntokens_)(Parser * self);
     err_type (*add_token)(Parser * parser, ASTNode * node);
-    ASTNode * (*add_node)(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode ** children, size_t size);
+    ASTNode * (*add_node)(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * child, size_t size);
     bool (*gen_next_token_)(Parser * parser);
     err_type (*get)(Parser * parser, size_t key, Token * tok);
     Token * (*get_tokens)(Parser * parser, ASTNode * node);
@@ -134,7 +134,7 @@ Token Parser_gen_final_token_(Parser * parser, ASTNode * node);
 err_type Parser_skip_token(Parser * parser, ASTNode * node);
 size_t Parser_estimate_final_ntokens(Parser * self);
 err_type Parser_add_token(Parser * parser, ASTNode * node);
-ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode ** children, size_t size);
+ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * child, size_t size);
 bool Parser_gen_next_token_(Parser * parser);
 err_type Parser_get(Parser * parser, size_t key, Token * tok);
 Token * Parser_get_tokens(Parser * parser, ASTNode * node);

@@ -135,7 +135,7 @@ int Parser_dest_pToken(void * data, Token * token) {
 }
 
 int Parser_dest_pASTNode(void * data, ASTNode * node) {
-    LOG_EVENT(&((Parser *)data)->logger, LOG_LEVEL_TRACE, "TRACE: %s - freeing node at %p, children %p\n", __func__, (void *)node, (void*)node->children);
+    LOG_EVENT(&((Parser *)data)->logger, LOG_LEVEL_TRACE, "TRACE: %s - freeing node at %p, children %p\n", __func__, (void *)node, (void*)node->child);
     node->_class->del(node);
     return 0;
 }
@@ -277,19 +277,12 @@ err_type Parser_add_token(Parser * self, ASTNode * node) {
     return self->tokens._class->push(&self->tokens, new_final);
 }
 
-ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode ** children, size_t size) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - adding node with ntokens %zu, str_length %zu, nchildren %zu (%p) at %zu", __func__, ntokens, str_length, nchildren, (void*)children, token_key);
+ASTNode * Parser_add_node(Parser * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * child, size_t size) {
+    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - adding node with ntokens %zu, str_length %zu, nchildren %zu (%p) at %zu", __func__, ntokens, str_length, nchildren, (void*)child, token_key);
     if (!size) {
         size = sizeof(ASTNode);
     }
-    ASTNode * new_node = malloc(size); // need to check for failure
-    if (!new_node) {
-        LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to malloc new node\n", __func__);
-        return NULL;
-    }
-    //printf("allocated node at %p (%zu)\n", (void*)new_node, size);
-    *new_node = (ASTNode) ASTNode_DEFAULT_INIT;
-    new_node->_class->init(new_node, rule, token_key, ntokens, str_length, nchildren, children);
+    ASTNode * new_node = ASTNode_new(rule, token_key, ntokens, str_length, nchildren, child);
     if (self->node_list.fill >= self->node_list.capacity - 1) {
         size_t new_cap = (size_t) (Parser_estimate_final_ntokens(self) * 1.0 / self->tokens.capacity * self->node_list.capacity);
         new_cap = new_cap > self->node_list.capacity ? new_cap : 2 * self->node_list.capacity;
@@ -367,11 +360,18 @@ size_t ast_depth(ASTNode * root) {
         ASTNodeSize nodesize;
         st._class->pop(&st, &nodesize);
         ASTNode * node = nodesize.node;        
-        size_t nchildren = node->nchildren;
         size_t new_depth = nodesize.size + 1;
         depth = depth * (new_depth <= depth) + new_depth * (new_depth > depth);
-        while (nchildren--) {
-            st._class->push(&st, (ASTNodeSize) {.node = node->children[nchildren], .size = new_depth});
+        node = node->child;
+        if (node) { // has children
+            // move to right-most child
+            while (node->next) {
+                node = node->next;
+            }
+            while (node) { // backtrack adding all valid nodes to stack
+                st._class->push(&st, (ASTNodeSize) {.node = node, .size = new_depth});
+                node = node->prev;
+            }
         }
     }
     return depth;
@@ -414,9 +414,15 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
             // increment the number of tabs and add the children in reverse order (pre-order traversal)
             pair.size++;
             size_t i = pair.node->nchildren;
-            while (i--) {
-                pair.node = pair.node->children[i];
-                st._class->push(&st, pair);
+            ASTNode * node = pair.node->child;
+            if (node) {
+                while (node->next) {
+                    node = node->next;
+                }
+                while (node) {
+                    pair.node = node;
+                    st._class->push(&st, pair);
+                }
             }
         }
 

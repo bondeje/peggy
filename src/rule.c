@@ -239,19 +239,19 @@ void SequenceRule_as_Rule_del(Rule * sequence_rule) {
 ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t token_key) {
     //printf("checking sequence rule. id: %d\n", sequence_rule->id);
     SequenceRule * self = (SequenceRule *)sequence_rule;
-    ASTNode ** children = malloc(sizeof(ASTNode *) * self->ChainRule.deps_size);
-    if (!children) {
-        return &ASTNode_fail;
-    }
+    ASTNode child = {0};
+    ASTNode * tail = &child;
     size_t nchildren = 0;
     for (size_t i = 0; i < self->ChainRule.deps_size; i++) {
         ASTNode * child_res = self->ChainRule.deps[i]->_class->check(self->ChainRule.deps[i], parser);
         if (child_res == &ASTNode_fail) {
-            free(children);
             return child_res;
         }
-        if (!is_skip_node(child_res)) {
-            children[nchildren++] = child_res;
+        if (!is_skip_node(child_res)) { // TODO: is this really necessary?
+            nchildren++;
+            child_res->prev = tail;
+            tail->next = child_res;
+            tail = child_res;
         }
     }
     size_t token_cur = parser->_class->tell(parser);
@@ -265,7 +265,7 @@ ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t
     if (status) {
         printf("unhandled error (%d) in SequenceRule_check_rule_ getting starting token from parser\n", status);
     }
-    return parser->_class->add_node(parser, sequence_rule, token_key, token_cur - token_key, (size_t)(cur.string - start.string), nchildren, children, 0);
+    return parser->_class->add_node(parser, sequence_rule, token_key, token_cur - token_key, (size_t)(cur.string - start.string), nchildren, child.next, 0);
 }
 
 /* ChoiceRule implementations */
@@ -616,6 +616,8 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
     ListRule * self = (ListRule *) list_rule;
 
     // call alternating checks for the delimiter and base rule to count the number of children
+    ASTNode child = {0};
+    ASTNode * tail = &child;
     size_t nchildren = 0;
     Rule * derived_rule = ((DerivedRule *)self)->rule;
     ASTNode * (*derived_rule_check)(Rule *, Parser *) = derived_rule->_class->check;
@@ -624,10 +626,15 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
     ASTNode * node = derived_rule_check(derived_rule, parser);
     //ASTNode * check_node = NULL;
     ASTNode * delim = &ASTNode_fail;
+    size_t token_index = token_key;
     while (node != &ASTNode_fail) {
         //check_node = parser->_class->check_cache(parser, node->rule->id, node->token_key);
         //DEBUG_ASSERT(node == check_node, "failed to retrieve delimiter node from cache\n");
         //printf("verified check cache for rule id %d at %zu. %p == %p\n", node->rule->id, node->token_key, (void *)node, (void *)check_node);
+        node->prev = tail;
+        tail->next = node;
+        tail = node;
+        token_index += tail->ntokens;
         nchildren++;
         delim = delim_rule_check(delim_rule, parser);
         if (delim == &ASTNode_fail) {
@@ -636,6 +643,10 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
             //check_node = parser->_class->check_cache(parser, delim->rule->id, delim->token_key);
             //DEBUG_ASSERT(delim == check_node, "failed to retrieve delimiter node from cache\n");
             //printf("verified check cache for rule id %d at %zu. %p == %p\n", delim->rule->id, delim->token_key, (void *)node, (void *)check_node);
+            delim->prev = tail;
+            tail->next = delim;
+            tail = delim;
+            token_index += tail->ntokens;
             nchildren++;
             node = derived_rule_check(derived_rule, parser);
         }
@@ -645,26 +656,11 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
     }
     if (delim != &ASTNode_fail) {
         parser->_class->seek(parser, -delim->ntokens, P_SEEK_CUR);
+        token_index -= tail->ntokens;
+        tail = tail->prev;
+        tail->next->prev = NULL;
+        tail->next = NULL;
         nchildren--; // don't include the successful delim the preceeded the failed node
-    }
-    
-    // success, so allocate memory for the children
-    //printf("list rule %d success with %zu children\n", list_rule->id, nchildren);
-    ASTNode ** children = malloc(sizeof(*children) * nchildren);
-    if (!children) {
-        printf("failed to alloc enough memory for children in List Rule\n");
-        return &ASTNode_fail; // failure but for wrong reasons
-    }
-
-    // populate children
-    size_t token_index = token_key;
-    ASTNode * (*check_cache)(Parser *, rule_id_type, size_t) = parser->_class->check_cache;
-    for (size_t i = 0; i < nchildren; i++) {
-        children[i] = check_cache(parser, i & 1 ? delim_rule->id : derived_rule->id, token_index); // this should never not be null
-        if (!children[i]) {
-            printf("cache retrieval returned null pointer (%p) for child rule id %d in list rule with id %d at location %zu. disable_check_cache = %d!!!!!!!\n", (void*)(children[i]), i & 1 ? self->delim->id : self->DerivedRule.rule->id, list_rule->id, token_index, parser->disable_cache_check);
-        }
-        token_index += children[i]->ntokens;
     }
 
     Token token_cur;
@@ -678,7 +674,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
         printf("unhandled error (%d) in ListRule_check_rule_ getting starting token from parser\n", status);
     }
     //printf("list rule building new node\n");
-    return parser->_class->add_node(parser, list_rule, token_key, token_index - token_key, (size_t)(token_cur.string - token_start.string), nchildren, children, 0);
+    return parser->_class->add_node(parser, list_rule, token_key, token_index - token_key, (size_t)(token_cur.string - token_start.string), nchildren, child.next, 0);
 }
 
 /* RepeatRule implementations */
@@ -748,8 +744,16 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t tok
     Rule * derived_rule = ((DerivedRule *)self)->rule;
     ASTNode * (*derived_rule_check)(Rule *, Parser *) = derived_rule->_class->check;
 
+    ASTNode child = {0};
+    ASTNode * tail = &child;
+    size_t token_index = token_key;
+
     ASTNode * node = derived_rule_check(derived_rule, parser);
     while (node != &ASTNode_fail) {
+        node->prev = tail;
+        tail->next = node;
+        tail = node;
+        token_index += tail->ntokens;
         nchildren++;
         node = derived_rule_check(derived_rule, parser);
     }
@@ -758,27 +762,6 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t tok
     // check for failure of the RepeatRule before allocating any memory
     if (nchildren < self->min_rep || (self->max_rep && nchildren > self->max_rep)) {
         return &ASTNode_fail;
-    }
-
-    //printf("repeated rule %d succeeded with %zu children\n", repeat_rule->id, nchildren);
-    // success. set up variables
-    ASTNode ** children = NULL; // NULL must be available for case nchildren = 0
-    size_t token_index = token_key;
-
-    // allocate memory for the children
-    if (nchildren) { // 0 may be a success but we cannot malloc(0), UB
-        children = malloc(sizeof(*children) * nchildren);
-        if (!children) {
-            printf("failed to alloc enough memory for children in List Rule\n");
-            return &ASTNode_fail; // failure but for wrong reasons
-        }
-    }
-
-    // populate children
-    ASTNode * (*check_cache)(Parser *, rule_id_type, size_t) = parser->_class->check_cache;
-    for (size_t i = 0; i < nchildren; i++) {
-        children[i] = check_cache(parser, derived_rule->id, token_index); // this should never not be null
-        token_index += children[i]->ntokens;
     }
     
     Token token_cur;
@@ -791,7 +774,7 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t tok
     if (status) {
         printf("unhandled error (%d) in RepeatRule_check_rule_ getting starting token from parser\n", status);
     }
-    return parser->_class->add_node(parser, repeat_rule, token_key, token_index - token_key, (size_t)(token_cur.string - token_start.string), nchildren, children, 0);
+    return parser->_class->add_node(parser, repeat_rule, token_key, token_index - token_key, (size_t)(token_cur.string - token_start.string), nchildren, child.next, 0);
 }
 
 /* NegativeLookahead implementations */
@@ -943,15 +926,12 @@ ASTNode * build_action_default(Production * production, Parser * parser, ASTNode
     if (!is_skip_node(node)) {
         if (!isinstance(node->rule->_class->type_name, PRODUCTION_UNESCAPED_RULES)) {
             LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - re-initializing node rule from id %d to id %d; no node generated\n", __func__, node->rule->id, ((Rule *)production)->id);
-            node->_class->init(node, (Rule *)production, node->token_key, node->ntokens, node->str_length, node->nchildren, node->children);
+            node->rule = (Rule *)production;
         } else {
-            ASTNode ** node_list = malloc(sizeof(*node_list));
-            if (!node_list) {
-                return &ASTNode_fail;
-            }
-            node_list[0] = node;
             LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - creating new rule from production %d to id %d; no node generated\n", __func__, node->rule->id, ((Rule *)production)->id);
-            node = parser->_class->add_node(parser, (Rule *)production, node->token_key, node->ntokens, node->str_length, 1, node_list, 0);
+            ASTNode * child = node;
+            node = parser->_class->add_node(parser, (Rule *)production, child->token_key, child->ntokens, child->str_length, 1, child, 0);
+            child->parent = node;
         }
     }
     return node;

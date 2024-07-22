@@ -20,28 +20,30 @@ struct ASTNodeType ASTNode_class = {
 ASTNode ASTNode_fail = ASTNode_DEFAULT_INIT;
 ASTNode ASTNode_lookahead = {
     ._class = &ASTNode_class,
-    .children = NULL,
-    .rule = NULL,
     .str_length = 1, /* this indicates the node is skipped/not processed  */
-    .nchildren = 0,
-    .token_key = 0,
-    .ntokens = 0, /* ntokens should be 0 because no tokens are consumed */
+    // all others are 0/NULL
 };
 
-ASTNode * ASTNode_new(Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode ** children) {
+ASTNode * ASTNode_new(Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * child) {
     ASTNode * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
     *ret = (ASTNode) ASTNode_DEFAULT_INIT;
-    if (ASTNode_init(ret, rule, token_key, ntokens, str_length, nchildren, children)) {
+    if (ASTNode_init(ret, rule, token_key, ntokens, str_length, nchildren, child)) {
         free(ret);
         ret = NULL;
     }
     return ret;
 }
-err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode ** children) {
-    self->children = children;
+err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * child) {
+    self->child = child;
+    if (child) {
+        child->parent = self;
+    }
+    self->parent = NULL;
+    self->next = NULL;
+    self->prev = NULL;
     self->rule = rule;
     self->str_length = str_length;
     self->nchildren = nchildren;
@@ -51,14 +53,14 @@ err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntok
 }
 void ASTNode_dest(ASTNode * self) { 
     // no-op. ASTNode does not own any contents that need to be destroyed. children are owned externally
-    if (self->children) {
-        free(self->children);
-    }
-    self->children = NULL;
+    self->child = NULL;
+    self->parent = NULL;
+    self->next = NULL;
+    self->prev = NULL;
     self->nchildren = 0;
 }
 void ASTNode_del(ASTNode * self) { 
-    if (self != &ASTNode_fail) {
+    if (self != &ASTNode_fail && self != &ASTNode_lookahead) {
         ASTNode_dest(self);
         free(self);
     }
