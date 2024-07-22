@@ -121,7 +121,7 @@ JSONValue * handle_decimal(JSONParser * parser, ASTNode * node) {
 }
 
 JSONValue *  handle_number(JSONParser * parser, ASTNode * node) {
-    ASTNode * child = node->children[0];
+    ASTNode * child = node->child;
     switch (child->rule->id) {
         case JSON_INTEGER: {
             return handle_integer(parser, child);
@@ -145,7 +145,7 @@ JSONValue * handle_string(JSONParser * parser, ASTNode * node) {
 
 JSONValue * handle_keyword(JSONParser * parser, ASTNode * node) {
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
-    switch (node->children[0]->rule->id) {
+    switch (node->child->rule->id) {
         case NULL_KW: {
             jval->value.null = NULL_VALUE;
             jval->type = JSON_NULL;
@@ -171,14 +171,16 @@ JSONValue * handle_keyword(JSONParser * parser, ASTNode * node) {
 
 JSONValue * handle_array(JSONParser * parser, ASTNode * node) {
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
-    if (node->children[1]->nchildren) { // array has elements
-        ASTNode * elements = node->children[1]->children[0];
+    if (node->child->next->nchildren) { // array has elements
+        ASTNode * elements = node->child->next->child;
         size_t nelements = (elements->nchildren + 1) >> 1;
         jval->value.array.length = nelements;
-        jval->value.array.values = handle_value(parser, elements->children[0]);
+        jval->value.array.values = handle_value(parser, elements->child);
         // assign all subsequent JSONValues, but we don't need to assign them to value.array as it is guaranteed to be contiguous (so long as this is single-threaded)
-        for (size_t i = 2; i < elements->nchildren; i += 2) {
-            handle_value(parser, elements->children[i]);
+        elements = elements->next ? elements->next->next : NULL;
+        while (elements) {
+            handle_value(parser, elements);
+            elements = elements->next ? elements->next->next : NULL;
         }
     } else {
         jval->value.array = (JSONArray) {0};
@@ -192,18 +194,18 @@ void handle_object_key(JSONParser * parser, ASTNode * node, JSONValue * obj, JSO
 }
 
 void handle_member(JSONParser * parser, ASTNode * node, JSONValue * obj) {
-    JSONValue * jval = handle_value(parser, node->children[2]);
-    handle_object_key(parser, node->children[0], obj, jval);
+    JSONValue * jval = handle_value(parser, node->child->next->next);
+    handle_object_key(parser, node->child, obj, jval);
 }
 
 JSONValue * handle_object(JSONParser * parser, ASTNode * node) {
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
-    if (node->children[1]->nchildren) { // object has key-value pairs
-        ASTNode * members = node->children[1]->children[0];
+    if (node->child->next->nchildren) { // object has key-value pairs
+        ASTNode * members = node->child->next->child;
         size_t nmembers = (members->nchildren + 1) >> 1;
         HASH_MAP_INIT(JSONString, pJSONValue)(&jval->value.object, nmembers);
-        for (size_t i = 0; i < members->nchildren; i += 2) {
-            handle_member(parser, members->children[i], jval);
+        for (ASTNode * child = members->child; child; child = child->next ? child->next->next : NULL) {
+            handle_member(parser, child, jval);
         }
     } else {
         jval->value.object = (JSONObject) {0};
@@ -213,7 +215,7 @@ JSONValue * handle_object(JSONParser * parser, ASTNode * node) {
 }
 
 JSONValue * handle_value(JSONParser * parser, ASTNode * node) {
-    ASTNode * child = node->children[0];
+    ASTNode * child = node->child;
     switch (child->rule->id) {
         case OBJECT: {
             return handle_object(parser, child);
@@ -310,8 +312,9 @@ ASTNode * handle_json(Production * prod, Parser * parser_, ASTNode * node) {
     JSONParser * parser = (JSONParser *) parser_;
     parser->json.nvalues = node->nchildren;
     JSONDoc_init(&parser->json);
-    for (size_t i = 0; i < node->nchildren; i++) {
-        parser->json.values[i] = handle_value(parser, node->children[i]);
+    size_t i = 0;
+    for (ASTNode * child = node->child; child; child = child->next) {
+        parser->json.values[i++] = handle_value(parser, child);
     }
     return node;
 }
@@ -319,12 +322,12 @@ ASTNode * handle_json(Production * prod, Parser * parser_, ASTNode * node) {
 JSONDoc from_string(char * string, size_t string_length, char * log_file, unsigned char log_level) {
     err_type status = PEGGY_SUCCESS;
     if (!timeit) {
-        if ((status = JSONParser_init(&json, name, name_length, string, string_length, log_file, log_level))) {
+        if ((status = JSONParser_init(&json, string, string_length, log_file, log_level))) {
             return empty_json;
         }
         return json.json;
     }
-    static char const * const record_format = "%zu, %10.8lf, %s\n";
+    static char const * const record_format = "%zu, %10.8lf\n";
     char buffer[1024] = {'\0'};
     FILE * time_records = fopen("times.csv", "ab");
     
@@ -342,7 +345,7 @@ JSONDoc from_string(char * string, size_t string_length, char * log_file, unsign
         time = ((1 + 1.0e-9 * t1.tv_nsec) - 1.0e-9 * t0.tv_nsec) + t1.tv_sec - 1.0 - t0.tv_sec;
     }
 
-    snprintf(buffer, 1024, record_format, json.json.data.nvalues, time, name);
+    snprintf(buffer, 1024, record_format, json.json.data.nvalues, time);
     fprintf(time_records, "%s", buffer);
     printf("%s", buffer);
     
