@@ -55,10 +55,10 @@ struct ASTNodeType CalcNode_ASTNode_class = {
 };
 
 ASTNode * calc_pass0(Production * prod, Parser * parser, ASTNode * node) {
-    node->children[0]->token_key = node->token_key;
-    node->children[0]->ntokens = node->ntokens;
-    node->children[0]->str_length = node->str_length;
-    return node->children[0];
+    node->child->token_key = node->token_key;
+    node->child->ntokens = node->ntokens;
+    node->child->str_length = node->str_length;
+    return node->child;
 }
 
 ASTNode * calc_pass(Production * prod, Parser * parser, ASTNode * node) {
@@ -229,19 +229,22 @@ ASTNode * calc_add_sub(Production * prod, Parser * parser, ASTNode * node) {
     size_t N = node->nchildren;
     if (N == 1) { // if no actual add/subtract
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - passing to expression. tokens %zu-%zu\n", __func__, node->token_key, node->token_key + node->ntokens); 
-        return node->children[0]; // return node as-is
+        return node->child; // return node as-is
     }
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding/subtracting %zu subexpressions. tokens %zu-%zu\n", __func__, N, node->token_key, node->token_key + node->ntokens);
-    CalcValue result = ((CalcNode *)node->children[0])->value;
+    ASTNode * child = node->child;
+    CalcValue result = ((CalcNode *)child)->value;
     size_t is_array = (result.type == CALC_ARRAY) ? result.value.arr.length : 0; // 0 for not array else the size
     if (is_array) {
         // if result is array, need to clear it from previous node.
-        ((CalcNode *)node->children[0])->value.value.arr.values = NULL;
+        ((CalcNode *)node->child)->value.value.arr.values = NULL;
     }
     // evalute left to right adding/subtracting to result
-    for (size_t i = 2; i < N; i += 2) {
-        ASTNode * operator = node->children[i - 1];
-        CalcValue * rvalue = &(((CalcNode *)(node->children[i]))->value);
+    child = child->next;
+    for (; child; child = child->next) {
+        ASTNode * operator = child;
+        child = child->next;
+        CalcValue * rvalue = &(((CalcNode *)child)->value);
         if (rvalue->type == CALC_ARRAY) {
             if (is_array && is_array != rvalue->value.arr.length) {
                 return &ASTNode_fail;
@@ -297,19 +300,22 @@ ASTNode * calc_mul_div_mod(Production * prod, Parser * parser, ASTNode * node) {
     size_t N = node->nchildren;
     if (N == 1) { // if no actual add/subtract
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - passing to add_sub_expression. tokens %zu-%zu\n", __func__, node->token_key, node->token_key + node->ntokens); 
-        return node->children[0]; // return node as-is
+        return node->child; // return node as-is
     }
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - mul/div/mod %zu subexpressions. tokens %zu-%zu\n", __func__, N, node->token_key, node->token_key + node->ntokens);
-    CalcValue result = ((CalcNode *)node->children[0])->value;
+    ASTNode * child = node->child;
+    CalcValue result = ((CalcNode *)child)->value;
     size_t is_array = result.type == CALC_ARRAY ? result.value.arr.length : 0; // 0 for not array else the size
     if (is_array) {
         // if result is array, need to clear it from previous node.
-        ((CalcNode *)node->children[0])->value.value.arr.values = NULL;
+        ((CalcNode *)child)->value.value.arr.values = NULL;
     }
     // evalute left to right adding/subtracting to result
-    for (size_t i = 2; i < N; i += 2) {
-        ASTNode * operator = node->children[i - 1];
-        CalcValue * rvalue = &(((CalcNode *)(node->children[i]))->value);
+    child = child->next;
+    for (; child && child->next; child = child->next) {
+        ASTNode * operator = child;
+        child = child->next;
+        CalcValue * rvalue = &(((CalcNode *)child)->value);
         if (rvalue->type == CALC_ARRAY) {
             if (is_array && is_array != rvalue->value.arr.length) {
                 return &ASTNode_fail;
@@ -377,19 +383,28 @@ ASTNode * calc_pow(Production * prod, Parser * parser, ASTNode * node) {
     size_t N = node->nchildren;
     if (N == 1) { // if no actual add/subtract
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - passing to mul_div_mod_expression. tokens %zu-%zu\n", __func__, node->token_key, node->token_key + node->ntokens); 
-        return node->children[0]; // return node as-is
+        return node->child; // return node as-is
     }
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - power %zu subexpressions. tokens %zu-%zu\n", __func__, N, node->token_key, node->token_key + node->ntokens);
-    CalcValue result = ((CalcNode *)node->children[--N])->value;
+    ASTNode * rev_iter = node->child;
+    if (rev_iter) {
+        while (rev_iter->next) {
+            rev_iter = rev_iter->next;
+        }
+    }
+    N--;
+    CalcValue result = ((CalcNode *)rev_iter)->value;
     size_t is_array = result.type == CALC_ARRAY ? result.value.arr.length : 0; // 0 for not array else the size
+    
     if (is_array) {
         // if result is array, need to clear it from previous node.
-        ((CalcNode *)node->children[N])->value.value.arr.values = NULL;
+        ((CalcNode *)rev_iter)->value.value.arr.values = NULL;
     }
     // evalute left to right adding/subtracting to result
     for (; N; ) {
         N -= 2;
-        CalcValue * lvalue = &(((CalcNode *)(node->children[N]))->value);
+        rev_iter = rev_iter->prev->prev;
+        CalcValue * lvalue = &(((CalcNode *)rev_iter)->value);
         if (lvalue->type == CALC_ARRAY) {
             if (is_array && is_array != lvalue->value.arr.length) {
                 return &ASTNode_fail;
@@ -416,20 +431,22 @@ ASTNode * calc_pow(Production * prod, Parser * parser, ASTNode * node) {
 }
 
 ASTNode * func_eval(Production * prod, Parser * parser, ASTNode * node) {
-    Token * func_name = parser->_class->get_tokens(parser, node->children[0]);
-    size_t nargin = (node->children[2]->nchildren + 1) >> 1;
+    Token * func_name = parser->_class->get_tokens(parser, node->child);
+    ASTNode * argsnode = node->child->next->next;
+    size_t nargin = (argsnode->nchildren + 1) >> 1;
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - calling function %.*s with %zu arguments\n", __func__, (int)func_name->length, func_name->string, nargin);
     CalcValue vals;
     if (nargin > 1) {
         CalcValue args[MAX_NARGIN] = {0};
-        for (size_t i = 0; i < nargin; i++) {
-            args[i] = ((CalcNode *)(node->children[2]->children[i << 1]))->value;
+        size_t i = 0;
+        for (ASTNode * child = argsnode->child; child; child = child->next ? child->next->next : NULL) {
+            args[i++] = ((CalcNode *)child)->value;
         }
         vals.type = CALC_ARRAY;
         vals.value.arr.length = nargin;
         vals.value.arr.values = &args[0];
     } else {
-        vals = ((CalcNode *)node->children[2]->children[0])->value;
+        vals = ((CalcNode *)argsnode->child)->value;
     }
     
     REPLFunction func = math_repl_get_func(func_name->string, (unsigned char) func_name->length);
@@ -452,10 +469,11 @@ ASTNode * calc_eval(Production * prod, Parser * parser, ASTNode * node) {
             return node;
         }
         default: { // parenthesized expression
-            node->children[1]->token_key = node->token_key;
-            node->children[1]->ntokens = node->ntokens;
-            node->children[1]->str_length = node->str_length;
-            return node->children[1];
+            ASTNode * out = node->child->next;
+            out->token_key = node->token_key;
+            out->ntokens = node->ntokens;
+            out->str_length = node->str_length;
+            return out;
         }
     }
     return &ASTNode_fail;
@@ -465,16 +483,16 @@ const CalcValue NEG_ONE = {.type = CALC_INTEGER, .value.ll = -1};
 
 ASTNode * calc_unary(Production * prod, Parser * parser, ASTNode * node) {
     size_t n_odd = 0;
-    ASTNode * unary_repeat = node->children[0];
+    ASTNode * unary_repeat = node->child;
     size_t Nunary = unary_repeat->nchildren;
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - calc unary with %zu operators. tokens %zu-%zu\n", __func__, Nunary, node->token_key, node->token_key + node->ntokens);
-    for (size_t i = 0; i < Nunary; i++) {
-        if (unary_repeat->children[i]->rule->id == SUBTRACT) {
+    for (ASTNode * child = unary_repeat->child; child; child = child->next) {
+        if (child->rule->id == SUBTRACT) {
             n_odd++;
         }
     }
     if (n_odd & 1) {
-        CalcNode * result = (CalcNode * )node->children[1];
+        CalcNode * result = (CalcNode * )unary_repeat->next;
         switch (result->value.type) {
             case CALC_INTEGER: {
                 result->value.value.ll *= -1;
@@ -494,11 +512,11 @@ ASTNode * calc_unary(Production * prod, Parser * parser, ASTNode * node) {
             }
         }
     }
-
-    node->children[1]->token_key = node->token_key;
-    node->children[1]->ntokens = node->ntokens;
-    node->children[1]->str_length = node->str_length;
-    return node->children[1];
+    ASTNode * out = unary_repeat->next;
+    out->token_key = node->token_key;
+    out->ntokens = node->ntokens;
+    out->str_length = node->str_length;
+    return out;
 }
 
 
@@ -576,17 +594,17 @@ ASTNode * build_constants(Production * prod, Parser * parser, ASTNode * node) {
 }
 
 ASTNode * build_array(Production * prod, Parser * parser, ASTNode * node) {
-    size_t length = (node->children[1]->nchildren + 1) / 2;
+    ASTNode * child = node->child->next;
+    size_t length = (child->nchildren + 1) / 2;
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building array of size %zu. tokens %zu-%zu\n", __func__, length, node->token_key, node->token_key + node->ntokens);
     CalcValue * arr = malloc(sizeof(CalcValue) * length);
     if (!arr) {
         return &ASTNode_fail;
     }
     size_t j = 0;
-    size_t N = node->children[1]->nchildren;
-    ASTNode ** children = node->children[1]->children;
-    for (size_t i = 0; i < N; i += 2) {
-        arr[j++] = ((CalcNode *)children[i])->value;
+    child = child->child;
+    for (; child; child = child->next ? child->next->next : NULL) {
+        arr[j++] = ((CalcNode *)child)->value;
     }
     CalcNode * val = (CalcNode *)parser->_class->add_node(parser, (Rule *)prod, 
         node->token_key, node->ntokens, node->str_length, 0, 
@@ -633,10 +651,8 @@ void CalcValue_print(CalcValue * value, char const * terminator) {
 
 ASTNode * handle_calculator(Production * prod, Parser * parser_, ASTNode * node) {
     CalcParser * parser = (CalcParser *) parser_;
-    //printf("handle_calculator node type_name: %s\n", node->rule->_class->type_name);
-    for (size_t i = 0; i < node->nchildren; i++) {
-        //printf("handle_calculator child %zu: %d\n", i, node->children[i]->rule->id);
-        parser->result = ((CalcNode *)node->children[i])->value;
+    for (ASTNode * child = node->child; child; child = child->next) {
+        parser->result = ((CalcNode *)child)->value;
         CalcValue_print(&parser->result, "\n");
     }
     node->rule = (Rule *)prod;

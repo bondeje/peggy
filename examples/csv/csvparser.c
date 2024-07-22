@@ -88,7 +88,7 @@ void handle_field(CSVParser * csv_parser, ASTNode * node, size_t index) {
     char * dest = csv_parser->csv.data + csv_parser->csv.offsets[index];
     char const * src;
     size_t N = 0;
-    if (node->children[0]->rule->id == NONSTRING_FIELD) {
+    if (node->child->rule->id == NONSTRING_FIELD) {
         src = tok.string;
         N = node->str_length;
     } else { // STRING
@@ -103,9 +103,8 @@ void handle_field(CSVParser * csv_parser, ASTNode * node, size_t index) {
 void handle_record(CSVParser * csv_parser, ASTNode * node, size_t row) {
     size_t Nchild = node->nchildren;
     size_t j = row * csv_parser->csv.ncols;
-    for (size_t i = 0; i < Nchild; i += 2) {
-        handle_field(csv_parser, node->children[i], j);
-        j++;
+    for (ASTNode * child = node->child; child ; child = child->next ? child->next->next : NULL) {
+        handle_field(csv_parser, child, j++);
     }
 }
 
@@ -124,12 +123,11 @@ ASTNode * handle_csv(Production * csv_prod, Parser * parser, ASTNode * node) {
 
     csv->csv.offsets[0] = 0;
 
-    ASTNode * record_list = node->children[0];
+    ASTNode * record_list = node->child;
     size_t Nchild = record_list->nchildren;
     size_t j = 0;
-    for (size_t i = 0; i < Nchild; i += 2) {
-        handle_record(csv, record_list->children[i], j);
-        j++;
+    for (ASTNode * child = record_list->child; child; child = child->next ? child->next->next : NULL) {
+        handle_record(csv, child, j++);
     }
     return node;
 }
