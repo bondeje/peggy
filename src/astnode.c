@@ -38,7 +38,7 @@ ASTNode * ASTNode_new(Rule * rule, size_t token_key, size_t ntokens, size_t str_
 }
 err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * child) {
     self->child = child;
-    if (child) {
+    for (; child; child = child->next) {
         child->parent = self;
     }
     self->parent = NULL;

@@ -928,10 +928,8 @@ ASTNode * build_action_default(Production * production, Parser * parser, ASTNode
             LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - re-initializing node rule from id %d to id %d; no node generated\n", __func__, node->rule->id, ((Rule *)production)->id);
             node->rule = (Rule *)production;
         } else {
-            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - creating new rule from production %d to id %d; no node generated\n", __func__, node->rule->id, ((Rule *)production)->id);
-            ASTNode * child = node;
-            node = parser->_class->add_node(parser, (Rule *)production, child->token_key, child->ntokens, child->str_length, 1, child, 0);
-            child->parent = node;
+            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - creating new rule from production %d to id %d\n", __func__, node->rule->id, ((Rule *)production)->id);
+            node = parser->_class->add_node(parser, (Rule *)production, node->token_key, node->ntokens, node->str_length, 1, node, 0);
         }
     }
     return node;
@@ -1000,6 +998,12 @@ ASTNode * Production_check_rule_(Rule * production, Parser * parser, size_t toke
         LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - found NULL in call to Rule_check for production id %d\n", __func__, production->id);
     }
     if (node != &ASTNode_fail) {
+        /*
+        ASTNode * out = self->build_action(self, parser, node);
+        if (out != &ASTNode_fail && !is_skip_node(out)) {
+            Token * tok = parser->_class->get_tokens(parser, out);
+            LOG_EVENT(&parser->logger, LOG_LEVEL_INFO, "INFO: %s - created production node with id: %d, line: %zu, col: %zu\n", __func__, out->rule->id, tok->coords.line, tok->coords.col);    
+        }*/
         return self->build_action(self, parser, node);
     }
     return node;

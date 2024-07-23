@@ -6,7 +6,7 @@ A PEG parser generator library that aids in rapid development of customizable (p
 
 Tokenization is included as part of the grammar and lazily evaluated, i.e. tokens are specified as just another production and are generated only as required for evaluation of the parsing productions.
 
-<b>peggy</b> is designed to be as simple as possible to use--once the grammar specification is understood--while being as flexible as possible to allow the user compile-time and run-time customization and navigatation.
+<b>peggy</b> is designed to be as simple as possible to use--once the grammar specification is understood--while being as flexible as possible to allow the user compile-time and run-time customization and navigation.
 
 Since it is packrat, the base generated parsers have run-time complexity O(n) where n is the number of tokens in the file to be parsed. The memory consumption is also O(n), but with an extremely large constant that is several times the number of all *rules* used in the grammar, not just productions. This could easily be 10^2 - 10^3. In this context, a rule is any part of the grammar used in syntactic or lexical analysis. For example, in a production defined as `A: B | C | D, A`, there are at least 6 rules active. The production `A` itself, its derived sequence rule, and the sequence rule contains as its first element a choice rule comprising 3 other productions or rules `B`, `C`, and `D`. This would mean evaluation of `A` at a particular token will generate at least 6 nodes for the AST and the memory overhead associated with them.
 
