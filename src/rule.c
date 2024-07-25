@@ -664,7 +664,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
     }
 
     Token token_cur;
-    err_type status = parser->_class->get(parser, token_key, &token_cur);
+    err_type status = parser->_class->get(parser, token_index, &token_cur);
     if (status) {
         printf("unhandled error (%d) in ListRule_check_rule_ getting current token from parser\n", status);
     }
@@ -765,7 +765,7 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t tok
     }
     
     Token token_cur;
-    err_type status = parser->_class->get(parser, token_key, &token_cur);
+    err_type status = parser->_class->get(parser, token_index, &token_cur);
     if (status) {
         printf("unhandled error (%d) in RepeatRule_check_rule_ getting current token from parser\n", status);
     }
