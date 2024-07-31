@@ -24,19 +24,20 @@ ASTNode ASTNode_lookahead = {
     // all others are 0/NULL
 };
 
-ASTNode * ASTNode_new(Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * child) {
+// end is inclusive
+ASTNode * ASTNode_new(Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * child) {
     ASTNode * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
     *ret = (ASTNode) ASTNode_DEFAULT_INIT;
-    if (ASTNode_init(ret, rule, token_key, ntokens, str_length, nchildren, child)) {
+    if (ASTNode_init(ret, rule, start, end, str_length, nchildren, child)) {
         free(ret);
         ret = NULL;
     }
     return ret;
 }
-err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * child) {
+err_type ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * child) {
     self->child = child;
     for (; child; child = child->next) {
         child->parent = self;
@@ -47,8 +48,8 @@ err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntok
     self->rule = rule;
     self->str_length = str_length;
     self->nchildren = nchildren;
-    self->token_key = token_key;
-    self->ntokens = ntokens;
+    self->token_start = start;
+    self->token_end = end;
     return PEGGY_SUCCESS;
 }
 void ASTNode_dest(ASTNode * self) { 

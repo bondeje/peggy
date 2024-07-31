@@ -1,6 +1,10 @@
 #ifndef PEGGY_RULE_H
 #define PEGGY_RULE_H
 
+#ifdef Linux
+#define _GNU_SOURCE
+#endif
+
 /* C standard library includes */
 #include <stddef.h>
 
@@ -15,6 +19,7 @@
 #define PCRE2_CODE_UNIT_WIDTH 8
 #endif
 #include <pcre2.h>
+#else
 #endif
 
 /* peggy includes */
@@ -62,7 +67,7 @@ extern struct RuleType {
     err_type (*init)(Rule * self, int id);
     void (*dest)(Rule * self);
     void (*del)(Rule * self);
-    ASTNode * (*check_rule_)(Rule * self, Parser * parser, size_t token_key);
+    ASTNode * (*check_rule_)(Rule * self, Parser * parser);
     ASTNode * (*check)(Rule * self, Parser * parser);
 } Rule_class;
 
@@ -70,7 +75,7 @@ Rule * Rule_new(int id);
 err_type Rule_init(Rule * self, int id);
 void Rule_dest(Rule * self);
 void Rule_del(Rule * self);
-ASTNode * Rule_check_rule_(Rule * self, Parser * parser, size_t token_key);
+ASTNode * Rule_check_rule_(Rule * self, Parser * parser);
 ASTNode * Rule_check(Rule * self, Parser * parser);
 
 /* update in C and metadata */
@@ -145,7 +150,7 @@ void SequenceRule_del(SequenceRule * self);
 void SequenceRule_as_ChainRule_del(ChainRule * sequence_chain);
 void SequenceRule_as_Rule_del(Rule * sequence_rule);
 //err_type SequenceRule_build(Rule * sequence_rule, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t token_key);
+ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser);
 
 /* ChoiceRule definitions and declarations */
 
@@ -183,7 +188,7 @@ void ChoiceRule_del(ChoiceRule * self);
 void ChoiceRule_as_ChainRule_del(ChainRule * choice_chain);
 void ChoiceRule_as_Rule_del(Rule * choice_rule);
 //err_type ChoiceRule_build(Rule * choice_rule, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser, size_t token_key);
+ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser);
 
 /* LiteralRule class definitions and declarations */
 
@@ -232,7 +237,7 @@ err_type LiteralRule_compile_regex(LiteralRule * self);
 void LiteralRule_as_Rule_del(Rule * literal_rule);
 void LiteralRule_as_Rule_dest(Rule * literal_rule);
 //err_type LiteralRule_build(Rule * literal_rule, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t token_key);
+ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser);
 
 /* DerivedRule abstract class definitions and declarations */
 
@@ -305,7 +310,7 @@ void ListRule_del(ListRule * self);
 void ListRule_as_DerivedRule_del(DerivedRule * list_rule);
 void ListRule_as_Rule_del(Rule * list_rule);
 //err_type ListRule_build(Rule * list_rule, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_key);
+ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser);
 
 /* RepeatRule class definitions and declarations */
 
@@ -349,7 +354,7 @@ void RepeatRule_del(RepeatRule * self);
 void RepeatRule_as_DerivedRule_del(DerivedRule * repeat_rule);
 void RepeatRule_as_Rule_del(Rule * repeat_rule);
 //err_type RepeatRule_build(Rule * repeat_rule, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t token_key);
+ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser);
 
 /* NegativeLookahead Rule class definitions and declarations */
 
@@ -387,7 +392,7 @@ void NegativeLookahead_del(NegativeLookahead * self);
 void NegativeLookahead_as_DerivedRule_del(DerivedRule * negative_lookahead);
 void NegativeLookahead_as_Rule_del(Rule * negative_lookahead);
 //err_type NegativeLookahead_build(Rule * negative_lookahead, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * parser, size_t token_key);
+ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * parser);
 
 /* PositiveLookahead Rule definitions and declarations */
 
@@ -424,7 +429,7 @@ void PositiveLookahead_del(PositiveLookahead * self);
 void PositiveLookahead_as_DerivedRule_del(DerivedRule * positive_lookahead);
 void PositiveLookahead_as_Rule_del(Rule * positive_lookahead);
 //err_type PositiveLookahead_build(Rule * positive_lookahead, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser, size_t token_key);
+ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser);
 /* Production Rule abstract class definitions and declarations */
 
 #define Production_DEFAULT_INIT {   .DerivedRule = { \
@@ -465,6 +470,6 @@ void Production_del(Production * self);
 void Production_as_DerivedRule_del(DerivedRule * production);
 void Production_as_Rule_del(Rule * production);
 //err_type Production_build(Rule * production, ParserGenerator * pg, char * buffer, size_t buffer_size);
-ASTNode * Production_check_rule_(Rule * production, Parser * parser, size_t token_key);
+ASTNode * Production_check_rule_(Rule * production, Parser * parser);
 
 #endif // PEGGY_RULE_H

@@ -4,19 +4,11 @@
 #include <stddef.h>
 
 #include <peggy/utils.h>
+#include <peggy/token.h>
 //#include <peggy/type.h>
 
 #define ASTNode_DEFAULT_INIT { \
     ._class = &ASTNode_class, \
-    .child = NULL, \
-    .next = NULL, \
-    .prev = NULL, \
-    .parent = NULL, \
-    .rule = NULL, \
-    .str_length = 0, \
-    .nchildren = 0, \
-    .token_key = 0, \
-    .ntokens = 0 \
 }
 
 typedef struct ASTNode ASTNode, * pASTNode;
@@ -30,8 +22,8 @@ struct ASTNode {
     Rule * rule;
     size_t str_length;
     size_t nchildren;
-    size_t token_key;
-    size_t ntokens;
+    Token * token_start;
+    Token * token_end;
 };
 
 extern ASTNode ASTNode_fail;
@@ -66,8 +58,8 @@ struct ASTNodeIterator {
 
 extern struct ASTNodeType {
     char const * type_name;
-    ASTNode * (*new)(Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * child);
-    err_type (*init)(ASTNode * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * child);
+    ASTNode * (*new)(Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * child);
+    err_type (*init)(ASTNode * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * child);
     void (*dest)(ASTNode * self);
     void (*del)(ASTNode * self);
     err_type (*iter)(ASTNode * self, ASTNodeIterator * node_iter);
@@ -77,8 +69,8 @@ extern struct ASTNodeType {
     int (*str)(ASTNode * self, char * buffer, size_t buf_size);
 } ASTNode_class;
 
-ASTNode * ASTNode_new(Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children);
-err_type ASTNode_init(ASTNode * self, Rule * rule, size_t token_key, size_t ntokens, size_t str_length, size_t nchildren, ASTNode * children);
+ASTNode * ASTNode_new(Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * children);
+err_type ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * children);
 void ASTNode_dest(ASTNode * self);
 void ASTNode_del(ASTNode * self);
 err_type ASTNode_iter(ASTNode * self, ASTNodeIterator * node_iter);

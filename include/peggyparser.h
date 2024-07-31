@@ -36,16 +36,16 @@ typedef struct PeggyProduction {
 
 typedef struct PeggyParser PeggyParser;
 
-err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * string, size_t string_length, char const * log_file, unsigned char log_level);
+err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * log_file, unsigned char log_level);
 void PeggyParser_dest(PeggyParser * parser);
-void PeggyParser_parse(Parser * self);
+void PeggyParser_parse(Parser * self, char const * string, size_t string_length);
 
 #define PeggyParser_NAME "PeggyParser.Parser"
 
 extern struct PeggyParserType {
     struct ParserType Parser_class;
     char const * type_name;
-    err_type (*init)(PeggyParser * parser, char const * name, size_t name_length, char const * string, size_t string_length, char const * log_file, unsigned char log_level);
+    err_type (*init)(PeggyParser * parser, char const * name, size_t name_length, char const * log_file, unsigned char log_level);
     void (*dest)(PeggyParser * parser);
 } PeggyParser_class;
 
@@ -59,6 +59,7 @@ struct PeggyParser {
     //HASH_MAP(PeggyString, PeggyProduction) keywords;
     HASH_MAP(PeggyString, PeggyProduction) productions;
     STACK(PeggyString) imports;
+    MemPoolManager * str_mgr;
     PeggyString export;
     char * header_name;
     FILE * header_file;

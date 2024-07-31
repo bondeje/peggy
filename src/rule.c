@@ -1,4 +1,3 @@
-// this is really only available on Linux
 #ifdef Linux
 #define _GNU_SOURCE
 #endif
@@ -81,21 +80,24 @@ void Rule_del(Rule * self) {
 }
 
 /* TODO: probably should change this so that Rule_check_rule_ output node is in arguments and ASTNode_fail becomes an error code */
-ASTNode * Rule_check_rule_(Rule * self, Parser * parser, size_t token_keyk) {
+ASTNode * Rule_check_rule_(Rule * self, Parser * parser) {
     LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - abstract method called.\n", __func__);
     return NULL;
 }
 
 ASTNode * Rule_check(Rule * self, Parser * parser) {
-    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d (type: %s) @%zu\n", __func__, self->id, self->_class->type_name, parser->loc_);
+    Token * tok = Parser_tell(parser);
+    if (!tok || !tok->length) {
+        return &ASTNode_fail;
+    }
+    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d (type: %s) line: %hu, col: %hu\n", __func__, self->id, self->_class->type_name, tok->coords.line, tok->coords.col);
 #ifndef NDEBUG
     self->ncalls++;
 #endif
-    size_t token_key = parser->_class->tell(parser);
-    ASTNode * res = parser->_class->check_cache(parser, self->id, token_key);
+    ASTNode * res = parser->_class->check_cache(parser, self->id, tok);
     if (res) {
         LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d retrieved from cache!\n", __func__, self->id);
-        parser->_class->seek(parser, res->ntokens, P_SEEK_CUR);
+        parser->_class->seek(parser, res->token_end->next);
         return res;
     }
 
@@ -103,21 +105,27 @@ ASTNode * Rule_check(Rule * self, Parser * parser) {
 #ifndef NDEBUG
     self->nevals++;
 #endif
-    res = self->_class->check_rule_(self, parser, token_key);
+    res = self->_class->check_rule_(self, parser);
     // cache the result
     if (!res) {
+        // TODO: change to LOG_EVENT
         printf("storing a null from rule id %d!!!\n", self->id);
     }
 
     if (res == &ASTNode_fail) {
         LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d failed!\n", __func__, self->id);
         // reset the parser seek because the rule check failed
-        parser->_class->seek(parser, token_key, P_SEEK_SET);
+        parser->_class->seek(parser, tok);
     } else {
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d succeeded! Now at (%zu)\n", __func__, self->id, parser->loc_);
+        Token * tok = Parser_tell(parser);
+        if (tok) {
+            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d succeeded! Now at line: %hu, col: %hu\n", __func__, self->id, tok->coords.line, tok->coords.col);
+        } else {
+            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d succeeded! Done!\n", __func__, self->id);
+        }
     }
 
-    parser->_class->cache_check(parser, self->id, token_key, res);
+    parser->_class->cache_check(parser, self->id, tok, res);
 
     return res;
 }
@@ -236,36 +244,22 @@ void SequenceRule_as_Rule_del(Rule * sequence_rule) {
     SequenceRule_del((SequenceRule *)sequence_rule);
 }
 
-ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser, size_t token_key) {
+ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser) {
     //printf("checking sequence rule. id: %d\n", sequence_rule->id);
     SequenceRule * self = (SequenceRule *)sequence_rule;
     ASTNode child = {0};
     ASTNode * tail = &child;
     size_t nchildren = 0;
+    Token * start = Parser_tell(parser);
     for (size_t i = 0; i < self->ChainRule.deps_size; i++) {
         ASTNode * child_res = self->ChainRule.deps[i]->_class->check(self->ChainRule.deps[i], parser);
         if (child_res == &ASTNode_fail) {
             return child_res;
         }
-        if (!is_skip_node(child_res)) { // TODO: is this really necessary?
-            nchildren++;
-            child_res->prev = tail;
-            tail->next = child_res;
-            tail = child_res;
-        }
     }
-    size_t token_cur = parser->_class->tell(parser);
-    Token cur;
-    err_type status = parser->_class->get(parser, token_cur, &cur);
-    if (status) {
-        printf("unhandled error (%d) in SequenceRule_check_rule_ getting current token from parser\n", status);
-    }
-    Token start;
-    status = parser->_class->get(parser, token_key, &start);
-    if (status) {
-        printf("unhandled error (%d) in SequenceRule_check_rule_ getting starting token from parser\n", status);
-    }
-    return parser->_class->add_node(parser, sequence_rule, token_key, token_cur - token_key, (size_t)(cur.string - start.string), nchildren, child.next, 0);
+
+    Token * end = Parser_tell(parser);
+    return parser->_class->add_node(parser, sequence_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), nchildren, child.next, 0);
 }
 
 /* ChoiceRule implementations */
@@ -330,7 +324,7 @@ void ChoiceRule_as_Rule_del(Rule * choice_rule) {
     ChoiceRule_del((ChoiceRule *)choice_rule);
 }
 
-ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser, size_t token_key) {
+ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser) {
     //printf("checking choice rule. id: %d\n", choice_rule->id);
     ChoiceRule * self = (ChoiceRule *)choice_rule;
     for (size_t i = 0; i < self->ChainRule.deps_size; i++) {
@@ -384,7 +378,7 @@ int pcre2_err_code;
 
 err_type LiteralRule_compile_regex(LiteralRule * self) {
     LOG_EVENT(NULL, LOG_LEVEL_DEBUG, "INFO: %s - compiling regex %s\n", __func__, self->regex_s);
-    //printf("
+    //printf("LiteralRule...compiling: %s\n", self->regex_s);
 #ifdef Linux
     re_set_syntax(DEFAULT_RE_SYNTAX);
     char const * err_message = re_compile_pattern(self->regex_s, strlen(self->regex_s), 
@@ -451,39 +445,41 @@ void LiteralRule_as_Rule_dest(Rule * literal_rule) {
     LiteralRule_dest((LiteralRule *)literal_rule);
 }
 
-ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t token_key) {
+ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser) {
     LiteralRule * self = (LiteralRule *)literal_rule;
     LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - checking literal rule. id: %d, %s\n", __func__, literal_rule->id, self->regex_s);
     err_type status = PEGGY_SUCCESS;
+    //printf("LiteralRule (%s): %s\n", self->compiled == true ? "compiled" : "not compiled", self->regex_s);
     if (!self->compiled) {
+        
         if ((status = LiteralRule_compile_regex(self))) {
+            //printf("failed to compile literal rule\n");
             return &ASTNode_fail; // failed to compile the regular expression
         }
     }
     
-    Token tok;
-    status = parser->_class->get(parser, token_key, &tok);
-    if (status) {
-        LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to get token_key %zu from parser tokens list of length %zu\n", __func__, token_key, parser->tokens.fill);
+    Token * tok = Parser_tell(parser);
+    if (!tok) {
+        LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to get token_key from parser\n", __func__);
         return NULL;
     }
-    if (tok._class->len(&tok) == 0) { // token retrieved is empty
+    if (tok->length == 0) { // token retrieved is empty
         return &ASTNode_fail;
     }
 #ifdef Linux
     int length = re_match(&self->regex,
-          tok.string, tok.length, 
+          tok->string, tok->length, 
           0, NULL);
     if (length >= 0) {
-        parser->_class->seek(parser, 1, P_SEEK_CUR);
+        //parser->_class->seek(parser, tok->next);
         LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - literal rule (id %d) regex %s matched with length %d!\n", __func__, literal_rule->id, self->regex_s, length);
-        return parser->_class->add_node(parser, literal_rule, token_key, length ? 1 : 0, length, 0, NULL, 0);
+        return parser->_class->add_node(parser, literal_rule, tok, tok, length, 0, NULL, 0);
     }
 #else 
     int rc = pcre2_match(
         self->regex,                   /* the compiled pattern */
-        (PCRE2_SPTR)tok.string,              /* the subject string */
-        (PCRE2_SIZE)tok.length,       /* the length of the subject */
+        (PCRE2_SPTR)tok->string,              /* the subject string */
+        (PCRE2_SIZE)tok->length,       /* the length of the subject */
         0,                    /* start at offset 0 in the subject */
         0,                    /* default options. Don't need to enforce PCRE2_ANCHORED when pattern was compiled as such */
         self->match,           /* block for storing the result */
@@ -491,10 +487,14 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser, size_t t
         );
     if (rc >= 0) { // I think this means successful return. The official documentation does not say anything along the lines of "returns X on success, Y on failure", but pcre2demo handles errors when rc < 0
         PCRE2_SIZE * result = pcre2_get_ovector_pointer(self->match);
-        int length = (int)(result[1] - result[0]);
-        parser->_class->seek(parser, 1, P_SEEK_CUR);
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - literal rule (id %d) regex %s matched with length %d!\n", __func__, literal_rule->id, (char *)self->regex_s, length);
-        return parser->_class->add_node(parser, literal_rule, token_key, length ? 1 : 0, length, 0, NULL, 0);
+        size_t length = (result[1] - result[0]);
+        ASTNode * node = parser->_class->add_node(parser, literal_rule, tok, tok, length, 0, NULL, 0);
+        //if (length < tok->length) {
+        //    Parser_add_token(parser, node);
+        //}
+        //Parser_seek(parser, tok->next);
+        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - literal rule (id %d) regex %s matched with length %d! - %.*s\n", __func__, literal_rule->id, (char *)self->regex_s, length, (int)length, tok->string);
+        return node;
     }
 #endif
     return &ASTNode_fail;
@@ -611,9 +611,11 @@ void ListRule_as_Rule_del(Rule * list_rule) {
     ListRule_del((ListRule *)list_rule);
 }
 
-ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_key) {
+ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser) {
     //printf("checking list rule. id: %d\n", list_rule->id);
     ListRule * self = (ListRule *) list_rule;
+    Token * start = Parser_tell(parser);
+    Token * end = start;
 
     // call alternating checks for the delimiter and base rule to count the number of children
     ASTNode child = {0};
@@ -626,7 +628,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
     ASTNode * node = derived_rule_check(derived_rule, parser);
     //ASTNode * check_node = NULL;
     ASTNode * delim = &ASTNode_fail;
-    size_t token_index = token_key;
+    
     while (node != &ASTNode_fail) {
         //check_node = parser->_class->check_cache(parser, node->rule->id, node->token_key);
         //DEBUG_ASSERT(node == check_node, "failed to retrieve delimiter node from cache\n");
@@ -634,7 +636,6 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
         node->prev = tail;
         tail->next = node;
         tail = node;
-        token_index += tail->ntokens;
         nchildren++;
         delim = delim_rule_check(delim_rule, parser);
         if (delim == &ASTNode_fail) {
@@ -646,7 +647,6 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
             delim->prev = tail;
             tail->next = delim;
             tail = delim;
-            token_index += tail->ntokens;
             nchildren++;
             node = derived_rule_check(derived_rule, parser);
         }
@@ -655,26 +655,16 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser, size_t token_k
         return &ASTNode_fail;
     }
     if (delim != &ASTNode_fail) {
-        parser->_class->seek(parser, -delim->ntokens, P_SEEK_CUR);
-        token_index -= tail->ntokens;
+        parser->_class->seek(parser, delim->token_start);
         tail = tail->prev;
         tail->next->prev = NULL;
         tail->next = NULL;
         nchildren--; // don't include the successful delim the preceeded the failed node
     }
 
-    Token token_cur;
-    err_type status = parser->_class->get(parser, token_index, &token_cur);
-    if (status) {
-        printf("unhandled error (%d) in ListRule_check_rule_ getting current token from parser\n", status);
-    }
-    Token token_start;
-    status = parser->_class->get(parser, token_key, &token_start);
-    if (status) {
-        printf("unhandled error (%d) in ListRule_check_rule_ getting starting token from parser\n", status);
-    }
+    end = Parser_tell(parser);
     //printf("list rule building new node\n");
-    return parser->_class->add_node(parser, list_rule, token_key, token_index - token_key, (size_t)(token_cur.string - token_start.string), nchildren, child.next, 0);
+    return parser->_class->add_node(parser, list_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), nchildren, child.next, 0);
 }
 
 /* RepeatRule implementations */
@@ -737,23 +727,23 @@ void RepeatRule_as_Rule_del(Rule * repeat_rule) {
 }
 
 // MAJOR TODO: get rid of realloc. Follow ListRule_check_rule_ implementation
-ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t token_key) {
+ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser) {
     //printf("checking repeat rule. id: %d\n", repeat_rule->id);
     RepeatRule * self = (RepeatRule *)repeat_rule;
+    Token * start = Parser_tell(parser);
+    Token * end = start;
     size_t nchildren = 0;
     Rule * derived_rule = ((DerivedRule *)self)->rule;
     ASTNode * (*derived_rule_check)(Rule *, Parser *) = derived_rule->_class->check;
 
     ASTNode child = {0};
     ASTNode * tail = &child;
-    size_t token_index = token_key;
 
     ASTNode * node = derived_rule_check(derived_rule, parser);
     while (node != &ASTNode_fail) {
         node->prev = tail;
         tail->next = node;
         tail = node;
-        token_index += tail->ntokens;
         nchildren++;
         node = derived_rule_check(derived_rule, parser);
     }
@@ -764,17 +754,8 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser, size_t tok
         return &ASTNode_fail;
     }
     
-    Token token_cur;
-    err_type status = parser->_class->get(parser, token_index, &token_cur);
-    if (status) {
-        printf("unhandled error (%d) in RepeatRule_check_rule_ getting current token from parser\n", status);
-    }
-    Token token_start;
-    status = parser->_class->get(parser, token_key, &token_start);
-    if (status) {
-        printf("unhandled error (%d) in RepeatRule_check_rule_ getting starting token from parser\n", status);
-    }
-    return parser->_class->add_node(parser, repeat_rule, token_key, token_index - token_key, (size_t)(token_cur.string - token_start.string), nchildren, child.next, 0);
+    end = Parser_tell(parser);
+    return parser->_class->add_node(parser, repeat_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), nchildren, child.next, 0);
 }
 
 /* NegativeLookahead implementations */
@@ -834,14 +815,15 @@ void NegativeLookahead_as_Rule_del(Rule * negative_lookahead) {
     NegativeLookahead_del((NegativeLookahead *)negative_lookahead);
 }
 
-ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * parser, size_t token_key) {
+ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * parser) {
     //printf("checking negative lookahead rule. id: %d\n", negative_lookahead->id);
     NegativeLookahead * self = (NegativeLookahead *)negative_lookahead;
+    Token * tok = Parser_tell(parser);
     ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
     if (node == &ASTNode_fail) {
+        parser->_class->seek(parser, tok);
         return &ASTNode_lookahead;
     }
-    parser->_class->seek(parser, token_key, P_SEEK_SET); // pretty sure this isn't necessary
     return &ASTNode_fail;
 }
 /* PositiveLookahead implementations */
@@ -901,12 +883,13 @@ void PositiveLookahead_as_Rule_del(Rule * positive_lookahead) {
     PositiveLookahead_del((PositiveLookahead *)positive_lookahead);
 }
 
-ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser, size_t token_key) {
+ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser) {
     //printf("checking positive lookahead rule. id: %d\n", positive_lookahead->id);
     PositiveLookahead * self = (PositiveLookahead *)positive_lookahead;
+    Token * tok = Parser_tell(parser);
     ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
     if (node != &ASTNode_fail) {
-        parser->_class->seek(parser, token_key, P_SEEK_SET);
+        parser->_class->seek(parser, tok);
         return &ASTNode_lookahead;
     }
     return node;
@@ -929,7 +912,7 @@ ASTNode * build_action_default(Production * production, Parser * parser, ASTNode
             node->rule = (Rule *)production;
         } else {
             LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - creating new rule from production %d to id %d\n", __func__, node->rule->id, ((Rule *)production)->id);
-            node = parser->_class->add_node(parser, (Rule *)production, node->token_key, node->ntokens, node->str_length, 1, node, 0);
+            node = parser->_class->add_node(parser, (Rule *)production, node->token_start, node->token_end, node->str_length, 1, node, 0);
         }
     }
     return node;
@@ -989,7 +972,7 @@ void Production_as_Rule_del(Rule * production) {
     Production_del((Production *)production);
 }
 
-ASTNode * Production_check_rule_(Rule * production, Parser * parser, size_t token_key) {
+ASTNode * Production_check_rule_(Rule * production, Parser * parser) {
     LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - checking production rule. id: %d\n", __func__, production->id);
     Production * self = (Production *)production;
     

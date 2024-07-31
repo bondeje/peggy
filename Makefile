@@ -26,6 +26,9 @@ $(OBJ_DIR)/%$(OBJ_SUFFIX): $(SRC_DIR)/%$(SRC_SUFFIX) $(DEP_DIR)/%$(DEP_SUFFIX) |
 
 lib/logger/obj/logger.o: lib/logger/src/logger.c
 	cd lib/logger && $(MAKE_BIN) all && cd ../..
+	
+lib/TypeMemPools/src/mempool.o: lib/TypeMemPools/src/mempool.c
+	(cd lib/TypeMemPools && $(MAKE_BIN))
 
 static_lib: $(LIB_OBJS)
 	$(AR) r $(STATIC_LIB_FILE) $(LIB_OBJS)
@@ -55,6 +58,7 @@ reset:
 	rm -rf $(DEP_DIR)
 	rm -rf $(OBJ_DIR)
 	rm -rf lib/logger/obj
+	(cd lib/TypeMemPools && $(MAKE_BIN) clean)
 
 # must be at least after the initial, default target; otherwise last
 include $(wildcard $(DEPFILES))

@@ -40,6 +40,8 @@ err_type Token_init(Token * self, char const * string, size_t length, unsigned i
     self->coords.line = line;
     self->string = string;
     self->length = length;
+    self->next = NULL;
+    self->prev = NULL;
     return PEGGY_SUCCESS;
 }
 void Token_del(Token * self) {

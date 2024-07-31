@@ -74,6 +74,7 @@ SequenceRule peggy_seq_3_68; // SEQ_3_68
 Production peggy_peggy; // PEGGY
 RepeatRule peggy_rep_1_0_70; // REP_1_0_70
 ChoiceRule peggy_choice_3_71; // CHOICE_3_71
+RepeatRule peggy_rep_0_1_72; // REP_0_1_72
 LITERALRULE(peggy_string_literal_re,STRING_LITERAL_RE,
 	"'((\\\\)\'|[^\'])*'");
 LITERALRULE(vbar,VBAR,
@@ -97,10 +98,14 @@ SEQUENCERULE(peggy_seq_3_38,SEQ_3_38,
 	&lparen.Rule,
 	&peggy_choice.DerivedRule.Rule,
 	&rparen.Rule);
+REPEATRULE(peggy_rep_0_1_72, REP_0_1_72,
+	&comma.Rule,
+	0,
+	1);
 SEQUENCERULE(peggy_seq_5_50,SEQ_5_50,
 	&lbrace.Rule,
 	&peggy_rep_0_1_51.DerivedRule.Rule,
-	&comma.Rule,
+	&peggy_rep_0_1_72.DerivedRule.Rule,
 	&peggy_rep_0_1_51.DerivedRule.Rule,
 	&rbrace.Rule);
 PRODUCTION(peggy_sequence,SEQUENCE,

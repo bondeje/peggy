@@ -21,6 +21,8 @@ struct Token {
     struct TokenType * _class;
     char const * string; /* the string represented by the token*/
     size_t length;
+    Token * prev;
+    Token * next;
 };
 
 extern struct TokenType {

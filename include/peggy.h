@@ -79,6 +79,7 @@ typedef enum peggyrule {
 	PEGGY,
 	REP_1_0_70,
 	CHOICE_3_71,
+	REP_0_1_72,
 	PEGGY_NRULES
 } peggyrule;
 
@@ -88,3 +89,4 @@ extern Production peggy_peggy;
 void peggy_dest(void);
 
 #endif //PEGGY_H
+

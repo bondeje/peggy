@@ -17,6 +17,8 @@ TODO.txt
 *.csv
 examples/rtking
 examples/shh
+.bash_history
+*.log
 
 # development files
 main.c

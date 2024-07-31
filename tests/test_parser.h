@@ -1,0 +1,4 @@
+int test_tokenizer_single_char(void);
+int test_tokenizer_alphanumeric(void);
+int test_tokenizer_hexadecimal(void);
+int test_tokenizer_test_parser_token(void);

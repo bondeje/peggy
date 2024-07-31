@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <peggy/hash_map.h>
 
 #define HASH_MAP_N_MESSAGES 4
@@ -18,7 +19,7 @@ char const * const hs_messages[HASH_SET_N_MESSAGES] = {
     "failure to malloc the set storage"
 };
 
-int uint_comp(size_t a, size_t b) {
+int uintptr_comp(uintptr_t a, uintptr_t b) {
     if (a > b) {
         return 1;
     } else if (a < b) {
@@ -28,7 +29,7 @@ int uint_comp(size_t a, size_t b) {
 }
 
 /* from: https://stackoverflow.com/questions/664014/what-integer-hash-function-are-good-that-accepts-an-integer-hash-key */
-size_t uint_hash(size_t a, size_t hash_size) {
+uintptr_t uintptr_hash(uintptr_t a, uintptr_t hash_size) {
     a = ((a >> 16) ^ a) * 0x45d9f3b;
     a = ((a >> 16) ^ a) * 0x45d9f3b;
     a = (a >> 16) ^ a;
