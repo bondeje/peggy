@@ -14,5 +14,6 @@ int main(int narg, char ** args) {
     nerrors += test_tokenizer_hexadecimal();
     //nerrors += test_tokenizer_hex_alphanum_or_ws();
     nerrors += test_tokenizer_test_parser_token();
+    test_parser_cleanup();
     return nerrors;
 }

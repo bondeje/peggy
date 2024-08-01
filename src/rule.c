@@ -1,4 +1,4 @@
-#ifdef Linux
+#ifdef __linux__
 #define _GNU_SOURCE
 #endif
 
@@ -9,13 +9,13 @@
 #include <assert.h>
 
 /* POSIX includes */
-#ifdef Linux
+#ifdef __linux__
 #include <regex.h>
 #endif
 
 /* lib includes */
 #include <logger.h>
-#ifndef Linux
+#ifndef __linux__
 // basically anywhere that does not have _GNU_SOURCE, which is apparently everywhere other than non-Android Linux
 // regex alternative
 #ifndef PCRE2_CODE_UNIT_WIDTH
@@ -371,15 +371,15 @@ LiteralRule * LiteralRule_new(rule_id_type id, char const * regex_s) {
     return ret;
 }
 
-#ifndef Linux
+#ifndef __linux__
 PCRE2_SIZE pcre2_err_offset;
 int pcre2_err_code;
 #endif
 
 err_type LiteralRule_compile_regex(LiteralRule * self) {
-    LOG_EVENT(NULL, LOG_LEVEL_DEBUG, "INFO: %s - compiling regex %s\n", __func__, self->regex_s);
+    //LOG_EVENT(NULL, LOG_LEVEL_DEBUG, "INFO: %s - compiling regex %s\n", __func__, self->regex_s);
     //printf("LiteralRule...compiling: %s\n", self->regex_s);
-#ifdef Linux
+#ifdef __linux__
     re_set_syntax(DEFAULT_RE_SYNTAX);
     char const * err_message = re_compile_pattern(self->regex_s, strlen(self->regex_s), 
                     &self->regex);
@@ -407,7 +407,7 @@ err_type LiteralRule_compile_regex(LiteralRule * self) {
 err_type LiteralRule_init(LiteralRule * self, rule_id_type id, char const * regex_s) {
     Rule * rule = (Rule *)self;
     rule->_class->init(rule, id);
-#ifndef Linux
+#ifndef __linux__
     self->regex_s = (PCRE2_SPTR)regex_s;
     /* TODO: add failure check */
 #else
@@ -421,8 +421,8 @@ err_type LiteralRule_init(LiteralRule * self, rule_id_type id, char const * rege
 }
 
 void LiteralRule_dest(LiteralRule * self) {
-    LOG_EVENT(NULL, LOG_LEVEL_DEBUG, "INFO: %s - freeing regex data for rule id %d with regex %s\n", __func__, self->Rule.id, self->regex_s);
-#ifdef Linux
+    //LOG_EVENT(NULL, LOG_LEVEL_DEBUG, "INFO: %s - freeing regex data for rule id %d with regex %s\n", __func__, self->Rule.id, self->regex_s);
+#ifdef __linux__
     regfree(&(self->regex));
 #else
     pcre2_code_free(self->regex);
@@ -466,7 +466,7 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser) {
     if (tok->length == 0) { // token retrieved is empty
         return &ASTNode_fail;
     }
-#ifdef Linux
+#ifdef __linux__
     int length = re_match(&self->regex,
           tok->string, tok->length, 
           0, NULL);

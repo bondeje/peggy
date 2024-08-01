@@ -1,7 +1,7 @@
 #ifndef PEGGY_RULE_H
 #define PEGGY_RULE_H
 
-#ifdef Linux
+#ifdef __linux__
 #define _GNU_SOURCE
 #endif
 
@@ -9,12 +9,12 @@
 #include <stddef.h>
 
 /* POSIX */
-#ifdef Linux
+#ifdef __linux__
 #include <regex.h>
 #endif
 
 /* lib includes */
-#ifndef Linux
+#ifndef __linux__
 #ifndef PCRE2_CODE_UNIT_WIDTH
 #define PCRE2_CODE_UNIT_WIDTH 8
 #endif
@@ -209,7 +209,7 @@ typedef struct LiteralRule LiteralRule;
 struct LiteralRule {
     Rule Rule;
     struct LiteralRuleType * _class;
-#ifdef Linux
+#ifdef __linux__
     char const * regex_s;
     regex_t regex;
 #else

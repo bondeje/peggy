@@ -11,8 +11,8 @@ NDEBUG =
 LIBS = 
 SHARED_EXT = .so
 EXE_EXT = 
-#DYNAMIC_LFLAGS = -L../bin -lpeggy
-DYNAMIC_LFLAGS = 
+DYNAMIC_LFLAGS = -L../bin -lpeggy
+#DYNAMIC_LFLAGS = 
 ifeq ($(OS), Windows_NT)
 	LIBS = -lregex
 	SHARED_EXT = .dll
@@ -24,7 +24,7 @@ else
 endif
 ifeq ($(NDEBUG), 1)
 else
-	CFLAGS += -g 
+	CFLAGS += -g3 
 	ifneq ($(OS),Windows_NT)
 # sanitizer options are not available on Windows
 #		CFLAGS += -fsanitize=address,undefined
@@ -45,11 +45,12 @@ $(SLIB):
 clean:
 	rm -rf testlangparser.log testlang.c testlang.h testdeque.exe test_PackratCache.exe
 	rm -f *.o
+	rm -f test
 
 TEST_OBJS = test_parser.o test_driver.o test_utils.o
 
 test: $(TEST_OBJS)
-	$(CC) $(CFLAGS) -O0 $(IFLAGS) $(TEST_OBJS) ../bin/libpeggy.a -o $@$(EXE_EXT) $(DYNAMIC_LFLAGS)
+	$(CC) $(CFLAGS) -O0 $(IFLAGS) $(TEST_OBJS) -o $@$(EXE_EXT) $(DYNAMIC_LFLAGS)
 	cp ../bin/libpeggy.dll . | true
 	cp ../bin/libpcre2-8.dll . | true
 

@@ -158,7 +158,7 @@ static void CAT(STACK_TYPE, _for_each)(STACK_TYPE * stack, int (*handle_item)(vo
 static err_type CAT(STACK_TYPE, _resize)(STACK_TYPE * stack, size_t new_capacity) {
     //printf("realloc from %zu to new size %zu in stack...", stack->capacity, new_capacity);
     //ELEMENT_TYPE * new_bins = realloc(stack->bins, sizeof(*stack->bins) * new_capacity);
-    ELEMENT_TYPE * new_bins = calloc(sizeof(*stack->bins), new_capacity);
+    ELEMENT_TYPE * new_bins = calloc(new_capacity, sizeof(*stack->bins));
     if (!new_bins) {
         return PEGGY_MALLOC_FAILURE;
     }

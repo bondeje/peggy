@@ -62,8 +62,21 @@ PRODUCTION(test_parser_token, TEST_PARSER_TOKEN,
 	(Rule *)&hex_alphanum_or_ws,
 	token_action);
 
+void test_parser_cleanup(void) {
+    test_parser_token._class->dest(&test_parser_token);
+    hex_alphanum_or_ws._class->dest(&hex_alphanum_or_ws);
+    letter._class->dest(&letter);
+    letter_token._class->dest(&letter_token);
+    digit._class->dest(&digit);
+    hexadecimal_digit._class->dest(&hexadecimal_digit);
+    hexadecimal_token._class->dest(&hexadecimal_token);
+    alphanumeric._class->dest(&alphanumeric);
+    alphanumeric_token._class->dest(&alphanumeric_token);
+    whitespace._class->dest(&whitespace);
+    whitespace_re._class->dest(&whitespace_re);
+}
+
 int test_tokenizer_single_char(void) {
-    //printf("letter is %s\n", letter.compiled == true ? "compiled" : "not compiled");
     int nerrors = 0;
     char const * string = "pneumonoultramicroscopicsilicovolcanoconiosis";
     size_t N = strlen(string);

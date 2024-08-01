@@ -4,7 +4,7 @@
 #define REGEX_LEFT 
 #define REGEX_RIGHT
 
-#ifndef Linux
+#ifndef __linux__
     #define REGEX_CAST (PCRE2_SPTR)
 #else
     #define REGEX_CAST
