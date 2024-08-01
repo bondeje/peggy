@@ -347,6 +347,7 @@ void Parser_print_tokens(Parser * self, FILE * stream) {
         tok = tok->next;
     }
     fprintf(stream, "\n");
+    fflush(stream);
 }
 
 err_type Parser_print_ast(Parser * self, FILE * stream) {
@@ -377,7 +378,7 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
         }
         // print the information to the buffer
         // TODO: should really only print if the rule is an instance of LiteralRule
-        if (!pair.node->nchildren) { // the node is a token leaf in the AST tree. Print the node and token into the buffer
+        if (!pair.node->nchildren && pair.node->str_length) { // the node is a token leaf in the AST tree. Print the node and token into the buffer
             Token * tok = pair.node->token_start;
             fprintf(stream, "%*s%s: rule id: %d, nchildren: %zu, token: %.*s ", (int)pair.size * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->nchildren, (int)tok->length, tok->string);
             while (tok != pair.node->token_end) {

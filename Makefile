@@ -9,9 +9,10 @@ environment:
 	@echo sanitize: $(SANITIZE)
 	@echo no debug: $(NDEBUG)
 
+# need to fix this
 ifneq ($(UNAME), Linux)
 move_regex:
-	cp $(LIB_DIR)/pcre2/bin/libpcre2-8.* $(BIN_DIR)
+	cp $(LIB_DIR)/pcre2/bin/libpcre2-8.* $(BIN_DIR) | true
 else
 move_regex:
 

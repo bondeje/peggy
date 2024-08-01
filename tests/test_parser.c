@@ -6,6 +6,7 @@
 #include <peggy/parser_gen.h>
 
 #include "test_utils.h"
+#include "test_parser.h"
 
 enum rules {
     LETTER,
@@ -111,7 +112,7 @@ int test_tokenizer_single_char(void) {
     size_t N = strlen(string);
 
     Parser parser;
-    Parser_init(&parser, "test_tokenizer_single_char", strlen("test_tokenizer_single_char"), (Rule *)&letter_token, NULL, LETTER_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&letter_token, NULL, LETTER_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur = parser._class->tokenize(&parser, string, N);
     size_t ntokens = 0;
@@ -125,7 +126,7 @@ int test_tokenizer_single_char(void) {
     Parser_dest(&parser);
 
     if (verbose) {
-        printf("test_tokenizer_single_char...%s!\n", nerrors ? "failed" : "passed");
+        printf("%s...%s!\n", __func__, nerrors ? "failed" : "passed");
     }
 
     return nerrors;
@@ -137,7 +138,7 @@ int test_tokenizer_alphanumeric(void) {
     size_t N = strlen(string);
 
     Parser parser;
-    Parser_init(&parser, "test_tokenizer_alphanumeric", strlen("test_tokenizer_alphanumeriC"), (Rule *)&alphanumeric_token, NULL, ALPHANUMERIC_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&alphanumeric_token, NULL, ALPHANUMERIC_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur = parser._class->tokenize(&parser, string, N);
     size_t ntokens = 0;
@@ -151,7 +152,7 @@ int test_tokenizer_alphanumeric(void) {
     Parser_dest(&parser);
 
     if (verbose) {
-        printf("test_tokenizer_alphanumeric...%s!\n", nerrors ? "failed" : "passed");
+        printf("%s...%s!\n", __func__, nerrors ? "failed" : "passed");
     }
 
     return nerrors;
@@ -163,7 +164,7 @@ int test_tokenizer_hexadecimal(void) {
     size_t N = strlen(string);
 
     Parser parser;
-    Parser_init(&parser, "test_tokenizer_hexadecimal", strlen("test_tokenizer_hexadecimal"), (Rule *)&hexadecimal_token, NULL, HEXADECIMAL_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&hexadecimal_token, NULL, HEXADECIMAL_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur = parser._class->tokenize(&parser, string, N);
     size_t ntokens = 0;
@@ -179,7 +180,7 @@ int test_tokenizer_hexadecimal(void) {
     Parser_dest(&parser);
 
     if (verbose) {
-        printf("test_tokenizer_hexadecimal...%s!\n", nerrors ? "failed" : "passed");
+        printf("%s...%s!\n", __func__, nerrors ? "failed" : "passed");
     }
 
     return nerrors;
@@ -198,7 +199,7 @@ int test_tokenizer_test_parser_token(void) {
     size_t N = sizeof(result_tokens)/sizeof(result_tokens[0]);
 
     Parser parser;
-    Parser_init(&parser, "test_tokenizer_test_parser_token", strlen("test_tokenizer_test_parser_token"), (Rule *)&test_parser_token, NULL, TEST_PARSER_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&test_parser_token, NULL, TEST_PARSER_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur = parser._class->tokenize(&parser, string, strlen(string));
     size_t ntokens = 0;
@@ -222,7 +223,7 @@ int test_tokenizer_test_parser_token(void) {
     Parser_dest(&parser);
 
     if (verbose) {
-        printf("test_tokenizer_test_parser_token...%s!\n", nerrors ? "failed" : "passed");
+        printf("%s...%s!\n", __func__, nerrors ? "failed" : "passed");
     }
 
     return nerrors;
@@ -241,10 +242,9 @@ int test_parser_doc(void) {
     size_t N = sizeof(result_tokens)/sizeof(result_tokens[0]);
 
     Parser parser;
-    Parser_init(&parser, "test_parser_doc", strlen("test_parser_doc"), (Rule *)&test_parser_token, (Rule *)&doc, DOC+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&test_parser_token, (Rule *)&doc, DOC+1, 0, test_log_file, LOG_LEVEL_ERROR);
     
     parser._class->parse(&parser, string, strlen(string));
-
     FILE * ast_out = fopen("test_parser_doc_ast.txt", "w");
     Parser_print_tokens(&parser, ast_out);
     Parser_print_ast(&parser, ast_out);
@@ -253,7 +253,7 @@ int test_parser_doc(void) {
     Parser_dest(&parser);
 
     if (verbose) {
-        printf("test_parser_doc...%s!\n", nerrors ? "failed" : "passed");
+        printf("%s...%s!\n", __func__, nerrors ? "failed" : "passed");
     }
 
     return nerrors;

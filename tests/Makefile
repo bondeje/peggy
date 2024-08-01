@@ -48,10 +48,10 @@ clean:
 	rm -f test
 	rm -f *.dll
 	rm -f *.exe
-	rm -f test_parser_doc_ast.txt
+	rm -f *.txt
 	rm -f *.log
 
-TEST_OBJS = test_parser.o test_driver.o test_utils.o
+TEST_OBJS = test_parser.o test_driver.o test_utils.o test_rules.o
 
 test: $(TEST_OBJS)
 	$(CC) $(CFLAGS) -O0 $(IFLAGS) $(TEST_OBJS) -o $@$(EXE_EXT) $(DYNAMIC_LFLAGS)

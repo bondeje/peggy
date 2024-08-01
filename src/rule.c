@@ -87,7 +87,7 @@ ASTNode * Rule_check_rule_(Rule * self, Parser * parser) {
 
 ASTNode * Rule_check(Rule * self, Parser * parser) {
     Token * tok = Parser_tell(parser);
-    if (!tok || !tok->length) {
+    if (!tok) {
         return &ASTNode_fail;
     }
     LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d (type: %s) line: %hu, col: %hu\n", __func__, self->id, self->_class->type_name, tok->coords.line, tok->coords.col);
@@ -760,6 +760,9 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser) {
         tail->next = node;
         tail = node;
         nchildren++;
+        if (self->max_rep && nchildren == self->max_rep) {
+            break;
+        }
         node = derived_rule_check(derived_rule, parser);
     }
     //printf("repeat rule %d finished initial check with %zu children\n", repeat_rule->id, nchildren);
@@ -834,10 +837,13 @@ ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * pars
     //printf("checking negative lookahead rule. id: %d\n", negative_lookahead->id);
     NegativeLookahead * self = (NegativeLookahead *)negative_lookahead;
     Token * tok = Parser_tell(parser);
+    if (!tok->length) {
+        return Parser_add_node(parser, negative_lookahead, tok->prev, tok->prev, 0, 0, NULL, 0);
+    }
     ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
     if (node == &ASTNode_fail) {
         parser->_class->seek(parser, tok);
-        return &ASTNode_lookahead;
+        return Parser_add_node(parser, negative_lookahead, tok->prev, tok->prev, 0, 0, NULL, 0);
     }
     return &ASTNode_fail;
 }
@@ -905,7 +911,7 @@ ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * pars
     ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
     if (node != &ASTNode_fail) {
         parser->_class->seek(parser, tok);
-        return &ASTNode_lookahead;
+        return Parser_add_node(parser, positive_lookahead, tok->prev, tok->prev, 0, 0, NULL, 0);
     }
     return node;
 }

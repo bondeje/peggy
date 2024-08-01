@@ -20,7 +20,6 @@ struct ASTNodeType ASTNode_class = {
 ASTNode ASTNode_fail = ASTNode_DEFAULT_INIT;
 ASTNode ASTNode_lookahead = {
     ._class = &ASTNode_class,
-    .str_length = 1, /* this indicates the node is skipped/not processed  */
     // all others are 0/NULL
 };
 
