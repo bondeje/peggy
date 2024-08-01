@@ -27,7 +27,7 @@ else
 	CFLAGS += -g3 
 	ifneq ($(OS),Windows_NT)
 # sanitizer options are not available on Windows
-#		CFLAGS += -fsanitize=address,undefined
+		CFLAGS += -fsanitize=address,undefined
 	endif
 endif
 
@@ -46,6 +46,10 @@ clean:
 	rm -rf testlangparser.log testlang.c testlang.h testdeque.exe test_PackratCache.exe
 	rm -f *.o
 	rm -f test
+	rm -f *.dll
+	rm -f *.exe
+	rm -f test_parser_doc_ast.txt
+	rm -f *.log
 
 TEST_OBJS = test_parser.o test_driver.o test_utils.o
 

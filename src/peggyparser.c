@@ -47,7 +47,7 @@ struct PeggyParserType PeggyParser_class = {
         //.estimate_final_ntokens_ = &Parser_estimate_final_ntokens,
         .add_token = &Parser_add_token, 
         .add_node = &Parser_add_node,
-        .gen_next_token_ = &Parser_gen_next_token_, 
+        //.gen_next_token_ = &Parser_gen_next_token_, 
         //.get = &Parser_get, 
         //.get_tokens = &Parser_get_tokens, 
         .parse = &PeggyParser_parse,
@@ -67,7 +67,7 @@ struct PeggyParser peggy = {
         .name = "",
         .log_file = NULL,
         .logger = DEFAULT_LOGGER_INIT,
-        .disable_cache_check = false,
+        .tokenizing = false,
         .ast = NULL
     },
     ._class = &PeggyParser_class,

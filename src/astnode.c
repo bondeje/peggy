@@ -38,6 +38,7 @@ ASTNode * ASTNode_new(Rule * rule, Token * start, Token * end, size_t str_length
     return ret;
 }
 err_type ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * child) {
+    self->_class = &ASTNode_class;
     self->child = child;
     for (; child; child = child->next) {
         child->parent = self;

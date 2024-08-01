@@ -97,7 +97,9 @@ ASTNode * Rule_check(Rule * self, Parser * parser) {
     ASTNode * res = parser->_class->check_cache(parser, self->id, tok);
     if (res) {
         LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d retrieved from cache!\n", __func__, self->id);
-        parser->_class->seek(parser, res->token_end->next);
+        if (res != &ASTNode_fail) {
+            parser->_class->seek(parser, res->token_end->next);
+        }
         return res;
     }
 
@@ -247,18 +249,30 @@ void SequenceRule_as_Rule_del(Rule * sequence_rule) {
 ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser) {
     //printf("checking sequence rule. id: %d\n", sequence_rule->id);
     SequenceRule * self = (SequenceRule *)sequence_rule;
-    ASTNode child = {0};
-    ASTNode * tail = &child;
     size_t nchildren = 0;
     Token * start = Parser_tell(parser);
+    ASTNode child = {0};
+    ASTNode * tail = &child;
     for (size_t i = 0; i < self->ChainRule.deps_size; i++) {
         ASTNode * child_res = self->ChainRule.deps[i]->_class->check(self->ChainRule.deps[i], parser);
         if (child_res == &ASTNode_fail) {
+            /*
+            while (tail != &child) {
+                ASTNode * temp = tail->prev;
+                tail->prev = NULL;
+                tail = temp;
+                tail->next = NULL;
+            }
+            */
             return child_res;
         }
+        tail->next = child_res;
+        child_res->prev = tail;
+        tail = child_res;
+        nchildren++;
     }
-
     Token * end = Parser_tell(parser);
+    // should assert end == Parser_tell(parser);
     return parser->_class->add_node(parser, sequence_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), nchildren, child.next, 0);
 }
 
@@ -466,15 +480,18 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser) {
     if (tok->length == 0) { // token retrieved is empty
         return &ASTNode_fail;
     }
+    int length = -1;
 #ifdef __linux__
-    int length = re_match(&self->regex,
+    length = re_match(&self->regex,
           tok->string, tok->length, 
           0, NULL);
+    /*
     if (length >= 0) {
-        //parser->_class->seek(parser, tok->next);
+        parser->_class->seek(parser, tok->next);
         LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - literal rule (id %d) regex %s matched with length %d!\n", __func__, literal_rule->id, self->regex_s, length);
         return parser->_class->add_node(parser, literal_rule, tok, tok, length, 0, NULL, 0);
     }
+    */
 #else 
     int rc = pcre2_match(
         self->regex,                   /* the compiled pattern */
@@ -487,16 +504,14 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser) {
         );
     if (rc >= 0) { // I think this means successful return. The official documentation does not say anything along the lines of "returns X on success, Y on failure", but pcre2demo handles errors when rc < 0
         PCRE2_SIZE * result = pcre2_get_ovector_pointer(self->match);
-        size_t length = (result[1] - result[0]);
-        ASTNode * node = parser->_class->add_node(parser, literal_rule, tok, tok, length, 0, NULL, 0);
-        //if (length < tok->length) {
-        //    Parser_add_token(parser, node);
-        //}
-        //Parser_seek(parser, tok->next);
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - literal rule (id %d) regex %s matched with length %d! - %.*s\n", __func__, literal_rule->id, (char *)self->regex_s, length, (int)length, tok->string);
-        return node;
+        length = (result[1] - result[0]);
     }
 #endif
+    if (length > 0 && (parser->tokenizing || (size_t)length == tok->length)) {
+        Parser_seek(parser, tok->next);
+        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - literal rule (id %d) regex %s matched with length %d! - %.*s\n", __func__, literal_rule->id, (char *)self->regex_s, length, (int)length, tok->string);
+        return parser->_class->add_node(parser, literal_rule, tok, tok, length, 0, NULL, 0);
+    }
     return &ASTNode_fail;
 }
 

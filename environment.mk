@@ -58,7 +58,7 @@ else
 # ensure build is explicitly compatible with valgrind 
 # (https://github.com/google/sanitizers/issues/810, which still seems relevant)
 		CFLAGS += -fsanitize=address,undefined
-		LIBS += -lubsan -lasan
+#		LIBS += -lubsan -lasan # should not be needed
 	endif
 	endif
 endif

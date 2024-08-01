@@ -40,6 +40,7 @@ struct Parser {
     MemPoolManager * token_mgr;
     Token * token_head;
     Token * token_cur;
+    Token * token_tail;
     Rule * token_rule;
     Rule * root_rule;
     char const * name; /* usually file name */
@@ -48,7 +49,7 @@ struct Parser {
     // size_t loc_; /* location in token stream */
     size_t name_length;
     //size_t string_length;
-    bool disable_cache_check;
+    bool tokenizing;
     ASTNode * ast;
     unsigned int flags;
 };
@@ -78,7 +79,7 @@ extern struct ParserType {
     err_type (*skip_token)(Parser * parser, ASTNode * node);
     err_type (*add_token)(Parser * parser, ASTNode * node);
     ASTNode * (*add_node)(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * child, size_t size);
-    bool (*gen_next_token_)(Parser * parser);
+    //bool (*gen_next_token_)(Parser * parser);
     void (*parse)(Parser * parser, char const * string, size_t string_length);
     Token * (*tokenize)(Parser * self, char const * string, size_t string_length);
     ASTNode * (*check_cache)(Parser * self, rule_id_type rule_id, Token * tok);
@@ -111,6 +112,7 @@ void Parser_parse(Parser * parser, char const * string, size_t string_length);
 ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, Token * tok);
 void Parser_cache_check(Parser * self, rule_id_type rule_id, Token * tok, ASTNode * node);
 err_type Parser_traverse(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
+void Parser_print_tokens(Parser * self, FILE * stream);
 err_type Parser_print_ast(Parser * parser, FILE * stream);
 
 // use in e.g. WHITESPACE or comments

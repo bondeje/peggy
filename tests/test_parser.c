@@ -18,7 +18,12 @@ enum rules {
     WHITESPACE_RE,
     WHITESPACE,
     HEX_ALPHANUM_OR_WS,
-    TEST_PARSER_TOKEN
+    TEST_PARSER_TOKEN,
+    HEX_WORD,
+    ALPHA_WORD,
+    WORD,
+    WORDS,
+    DOC
 };
 
 LITERALRULE(letter,LETTER,
@@ -62,6 +67,28 @@ PRODUCTION(test_parser_token, TEST_PARSER_TOKEN,
 	(Rule *)&hex_alphanum_or_ws,
 	token_action);
 
+SEQUENCERULE(hex_word, HEX_WORD,
+    (Rule *)&hexadecimal_digit,
+    (Rule *)&hexadecimal_digit);
+
+SEQUENCERULE(alpha_word, ALPHA_WORD,
+    (Rule *)&alphanumeric,
+    (Rule *)&alphanumeric);
+
+CHOICERULE(word, WORD,
+    (Rule *)&hex_word,
+    (Rule *)&alpha_word,
+    (Rule *)&hexadecimal_digit,
+    (Rule *)&alphanumeric);
+
+REPEATRULE(words, WORDS,
+    (Rule *)&word,
+    1,
+    0);
+
+PRODUCTION(doc, DOC,
+    (Rule *)&words);
+
 void test_parser_cleanup(void) {
     test_parser_token._class->dest(&test_parser_token);
     hex_alphanum_or_ws._class->dest(&hex_alphanum_or_ws);
@@ -74,6 +101,8 @@ void test_parser_cleanup(void) {
     alphanumeric_token._class->dest(&alphanumeric_token);
     whitespace._class->dest(&whitespace);
     whitespace_re._class->dest(&whitespace_re);
+    hex_word._class->dest(&hex_word);
+    alpha_word._class->dest(&alpha_word);
 }
 
 int test_tokenizer_single_char(void) {
@@ -82,7 +111,7 @@ int test_tokenizer_single_char(void) {
     size_t N = strlen(string);
 
     Parser parser;
-    Parser_init(&parser, "test_tokenizer_single_char", strlen("test_tokenizer_single_char"), (Rule *)&letter_token, NULL, LETTER_TOKEN+1, 0, test_log_file, LOG_LEVEL_DEBUG);
+    Parser_init(&parser, "test_tokenizer_single_char", strlen("test_tokenizer_single_char"), (Rule *)&letter_token, NULL, LETTER_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur = parser._class->tokenize(&parser, string, N);
     size_t ntokens = 0;
@@ -156,10 +185,6 @@ int test_tokenizer_hexadecimal(void) {
     return nerrors;
 }
 
-/*
- * unlike the test above, this one -- using a production that has the 
- * "token_action" build action -- should remove whitespace from the token list
- */
 int test_tokenizer_test_parser_token(void) {
     int nerrors = 0;
     char const * string = "0a bcde1fgh i j 2 k lm no 3p qr s t4 uv wx y 5 z AB CD 6E FG HI7 J KL M N8 O P Q RS 9 T UV W XY Z";
@@ -198,6 +223,37 @@ int test_tokenizer_test_parser_token(void) {
 
     if (verbose) {
         printf("test_tokenizer_test_parser_token...%s!\n", nerrors ? "failed" : "passed");
+    }
+
+    return nerrors;
+}
+
+int test_parser_doc(void) {
+    int nerrors = 0;
+    char const * string = "0a bcde1fgh i j 2 k lm no 3p qr s t4 uv wx y 5 z AB CD 6E FG HI7 J KL M N8 O P Q RS 9 T UV W XY Z a";
+    char * result_tokens[] = {"0a","bc","de","1f","g","h","i","j",
+                        "2","k","l","m","n","o","3","p",
+                        "q","r","s","t","4","u","v","w",
+                        "x","y","5","z","AB","CD","6E","F",
+                        "G","H","I","7","J","K","L","M",
+                        "N","8","O","P","Q","R","S","9",
+                        "T","U","V","W","X","Y","Z", "a"};
+    size_t N = sizeof(result_tokens)/sizeof(result_tokens[0]);
+
+    Parser parser;
+    Parser_init(&parser, "test_parser_doc", strlen("test_parser_doc"), (Rule *)&test_parser_token, (Rule *)&doc, DOC+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    
+    parser._class->parse(&parser, string, strlen(string));
+
+    FILE * ast_out = fopen("test_parser_doc_ast.txt", "w");
+    Parser_print_tokens(&parser, ast_out);
+    Parser_print_ast(&parser, ast_out);
+    fclose(ast_out);
+    
+    Parser_dest(&parser);
+
+    if (verbose) {
+        printf("test_parser_doc...%s!\n", nerrors ? "failed" : "passed");
     }
 
     return nerrors;

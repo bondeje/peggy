@@ -1,9 +1,6 @@
 [submodule "lib/logger"]
 	path = lib/logger
 	url = https://github.com/bondeje/logger.git
-[submodule "lib/Unity"]
-	path = tests/Unity
-	url = https://github.com/ThrowTheSwitch/Unity.git
 [submodule "TypeMemPools"]
 	path = lib/TypeMemPools
 	url = https://github.com/bondeje/TypeMemPools.git
