@@ -14,6 +14,7 @@ COMMON_IFLAGS = -Iinclude -Ilib/logger/include/ -Ilib/TypeMemPools/include/
 DBG_IFLAGS = $(COMMON_IFLAGS)
 IFLAGS = $(COMMON_IFLAGS)
 COMMON_LFLAGS = -Lbin -Wl,-rpath .
+LIB_LFLAGS = $(COMMON_LFLAGS) -lpcre2-8
 DBG_LFLAGS = $(COMMON_LFLAGS)
 LFLAGS = $(COMMON_LFLAGS)
 
@@ -35,18 +36,18 @@ ext_libs: $(EXT_LIB_OBJS) $(DBG_EXT_LIB_OBJS)
 clean:
 	@rm -f src/*.o src/*.do
 	@rm -rf bin
-	(cd tests && unset MAKELEVEL && make clean)
-	(cd lib/TypeMemPools && unset MAKELEVEL && make clean)
-	(cd lib/logger && unset MAKELEVEL && make clean)
+	@(cd tests && unset MAKELEVEL && make clean)
+	@(cd lib/TypeMemPools && unset MAKELEVEL && make clean)
+	@(cd lib/logger && unset MAKELEVEL && make clean)
 
 build_paths:
 	mkdir -p bin
 
 bin/lib$(NAME).so: build_paths ext_libs $(LIB_OBJS)
-	$(CC) -shared -fPIC $(LIB_OBJS) $(EXT_LIB_OBJS) -o $@
+	$(CC) -shared -fPIC $(LIB_OBJS) $(EXT_LIB_OBJS) -o $@ $(LIB_LFLAGS)
 
 bin/lib$(NAME)d.so: build_paths ext_libs $(DBG_LIB_OBJS)
-	$(CC) -shared -fPIC $(DBG_LIB_OBJS) $(DBG_EXT_LIB_OBJS) -o $@
+	$(CC) -shared -fPIC $(DBG_LIB_OBJS) $(DBG_EXT_LIB_OBJS) -o $@ $(LIB_LFLAGS)
 
 bin/$(NAME): build_paths bin/lib$(NAME).so $(EXE_OBJS)
 	$(CC) $(CFLAGS) $(IFLAGS) $(EXE_OBJS) -o $@ $(LFLAGS) -l$(NAME)
