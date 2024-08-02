@@ -5,6 +5,7 @@
 #include <peggy/parser_gen.h>
 
 #include "test_utils.h"
+#include "test_peggy_utils.h"
 #include "test_rules.h"
 
 enum rules {
@@ -188,25 +189,57 @@ void test_rule_cleanup(void) {
 int test_sequence(void) {
     int nerrors = 0;
     char const * string = "abbbabaaababbb";
-    char * result_tokens[] = {"aa","bb","ab","aa","ab","ab","bb"};
+    char const * result_tokens[] = {"a","b","b","b","a","b","a","a","a","b","a","b","b","b",NULL};
     size_t N = sizeof(result_tokens)/sizeof(result_tokens[0]);
+    TestASTNode * result_nodes = &TESTASTNODE(9, "a", "b", 7, 
+        &TESTASTNODE(6, "a", "b", 2, 
+            &TESTASTNODE(0, "a", "a", 0, NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, NULLNODE, 
+            NULLNODE)),
+        &TESTASTNODE(5, "b", "b", 2, 
+            &TESTASTNODE(1, "b", "b", 0, NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, NULLNODE, 
+            NULLNODE)),
+        &TESTASTNODE(6, "a", "b", 2, 
+            &TESTASTNODE(0, "a", "a", 0, NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, NULLNODE, 
+            NULLNODE)),
+        &TESTASTNODE(4, "a", "a", 2, 
+            &TESTASTNODE(0, "a", "a", 0, NULLNODE,
+            &TESTASTNODE(0, "a", "a", 0, NULLNODE, 
+            NULLNODE)),
+        &TESTASTNODE(6, "a", "b", 2, 
+            &TESTASTNODE(0, "a", "a", 0, NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, NULLNODE, 
+            NULLNODE)),
+        &TESTASTNODE(6, "a", "b", 2, 
+            &TESTASTNODE(0, "a", "a", 0, NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, NULLNODE, 
+            NULLNODE)),
+        &TESTASTNODE(5, "b", "b", 2, 
+            &TESTASTNODE(1, "b", "b", 0, NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, NULLNODE, 
+            NULLNODE)),
+        NULLNODE))))))),
+        NULLNODE);
 
     Parser parser;
     Parser_init(&parser, __func__, strlen(__func__), (Rule *)&ab_letter_token, (Rule *)&seq_parser, SEQ_PARSER+1, 0, test_log_file, LOG_LEVEL_ERROR);
     
     parser._class->parse(&parser, string, strlen(string));
+    nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
+    nerrors += check_ASTNodes(parser.ast, result_nodes, __FILE__, __func__, __LINE__);
+    /* // for print debugging
     FILE * ast_out = fopen("test_sequence_ast.txt", "w");
     nerrors += CHECK(parser.ast != &ASTNode_fail, "failed to parse string in %s\n", __func__);
-
-    // TODO: replace printing with checks
     Parser_print_tokens(&parser, ast_out);
     Parser_print_ast(&parser, ast_out);
     fclose(ast_out);
-
+    */
     Parser_dest(&parser);
 
     if (verbose) {
-        printf("%s...%s!\n", __func__, nerrors ? "failed" : "passed");
+        printf("%s...%s with %d errors!\n", __func__, nerrors ? "failed" : "passed", nerrors);
     }
 
     return nerrors;
@@ -215,26 +248,80 @@ int test_sequence(void) {
 int test_repeat(void) {
     int nerrors = 0;
     char const * string = "aaabbbbbbbaaaaaaaa";
-    char * result_tokens[] = {"a","a","a","b","b","b","b","b","b","b","a","a","a","a","a","a","a","a"};
+    char const * result_tokens[] = {"a","a","a","b","b","b","b","b","b","b","a","a","a","a","a","a","a","a",NULL};
     size_t N = sizeof(result_tokens)/sizeof(result_tokens[0]);
+    TestASTNode * result_nodes = &TESTASTNODE(20, "a", "a", 3, 
+        &TESTASTNODE(17, "a", "a", 2, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE,
+            &TESTASTNODE(14, "a", "a", 1, 
+                &TESTASTNODE(0, "a", "a", 0,
+                    NULLNODE,
+                NULLNODE), 
+            NULLNODE)),
+        &TESTASTNODE(17, "a", "a", 2, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE,
+            &TESTASTNODE(14, "", "", 0, 
+                NULLNODE, 
+            NULLNODE)),
+        &TESTASTNODE(16, "b", "a", 2, 
+            &TESTASTNODE(13, "b", "b", 7, 
+                &TESTASTNODE(1, "b", "b", 0,
+                    NULLNODE,
+                &TESTASTNODE(1, "b", "b", 0,
+                    NULLNODE,
+                &TESTASTNODE(1, "b", "b", 0,
+                    NULLNODE,
+                &TESTASTNODE(1, "b", "b", 0,
+                    NULLNODE,
+                &TESTASTNODE(1, "b", "b", 0,
+                    NULLNODE,
+                &TESTASTNODE(1, "b", "b", 0,
+                    NULLNODE,
+                &TESTASTNODE(1, "b", "b", 0,
+                    NULLNODE,
+                NULLNODE))))))),
+            &TESTASTNODE(10, "a", "a", 8, 
+                &TESTASTNODE(0, "a", "a", 0,
+                    NULLNODE,
+                &TESTASTNODE(0, "a", "a", 0,
+                    NULLNODE,
+                &TESTASTNODE(0, "a", "a", 0,
+                    NULLNODE,
+                &TESTASTNODE(0, "a", "a", 0,
+                    NULLNODE,
+                &TESTASTNODE(0, "a", "a", 0,
+                    NULLNODE,
+                &TESTASTNODE(0, "a", "a", 0,
+                    NULLNODE,
+                &TESTASTNODE(0, "a", "a", 0,
+                    NULLNODE,
+                &TESTASTNODE(0, "a", "a", 0,
+                    NULLNODE,
+                NULLNODE)))))))),
+            NULLNODE)),
+        NULLNODE))),
+        NULLNODE);
 
     Parser parser;
     Parser_init(&parser, __func__, strlen(__func__), (Rule *)&ab_letter_token, (Rule *)&rep_parser, REP_PARSER+1, 0, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);
+    nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
+    nerrors += check_ASTNodes(parser.ast, result_nodes, __FILE__, __func__, __LINE__);
+    /*// for print debugging
     FILE * ast_out = fopen("test_repeat_ast.txt", "w");
     nerrors += CHECK(parser.ast != &ASTNode_fail, "failed to parse string in %s\n", __func__);
-
-    // TODO: replace printing with checks
     Parser_print_tokens(&parser, ast_out);
     Parser_print_ast(&parser, ast_out);
     fclose(ast_out);
-
+    */
     Parser_dest(&parser);
 
     if (verbose) {
-        printf("%s...%s!\n", __func__, nerrors ? "failed" : "passed");
+        printf("%s...%s with %d errors!\n", __func__, nerrors ? "failed" : "passed", nerrors);
     }
 
     return nerrors;
@@ -243,26 +330,98 @@ int test_repeat(void) {
 int test_list(void) {
     int nerrors = 0;
     char const * string = "abababaabababababbabababababb";
-    char * result_tokens[] = {"a","b","a","b","a","b","a","a","b","a","b","a","b","a","b","a","b","b","a","b","a","b","a","b","a","b","a","b","b"};
+    char const * result_tokens[] = {"a","b","a","b","a","b","a","a","b","a","b","a","b","a","b","a","b","b","a","b","a","b","a","b","a","b","a","b","b",NULL};
     size_t N = sizeof(result_tokens)/sizeof(result_tokens[0]);
+    TestASTNode * result_nodes = &TESTASTNODE(25, "a", "b", 5, 
+        &TESTASTNODE(22, "a", "a", 7, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE, 
+            NULLNODE))))))),
+        &TESTASTNODE(22, "a", "a", 9, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE, 
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE, 
+            NULLNODE))))))))),
+        &TESTASTNODE(21, "b", "b", 1, 
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE,
+            NULLNODE),
+        &TESTASTNODE(21, "b", "b", 11, 
+            &TESTASTNODE(1, "b", "b", 0,
+                NULLNODE,
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE,
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE, 
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            &TESTASTNODE(0, "a", "a", 0, 
+                NULLNODE, 
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE, 
+            NULLNODE))))))))))),
+        &TESTASTNODE(21, "b", "b", 1, 
+            &TESTASTNODE(1, "b", "b", 0, 
+                NULLNODE,
+            NULLNODE),
+        NULLNODE))))),
+        NULLNODE);
 
     Parser parser;
     Parser_init(&parser, __func__, strlen(__func__), (Rule *)&ab_letter_token, (Rule *)&list_parser, LIST_PARSER+1, 0, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);
-    FILE * ast_out = fopen("test_list_ast.txt", "w");
+    nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
+    nerrors += check_ASTNodes(parser.ast, result_nodes, __FILE__, __func__, __LINE__);
+    /*// for print debugging
+    FILE * ast_out = fopen("test_repeat_ast.txt", "w");
     nerrors += CHECK(parser.ast != &ASTNode_fail, "failed to parse string in %s\n", __func__);
-
-    // TODO: replace printing with checks
     Parser_print_tokens(&parser, ast_out);
     Parser_print_ast(&parser, ast_out);
     fclose(ast_out);
-
+    */
     Parser_dest(&parser);
 
     if (verbose) {
-        printf("%s...%s!\n", __func__, nerrors ? "failed" : "passed");
+        printf("%s...%s with %d errors!\n", __func__, nerrors ? "failed" : "passed", nerrors);
     }
 
     return nerrors;
@@ -271,26 +430,60 @@ int test_list(void) {
 int test_lookahead(void) {
     int nerrors = 0;
     char const * string = "aabbaa";
-    char * result_tokens[] = {"a","a","b","b","a","a"};
+    char const * result_tokens[] = {"a","a","b","b","a","a",NULL};
     size_t N = sizeof(result_tokens)/sizeof(result_tokens[0]);
+    TestASTNode * result_nodes = &TESTASTNODE(34, "a", "a", 3, 
+        &TESTASTNODE(30, "a", "a", 2, 
+            &TESTASTNODE(4, "a", "a", 2, 
+                &TESTASTNODE(0, "a", "a", 0, 
+                    NULLNODE, 
+                &TESTASTNODE(0, "a", "a", 0, 
+                    NULLNODE, 
+                NULLNODE)),
+            &TESTASTNODE(26, "", "", 0, 
+                NULLNODE, 
+            NULLNODE)),
+        &TESTASTNODE(31, "b", "b", 2, 
+            &TESTASTNODE(5, "b", "b", 2, 
+                &TESTASTNODE(1, "b", "b", 0, 
+                    NULLNODE, 
+                &TESTASTNODE(1, "b", "b", 0, 
+                    NULLNODE, 
+                NULLNODE)),
+            &TESTASTNODE(28, "", "", 0, 
+                NULLNODE, 
+            NULLNODE)),
+        &TESTASTNODE(30, "a", "a", 2, 
+            &TESTASTNODE(4, "a", "a", 2, 
+                &TESTASTNODE(0, "a", "a", 0, 
+                    NULLNODE, 
+                &TESTASTNODE(0, "a", "a", 0, 
+                    NULLNODE, 
+                NULLNODE)),
+            &TESTASTNODE(26, "", "", 0, 
+                NULLNODE, 
+            NULLNODE)),
+        NULLNODE))),
+        NULLNODE);
 
     Parser parser;
     Parser_init(&parser, __func__, strlen(__func__), (Rule *)&ab_letter_token, (Rule *)&la_parser, LA_PARSER+1, 0, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);
-    FILE * ast_out = fopen("test_lookahead_ast.txt", "w");
+    nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
+    nerrors += check_ASTNodes(parser.ast, result_nodes, __FILE__, __func__, __LINE__);
+    /*// for print debugging
+    FILE * ast_out = fopen("test_repeat_ast.txt", "w");
     nerrors += CHECK(parser.ast != &ASTNode_fail, "failed to parse string in %s\n", __func__);
-
-    // TODO: replace printing with checks
     Parser_print_tokens(&parser, ast_out);
     Parser_print_ast(&parser, ast_out);
     fclose(ast_out);
-
+    */
     Parser_dest(&parser);
 
     if (verbose) {
-        printf("%s...%s!\n", __func__, nerrors ? "failed" : "passed");
+        printf("%s...%s with %d errors!\n", __func__, nerrors ? "failed" : "passed", nerrors);
     }
 
     return nerrors;

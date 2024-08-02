@@ -1,65 +1,59 @@
-include environment.mk
+.POSIX:
+# just in case FreeBSD's make implementation screws up the current directory
+.OBJDIR: ./
+.SUFFIXES:
+CC = gcc
+NAME = peggy
+MAX_LOGGING_LEVEL = LOG_LEVEL_WARN
+# for use in specifying a PCRE2 path and (for linux) overriding GNU_regex
+PCRE2 = 
+COMMON_CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -std=gnu99 -DMAX_LOGGING_LEVEL=$(MAX_LOGGING_LEVEL) -fPIC
+DBG_CFLAGS = $(COMMON_CFLAGS) -O0 -g3 -fsanitize=address,undefined
+CFLAGS = $(COMMON_CFLAGS) -O2 -DNDEBUG
+COMMON_IFLAGS = -Iinclude -Ilib/logger/include/ -Ilib/TypeMemPools/include/
+DBG_IFLAGS = $(COMMON_IFLAGS)
+IFLAGS = $(COMMON_IFLAGS)
+COMMON_LFLAGS = -Lbin -Wl,-rpath .
+DBG_LFLAGS = $(COMMON_LFLAGS)
+LFLAGS = $(COMMON_LFLAGS)
 
-all: environment build_hierarchy move_regex static_lib dynamic_lib main
-	
-environment:
-	@echo make binary: $(MAKE_BIN)
-	@echo environment: $(UNAME)
-	@echo architecture: $(UNAME_M)
-	@echo sanitize: $(SANITIZE)
-	@echo no debug: $(NDEBUG)
+EXT_LIB_OBJS = lib/logger/src/logger.o lib/TypeMemPools/src/mempool.o
+DBG_EXT_LIB_OBJS = lib/logger/src/logger.do lib/TypeMemPools/src/mempool.do
+LIB_OBJS = src/astnode.o src/hash_utils.o src/packrat_cache.o src/parser.o src/rule.o src/token.o src/utils.o 
+DBG_LIB_OBJS = src/astnode.do src/hash_utils.do src/packrat_cache.do src/parser.do src/rule.do src/token.do src/utils.do
+EXE_OBJS = src/peggy.o src/peggyparser.o
 
-# need to fix this
-ifneq ($(UNAME), Linux)
-move_regex:
-	cp $(LIB_DIR)/pcre2/bin/libpcre2-8.* $(BIN_DIR) | true
-else
-move_regex:
+all: build_paths bin/lib$(NAME).so bin/lib$(NAME)d.so bin/$(NAME) tests/test
 
-endif
+tests/test: bin/lib$(NAME)d.so
+	(cd tests && unset MAKELEVEL && make)
 
-build_hierarchy: $(DEP_DIR) $(OBJ_DIR) $(BIN_DIR)
+ext_libs: $(EXT_LIB_OBJS) $(DBG_EXT_LIB_OBJS)
+	(cd lib/logger && unset MAKELEVEL && make)
+	(cd lib/TypeMemPools && unset MAKELEVEL && make)
 
-$(OBJ_DIR)/%$(OBJ_SUFFIX): $(SRC_DIR)/%$(SRC_SUFFIX)
-$(OBJ_DIR)/%$(OBJ_SUFFIX): $(SRC_DIR)/%$(SRC_SUFFIX) $(DEP_DIR)/%$(DEP_SUFFIX) | $(DEP_DIR)
-	$(CC) -MT $@ $(DEPFLAGS) $(DEP_DIR)/$*$(TEMP_DEP_SUFFIX) $(CLIBFLAGS) $(IFLAGS) -c $< -o $@
-	mv -f $(DEP_DIR)/$*$(TEMP_DEP_SUFFIX) $(DEP_DIR)/$*$(DEP_SUFFIX) && touch $@
+clean:
+	@rm -f src/*.o src/*.do
+	@rm -rf bin
+	(cd tests && unset MAKELEVEL && make clean)
+	(cd lib/TypeMemPools && unset MAKELEVEL && make clean)
+	(cd lib/logger && unset MAKELEVEL && make clean)
 
-lib/logger/obj/logger.o: lib/logger/src/logger.c
-	cd lib/logger && $(MAKE_BIN) all && cd ../..
-	
-lib/TypeMemPools/src/mempool.o: lib/TypeMemPools/src/mempool.c
-	(cd lib/TypeMemPools && $(MAKE_BIN))
+build_paths:
+	mkdir -p bin
 
-static_lib: $(LIB_OBJS)
-	$(AR) r $(STATIC_LIB_FILE) $(LIB_OBJS)
-	mv -f $(STATIC_LIB_FILE) $(BIN_DIR)/$(STATIC_LIB_FILE)
+bin/lib$(NAME).so: build_paths ext_libs $(LIB_OBJS)
+	$(CC) -shared -fPIC $(LIB_OBJS) $(EXT_LIB_OBJS) -o $@
 
-dynamic_lib:
-	$(CC) -shared -fPIC $(LIB_OBJS) -o $(DYN_LIB_FILE) $(LIBS)
-	mv -f $(DYN_LIB_FILE) $(BIN_DIR)/$(DY_LIB_FILE)
+bin/lib$(NAME)d.so: build_paths ext_libs $(DBG_LIB_OBJS)
+	$(CC) -shared -fPIC $(DBG_LIB_OBJS) $(DBG_EXT_LIB_OBJS) -o $@
 
-$(DEP_DIR): ; @mkdir -p $@
+bin/$(NAME): build_paths bin/lib$(NAME).so $(EXE_OBJS)
+	$(CC) $(CFLAGS) $(IFLAGS) $(EXE_OBJS) -o $@ $(LFLAGS) -l$(NAME)
 
-$(OBJ_DIR): ; @mkdir -p $@
+.SUFFIXES: .c .o .do
+.c.o:
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
-$(BIN_DIR): ; @mkdir -p $@
-
-DEPFILES := $(addprefix $(DEP_DIR)/, $(ALL_SRCS:$(SRC_DIR)/%$(SRC_SUFFIX)=%$(DEP_SUFFIX)))
-$(DEPFILES):
-
-main: $(MAIN_SRCS) static_lib
-	$(CC) $(CFLAGS) $(IFLAGS) $(MAIN_SRCS) -L$(BIN_DIR) -o $(BIN_DIR)/$(EXE) -l:$(STATIC_LIB_FILE) $(LIBS)
-
-clean: reset
-	rm -rf $(BIN_DIR)
-
-# reset just deletes dependency folders that might themselves depend on the environment in which they were last built so as to trigger rebuild everything, but keeps binaries
-reset:
-	rm -rf $(DEP_DIR)
-	rm -rf $(OBJ_DIR)
-	rm -rf lib/logger/obj
-	(cd lib/TypeMemPools && $(MAKE_BIN) clean)
-
-# must be at least after the initial, default target; otherwise last
-include $(wildcard $(DEPFILES))
+.c.do:
+	$(CC) $(DBG_CFLAGS) $(DBG_IFLAGS) -c $< -o $@

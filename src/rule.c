@@ -772,8 +772,12 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser) {
         return &ASTNode_fail;
     }
     
-    end = Parser_tell(parser);
-    return parser->_class->add_node(parser, repeat_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), nchildren, child.next, 0);
+    if (nchildren) {
+        end = Parser_tell(parser);
+        return parser->_class->add_node(parser, repeat_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), nchildren, child.next, 0);
+    } else {
+        return parser->_class->add_node(parser, repeat_rule, start, start, 0, nchildren, NULL, 0);
+    }
 }
 
 /* NegativeLookahead implementations */

@@ -21,6 +21,10 @@ examples/shh
 .bash_history
 *.log
 
+# to remove
+Makefile_old
+environment_old.mk
+
 # development files
 main.c
 

@@ -81,7 +81,7 @@ extern struct ParserType {
     ASTNode * (*add_node)(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * child, size_t size);
     //bool (*gen_next_token_)(Parser * parser);
     void (*parse)(Parser * parser, char const * string, size_t string_length);
-    Token * (*tokenize)(Parser * self, char const * string, size_t string_length);
+    size_t (*tokenize)(Parser * self, char const * string, size_t string_length, Token ** start, Token ** end);
     ASTNode * (*check_cache)(Parser * self, rule_id_type rule_id, Token * tok);
     void (*cache_check)(Parser * self, rule_id_type rule_id, Token * tok, ASTNode * node);
     err_type (*traverse)(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
@@ -96,7 +96,7 @@ err_type Parser_init(Parser * parser, char const * name, size_t name_length,
                          char const * log_file, unsigned char log_level);
 void Parser_dest(Parser * parser);
 void Parser_del(Parser * parser);
-Token * Parser_tokenize(Parser * self, char const * string, size_t string_length);
+size_t Parser_tokenize(Parser * self, char const * string, size_t string_length, Token ** start, Token ** end);
 Token * Parser_tell(Parser * parser);
 void Parser_seek(Parser * parser, Token * tok);
 //void Parser_log(Parser * parser, size_t loc, Rule * rule, ASTNode * result);
@@ -113,6 +113,7 @@ ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, Token * tok);
 void Parser_cache_check(Parser * self, rule_id_type rule_id, Token * tok, ASTNode * node);
 err_type Parser_traverse(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
 void Parser_print_tokens(Parser * self, FILE * stream);
+size_t Parser_get_ntokens(Parser * self);
 err_type Parser_print_ast(Parser * parser, FILE * stream);
 
 // use in e.g. WHITESPACE or comments
