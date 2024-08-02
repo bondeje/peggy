@@ -91,19 +91,12 @@ PRODUCTION(doc, DOC,
     (Rule *)&words);
 
 void test_parser_cleanup(void) {
-    test_parser_token._class->dest(&test_parser_token);
-    hex_alphanum_or_ws._class->dest(&hex_alphanum_or_ws);
+    // should only have to destroy the LiteralRules to clean up regex allocations
+    // if tests require additional LiteralRules or other Rules require cleanup...add them
     letter._class->dest(&letter);
-    letter_token._class->dest(&letter_token);
     digit._class->dest(&digit);
     hexadecimal_digit._class->dest(&hexadecimal_digit);
-    hexadecimal_token._class->dest(&hexadecimal_token);
-    alphanumeric._class->dest(&alphanumeric);
-    alphanumeric_token._class->dest(&alphanumeric_token);
-    whitespace._class->dest(&whitespace);
     whitespace_re._class->dest(&whitespace_re);
-    hex_word._class->dest(&hex_word);
-    alpha_word._class->dest(&alpha_word);
 }
 
 int test_tokenizer_single_char(void) {

@@ -127,12 +127,16 @@ Token * Parser_tokenize(Parser * self, char const * string, size_t string_length
         return NULL;
     }
     self->tokenizing = true;
-    Token * parser_token = Parser_tell(self);
+    Token * insert_left = Parser_tell(self);
+    Token * insert_right = insert_left->next;
     MemPoolManager * token_mgr = self->token_mgr;
     Token * cur = MemPoolManager_next(token_mgr);
     Token_init(cur, string, string_length, 0, 0);
+    insert_left->next = cur;
+    insert_right->prev = cur;
+    cur->next = insert_right;
+    cur->prev = insert_left;
     Parser_seek(self, cur);
-    Token * start = cur;
     Rule * tokenizer = self->token_rule;
 
     while (cur && cur->length) {
@@ -145,10 +149,14 @@ Token * Parser_tokenize(Parser * self, char const * string, size_t string_length
         }
         cur = Parser_tell(self);
     }
+    cur = insert_left->next;
     // reset Parser to current position
-    Parser_seek(self, parser_token);
+    Parser_seek(self, insert_left);
     self->tokenizing = false;
-    return start;
+    if (cur == insert_right) {
+        return NULL;
+    }
+    return cur;
 }
 
 Token * Parser_tell(Parser * self) {
@@ -226,7 +234,7 @@ Token Parser_gen_final_token_(Parser * self, ASTNode * node) {
 */
 err_type Parser_skip_token(Parser * self, ASTNode * node) {
     Token * skipped = node->token_start;
-    LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - skipping token at line %u, col %u of length %zu: %.*s\n", __func__, skipped->coords.line, skipped->coords.col, node->str_length, (int)node->str_length, skipped->string);
+    LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - skipping token at line %u, col %u of length %zu\n", __func__, skipped->coords.line, skipped->coords.col, node->str_length);
     Parser_generate_new_token(self, node->str_length, skipped);
     if (skipped->prev) {
         skipped->prev->next = skipped->next;
@@ -274,12 +282,14 @@ bool Parser_gen_next_token_(Parser * self) {
 void Parser_parse(Parser * self, char const * string, size_t string_length) {
     LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - initiating parse\n", __func__);
     Token * tok = self->_class->tokenize(self, string, string_length);
+    LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - tokenizer %ssuccessfully completed\n", __func__, tok ? "" : "un");
     if (tok) {
         self->token_cur->next = tok;
         tok->prev = self->token_cur;
         self->token_cur = tok;
         if (self->root_rule) {
             self->ast = self->root_rule->_class->check(self->root_rule, self);
+            LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - parser %ssuccessfully completed\n", __func__, self->ast == &ASTNode_fail ? "un" : "");
         }
     }
     

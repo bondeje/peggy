@@ -4,7 +4,7 @@ EXAMPLE_NAME = peggy
 GRAMMAR = $(EXAMPLE_NAME).grmr
 PKG_PATH = ../..
 PKG_RETURN = examples/$(NAME)
-PEGGY_IFLAGS = -I../../include -I../../lib/logger/include
+PEGGY_IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/include
 ifneq ($(UNAME), Linux)
     PEGGY_IFLAGS += -I../../lib/pcre2/include
 endif
@@ -16,7 +16,7 @@ all: generate_parser build_parser move_regex
 
 ifneq ($(UNAME), Linux)
 move_regex:
-	cp ../../$(LIB_DIR)/pcre2/bin/libpcre2-* .
+#	cp ../../$(LIB_DIR)/pcre2/bin/libpcre2-* .
 else
 move_regex:
 

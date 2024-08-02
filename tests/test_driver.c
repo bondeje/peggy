@@ -18,7 +18,6 @@ int main(int narg, char ** args) {
     nerrors += test_parser_doc();
     test_parser_cleanup();
     
-
     nerrors += test_sequence();
     nerrors += test_repeat();
     nerrors += test_list();

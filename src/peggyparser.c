@@ -163,7 +163,7 @@ size_t PeggyString_hash(PeggyString a, size_t bin_size) {
 PeggyString get_string_from_parser(PeggyParser * parser, ASTNode * node) {
     Token * cur = node->token_start;
     Token * end = node->token_end;
-    size_t length = cur->length;
+    size_t length = 1 + cur->length;
     while (cur != end) {
         cur = cur->next;
         length += cur->length;
@@ -171,16 +171,15 @@ PeggyString get_string_from_parser(PeggyParser * parser, ASTNode * node) {
     if (!length) { // don't malloc if no length
         return (PeggyString) {0};
     }
-    char * str = MemPoolManager_malloc(parser->str_mgr, length + 1);
-    PeggyString out = {.str = str, .len = length};
+    char * str = MemPoolManager_malloc(parser->str_mgr, length);
+    PeggyString out = {.str = str, .len = length - 1};
     length = 0;
     cur = node->token_start;
-    length += snprintf(str + length, out.len - length, "%.*s", (int)cur->length, cur->string);
+    length += snprintf(str + length, out.len + 1 - length, "%.*s", (int)cur->length, cur->string);
     while (cur != end) {
         cur = cur->next;
-        length += snprintf(str + length, out.len - length, "%.*s", (int)cur->length, cur->string);
+        length += snprintf(str + length, out.len + 1 - length, "%.*s", (int)cur->length, cur->string);
     }
-    *(str + length) = '\0';
     return out;
 }
 
@@ -195,7 +194,7 @@ PeggyString get_rule_pointer(PeggyParser * parser, PeggyString name) {
         length = strlen(rule_resolve);
     }
     PeggyString arg = {.len = 1 + prod.identifier.len + length};
-    arg.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * arg.len);
+    arg.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (arg.len + 1));
     arg.str[0] = '&';
     memcpy((void*)(arg.str + 1), (void*)prod.identifier.str, prod.identifier.len);
     if (length) {
@@ -249,7 +248,7 @@ int build_export_rules_resolved(void * parser_, PeggyString name, PeggyProductio
     char * rule_resolve = strchr(prod.type_name, '.');
     size_t length = rule_resolve ? strlen(rule_resolve) : 0;
     PeggyString arg = {.len = 1 + prod.identifier.len + length};
-    arg.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * arg.len);
+    arg.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (arg.len + 1));
     arg.str[0] = '&';
     memcpy((void*)(arg.str + 1), (void*)prod.identifier.str, prod.identifier.len);
     if (length) {
@@ -260,7 +259,7 @@ int build_export_rules_resolved(void * parser_, PeggyString name, PeggyProductio
     char * buffer = ",\n\t";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->source_file);
 
-    free(arg.str);
+    //free(arg.str);
 
     return 0;
 }
@@ -628,7 +627,7 @@ PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, char c
 
     prod.name = get_string_from_parser(parser, id);
     prod.identifier.len = parser->export.len + 1 + prod.name.len;
-    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * prod.identifier.len); // +1 for underscore
+    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1)); // +1 for underscore
     char * buffer = copy_export(parser, prod.identifier.str);
     buffer[0] = '_';
     buffer++;
@@ -737,7 +736,7 @@ void handle_production_(PeggyParser * parser, ASTNode * id, ASTNode * transforms
     if (flags & HANDLE_PRODUCTION_TOKEN) {
         char const * action = "token_action";
         size_t action_length = strlen(action);
-        char * buffer = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * action_length);
+        char * buffer = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (action_length + 1));
         memcpy((void *)buffer, action, action_length);
         prod.args._class->push(&prod.args, (PeggyString){.str = buffer, .len = action_length});
     } else {
@@ -769,20 +768,22 @@ void handle_production(PeggyParser * parser, ASTNode * node) {
 #define REGEX_LIB_OFFSET_RIGHT 1
 
 // returns one after last written character or dest if error
-PeggyString format_regex(char const * src, size_t src_length) {
+PeggyString format_regex(PeggyParser * parser, char const * src, size_t src_length) {
     static char const * const escaped_chars = ".^$*+?()[{\\|";
 
-    size_t buffer_size = src_length + 1 + REGEX_LIB_OFFSET_LEFT + REGEX_LIB_OFFSET_RIGHT;
-    char * buffer = malloc(sizeof(char) * buffer_size);
+    size_t buffer_size = 3 * (src_length + 1 + REGEX_LIB_OFFSET_LEFT + REGEX_LIB_OFFSET_RIGHT);
+    char * buffer = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * buffer_size);
     size_t len = 0;
 
     buffer[len++] = '"';
 
     for (size_t i = 0; i < src_length; i++) {
+        /*
         if (len >= buffer_size - 2) {
             buffer_size += 2 * (src_length - i) + 3;
             buffer = realloc(buffer, sizeof(char) * buffer_size);
         }
+        */
         if (strchr(escaped_chars, *src)) {
             buffer[len++] = '\\';
             buffer[len++] = '\\';
@@ -790,10 +791,12 @@ PeggyString format_regex(char const * src, size_t src_length) {
         buffer[len++] = *src;
         src++;
     }
+    /*
     if (len > buffer_size - 3) {
         buffer_size = len + 3;
         buffer = realloc(buffer, sizeof(char) * buffer_size);
     }
+    */
 
     buffer[len++] = '"';
     buffer[len] = '\0';
@@ -893,11 +896,11 @@ void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyStri
         char * lookup_result = punctuator_lookup(prod.name.str + 1, prod.name.len - 2);
         if (lookup_result) {
             prod.identifier.len = strlen(lookup_result);
-            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * prod.identifier.len);
+            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
             memcpy((void*)prod.identifier.str, (void*)lookup_result, prod.identifier.len);    
         } else {
             prod.identifier.len = (prod.name.len - 2)*4 + 5;
-            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * prod.identifier.len);
+            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
             prod.identifier.str[0] = 'p';
             prod.identifier.str[1] = 'u';
             prod.identifier.str[2] = 'n';
@@ -917,14 +920,14 @@ void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyStri
         
     } else if (!strncmp("keyword", parent_id.str, parent_id.len)) {
         prod.identifier.len = (prod.name.len - 2) + 3;
-        prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * prod.identifier.len);
+        prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
         memcpy((void*)prod.identifier.str, (void*)(prod.name.str + 1), prod.name.len-2);
         prod.identifier.str[prod.identifier.len-3] = '_';
         prod.identifier.str[prod.identifier.len-2] = 'k';
         prod.identifier.str[prod.identifier.len-1] = 'w';
     } else {
         prod.identifier.len = parent_id.len + 3;
-        prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * prod.identifier.len);
+        prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
         memcpy((void*)prod.identifier.str, (void*)parent_id.str, parent_id.len);
         prod.identifier.str[parent_id.len] = '_';
         prod.identifier.str[parent_id.len+1] = 'r';
@@ -937,7 +940,7 @@ void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyStri
     PeggyProduction_declare(parser, prod);
     parser->productions._class->set(&parser->productions, prod.name, prod);
 
-    PeggyString arg = format_regex(prod.name.str + 1, prod.name.len - 2);
+    PeggyString arg = format_regex(parser, prod.name.str + 1, prod.name.len - 2);
 
     // assign args
     prod.args._class->push(&prod.args, arg);
@@ -953,7 +956,7 @@ void handle_regex_literal(PeggyParser * parser, ASTNode * node, const PeggyStrin
     prod.name = get_string_from_parser(parser, node);
     
     prod.identifier.len = parent_id.len + 3;
-    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * prod.identifier.len);
+    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
     memcpy((void*)prod.identifier.str, (void*)parent_id.str, parent_id.len);
     prod.identifier.str[parent_id.len] = '_';
     prod.identifier.str[parent_id.len+1] = 'r';
@@ -993,7 +996,7 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
     prod.name = get_string_from_parser(parser, node->child);
 
     prod.identifier.len = parser->export.len + 1 + prod.name.len;
-    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * prod.identifier.len); // +1 for underscore
+    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1)); // +1 for underscore
     char * buffer = copy_export(parser, prod.identifier.str);
     buffer[0] = '_';
     buffer++;
@@ -1013,7 +1016,7 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
         arg.len += cur->length;
     }
     arg.len = 4 * arg.len + 1 + REGEX_LIB_OFFSET_LEFT + REGEX_LIB_OFFSET_RIGHT; 
-    arg.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * arg.len); 
+    arg.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (arg.len + 1)); 
     size_t written = 0;
     arg.str[written++] = '"';
 
@@ -1129,6 +1132,7 @@ err_type open_output_files(PeggyParser * parser) {
 void handle_import(PeggyParser * parser, ASTNode * node) {
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling import from line %u, col %u\n", __func__, node->token_start->coords.line, node->token_start->coords.col);
     PeggyString import = get_string_from_parser(parser, node);
+    //printf("import: %.*s\n", (int)import.len, import.str);
     parser->imports._class->push(&parser->imports, import);
 
     if (!parser->source_file) { // export config not found
@@ -1192,7 +1196,7 @@ void handle_export(PeggyParser * parser, ASTNode * node) {
         LOG_EVENT(&((Parser *)parser)->logger, LOG_LEVEL_WARN, "WARN: %s - cannot have multiple exports in a grammar specification: line %u, col %u...ignoring\n", __func__, node->token_start->coords.line, node->token_start->coords.col);
         return;
     }
-    parser->export = (PeggyString){.str = (char *)node->token_start->string, .len = node->str_length};
+    parser->export = (PeggyString){.str = (char *)node->token_start->string, .len = node->token_start->length};
 
     open_output_files(parser);
     prep_output_files(parser);
@@ -1350,15 +1354,15 @@ parser_import_stack_fail:
 }
 
 int PeggyProduction_cleanup(void * data, PeggyString name, PeggyProduction prod) {
-    if (prod.identifier.len) {
-        free(prod.identifier.str);
-    }
-    PeggyString res;
-    err_type (*pop)(STACK(PeggyString) *, PeggyString *) = prod.args._class->pop;
-    while (prod.args.fill) {
-        pop(&prod.args, &res);
-        free(res.str);
-    }
+    //if (prod.identifier.len) {
+        //free(prod.identifier.str);
+    //}
+    //PeggyString res;
+    //err_type (*pop)(STACK(PeggyString) *, PeggyString *) = prod.args._class->pop;
+    //while (prod.args.fill) {
+    //    pop(&prod.args, &res);
+    //    //free(res.str);
+    //}
     prod.args._class->dest(&prod.args);
     return 0;
 }
@@ -1374,7 +1378,7 @@ void PeggyParser_dest(PeggyParser * parser) {
         parser->source_file = NULL;
     }
     if (parser->header_name) {
-        free(parser->header_name);
+        //free(parser->header_name);
         parser->header_name = NULL;
     }
     
@@ -1382,6 +1386,7 @@ void PeggyParser_dest(PeggyParser * parser) {
 	parser->productions._class->dest(&(parser->productions));
     parser->imports._class->dest(&parser->imports);
     parser->_class->Parser_class.dest(&parser->Parser);
+    MemPoolManager_del(parser->str_mgr);
 }
 
 void PeggyParser_parse(Parser * self, char const * string, size_t string_length) {
@@ -1467,6 +1472,11 @@ int main(int narg, char ** args) {
         log_level = Logger_level_to_uchar(args[3], strlen(args[3]));
     }
     from_file(input_file, log_file, log_level);
+    /*
+    FILE * tokens = fopen("tokens.txt", "w");
+    Parser_print_tokens((Parser *)&peggy, tokens);
+    fclose(tokens);
+    */
     peggy._class->dest(&peggy);   
     peggy_dest();
     

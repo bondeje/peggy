@@ -181,28 +181,8 @@ PRODUCTION(la_parser, LA_PARSER,
 void test_rule_cleanup(void) {
     a._class->dest(&a);
     b._class->dest(&b);
-    ab_letter._class->dest(&ab_letter);
-    ab_letter_token._class->dest(&ab_letter_token);
-    a2_seq._class->dest(&a2_seq);
-    b2_seq._class->dest(&b2_seq);
-    ab_seq._class->dest(&ab_seq);
-    seq_parser_choice._class->dest(&seq_parser_choice);
-    seq_parser._class->dest(&seq_parser);
-    a_rep_any._class->dest(&a_rep_any);
-    b_rep_any._class->dest(&b_rep_any);
-    a_rep_gt1._class->dest(&a_rep_gt1);
-    b_rep_gt1._class->dest(&b_rep_gt1);
-    a_rep_opt._class->dest(&a_rep_opt);
-    b_rep_opt._class->dest(&b_rep_opt);
-    
-    ab_list._class->dest(&ab_list);
-    ba_list._class->dest(&ba_list);
-    
-    nla_a._class->dest(&nla_a);
-    nla_b._class->dest(&nla_b);
-    
-    nla_a._class->dest(&nla_a);
-    nla_b._class->dest(&nla_b);
+    // should only have to destroy the LiteralRules to clean up regex allocations
+    // if tests require additional LiteralRules or other Rules require cleanup...add them
 }
 
 int test_sequence(void) {

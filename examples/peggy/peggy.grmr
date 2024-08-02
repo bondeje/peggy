@@ -4,6 +4,7 @@ import = peggyparser
 
 whitespace(skip_token):
     "([ \t\r\n\v\f]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+" // includes C-style comments as whitespace
+    
 
 string_literal:
     "'((\\\\)\'|[^\'])*'"
