@@ -189,3 +189,4 @@ static err_type CAT(STACK_TYPE, _init)(STACK_TYPE * stack, size_t init_capacity)
 #undef STACK_DEFAULT_SCALE
 
 #endif // defined(ELEMENT_TYPE)
+

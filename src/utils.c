@@ -77,3 +77,4 @@ bool isinstance(char const * type, char const ** types) {
     }
     return false;
 }
+

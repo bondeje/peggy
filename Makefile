@@ -7,13 +7,13 @@ NAME = peggy
 MAX_LOGGING_LEVEL = LOG_LEVEL_WARN
 # for use in specifying a PCRE2 path and (for linux) overriding GNU_regex
 PCRE2 = 
-COMMON_CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -std=gnu99 -DMAX_LOGGING_LEVEL=$(MAX_LOGGING_LEVEL) -fPIC
-DBG_CFLAGS = $(COMMON_CFLAGS) -O0 -g3 -fsanitize=address,undefined
+COMMON_CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -DMAX_LOGGING_LEVEL=$(MAX_LOGGING_LEVEL) -fPIC
+DBG_CFLAGS = $(COMMON_CFLAGS) -O0 -g3 `if [ -n "$(SANITIZE)" ] ; then echo "-fsanitize=address,undefined"; fi`
 CFLAGS = $(COMMON_CFLAGS) -O2 -DNDEBUG
 COMMON_IFLAGS = -Iinclude -Ilib/logger/include/ -Ilib/TypeMemPools/include/
 DBG_IFLAGS = $(COMMON_IFLAGS)
 IFLAGS = $(COMMON_IFLAGS)
-COMMON_LFLAGS = -Lbin -Wl,-rpath .
+COMMON_LFLAGS = -Lbin '-Wl,-rpath,$$ORIGIN/.'
 LIB_LFLAGS = $(COMMON_LFLAGS) -lpcre2-8
 DBG_LFLAGS = $(COMMON_LFLAGS)
 LFLAGS = $(COMMON_LFLAGS)
@@ -26,12 +26,16 @@ EXE_OBJS = src/peggy.o src/peggyparser.o
 
 all: build_paths bin/lib$(NAME).so bin/lib$(NAME)d.so bin/$(NAME) tests/test
 
+# OpenBSD weirdness
+.MAIN: all
+
 tests/test: bin/lib$(NAME)d.so
-	(cd tests && unset MAKELEVEL && make)
+	(cd tests && unset MAKELEVEL && make CC=$(CC) SANITIZE=$(SANITIZE))
+	tests/test --verbose
 
 ext_libs: $(EXT_LIB_OBJS) $(DBG_EXT_LIB_OBJS)
-	(cd lib/logger && unset MAKELEVEL && make)
-	(cd lib/TypeMemPools && unset MAKELEVEL && make)
+	(cd lib/logger && unset MAKELEVEL && make CC=$(CC) SANITIZE=$(SANITIZE))
+	(cd lib/TypeMemPools && unset MAKELEVEL && make CC=$(CC) SANITIZE=$(SANITIZE))
 
 clean:
 	@rm -f src/*.o src/*.do

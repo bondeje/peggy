@@ -133,3 +133,4 @@ ASTNode * make_skip_node(ASTNode * node) {
 bool is_skip_node(ASTNode * node) {
     return node->str_length > 0 && !(node->rule);
 }
+

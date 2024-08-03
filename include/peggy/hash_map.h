@@ -440,3 +440,4 @@ static hash_map_err CAT(HASH_COMBO, _resize)(HASH_MAP_TYPE * map, size_t new_cap
 #undef VALUE_TYPE
 
 #endif // if defined(KEY_TYPE) && defined(VALUE_TYPE)
+

@@ -50,3 +50,4 @@ bool Token_equal_value(Token * self, Token * other);
 void Token_print(Token * self);
 
 #endif // PEGGY_TOKEN_H
+

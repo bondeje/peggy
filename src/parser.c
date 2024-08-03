@@ -506,3 +506,4 @@ ASTNode * token_action(Production * token, Parser * parser, ASTNode * node) {
     }
     return node;
 }
+

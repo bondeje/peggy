@@ -30,3 +30,4 @@ struct TestASTNode {
     }
 
 int check_ASTNodes(ASTNode * uut, TestASTNode * ref, char const * file, char const * func, size_t line);
+

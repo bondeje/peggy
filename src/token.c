@@ -88,3 +88,4 @@ bool Token_equal_value(Token * self, Token * other) {
 void Token_print(Token * self) {
     printf("%.*s", (int)self->length, self->string);
 }
+

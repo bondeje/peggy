@@ -50,7 +50,7 @@ size_t cstr_hash(char const * key, size_t bin_size) {
 }
 
 size_t address_hash(void const * val, size_t bin_size) {
-    return ((char*)val - (char*)0) % bin_size; // subtracting (void*)0 so that it at least *looks* like I'm dealing with a number
+    return ((uintptr_t)(void *)val) % bin_size; // subtracting (void*)0 so that it at least *looks* like I'm dealing with a number
 }
 
 int cstr_comp(char const * a, char const * b) {
@@ -81,3 +81,4 @@ void hs_print_error_message(int status) {
         printf("error code %d: %s\n", status, hs_messages[status]);
     }
 }
+

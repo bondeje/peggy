@@ -25,3 +25,4 @@ int main(int narg, char ** args) {
     test_rule_cleanup();
     return nerrors;
 }
+
