@@ -14,7 +14,7 @@ COMMON_IFLAGS = -Iinclude -Ilib/logger/include/ -Ilib/TypeMemPools/include/
 DBG_IFLAGS = $(COMMON_IFLAGS)
 IFLAGS = $(COMMON_IFLAGS)
 COMMON_LFLAGS = -Lbin '-Wl,-rpath,$$ORIGIN/.'
-LIB_LFLAGS = $(COMMON_LFLAGS) -lpcre2-8
+LIB_LFLAGS = $(COMMON_LFLAGS) -L/usr/local/lib -lpcre2-8
 DBG_LFLAGS = $(COMMON_LFLAGS)
 LFLAGS = $(COMMON_LFLAGS)
 
