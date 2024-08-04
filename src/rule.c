@@ -94,7 +94,10 @@ ASTNode * Rule_check(Rule * self, Parser * parser) {
 #ifndef NDEBUG
     self->ncalls++;
 #endif
-    ASTNode * res = parser->_class->check_cache(parser, self->id, tok);
+    ASTNode * res = NULL;
+    if (!parser->tokenizing) {
+        res = parser->_class->check_cache(parser, self->id, tok);
+    }
     if (res) {
         LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d retrieved from cache!\n", __func__, self->id);
         if (res != &ASTNode_fail) {

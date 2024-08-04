@@ -64,6 +64,11 @@
 #include <string.h>
 #include <stdio.h> // for debug print statements
 #include <peggy/utils.h>
+#include <mempool.h>
+
+#if __STDC_VERSION__ < 201112L
+    #define _Alignof(type) offsetof(struct { char c; type d; }, d)
+#endif
 
 typedef enum hash_map_err {
     HM_SUCCESS = 0,
@@ -94,6 +99,10 @@ typedef enum hash_map_err {
 
 #ifndef HASH_FILL_RESIZE_RATIO
 #define HASH_FILL_RESIZE_RATIO .5
+#endif
+
+#ifndef HASH_PAIR_POOL_COUNT
+#define HASH_PAIR_POOL_COUNT 256
 #endif
 
 #define HASH_COMBO CAT3(KEY_TYPE, _, VALUE_TYPE)
@@ -144,6 +153,7 @@ struct HASH_MAP_TYPE {
     HASH_PAIR ** bins;
     size_t capacity;
     size_t fill;
+    MemPoolManager * pair_mgr;
 };
 
 static hash_map_err CAT(HASH_COMBO, _insert)(HASH_MAP_TYPE * map, HASH_PAIR * pair);
@@ -346,7 +356,9 @@ static hash_map_err CAT(HASH_COMBO, _set)(HASH_MAP_TYPE * map, KEY_TYPE key, VAL
     } else {
         //printf("found open key-value pair\n");
     }
-    pair = malloc(sizeof(HASH_PAIR));
+    pair = MemPoolManager_next(map->pair_mgr);
+    // above replaces:
+    // pair = malloc(sizeof(HASH_PAIR));
     if (!pair) {
         return HM_MALLOC_PAIR_FAILURE;
     }
@@ -359,6 +371,7 @@ static hash_map_err CAT(HASH_COMBO, _set)(HASH_MAP_TYPE * map, KEY_TYPE key, VAL
 static void CAT(HASH_COMBO, _dest)(HASH_MAP_TYPE * map) {
     //printf("clearing map\n");
     if (map->bins) {
+        /*
         for (size_t i = 0; i < map->capacity; i++) {
             HASH_PAIR * p = map->bins[i];
             if (p && (p != HASH_PAIR_REMOVED)) {
@@ -366,9 +379,14 @@ static void CAT(HASH_COMBO, _dest)(HASH_MAP_TYPE * map) {
             }
             map->bins[i] = NULL;
         }
+        */
         free(map->bins);
         map->bins = NULL;
     }
+    if (map->pair_mgr) {
+        MemPoolManager_del(map->pair_mgr);
+    }
+    map->pair_mgr = NULL;
     map->fill = 0;
     map->capacity = 0;
 }
@@ -398,6 +416,7 @@ static hash_map_err CAT(HASH_COMBO, _init)(HASH_MAP_TYPE * map, size_t init_capa
     map->bins = NULL;
     map->capacity = 0;
     map->fill = 0;
+    map->pair_mgr = MemPoolManager_new(HASH_PAIR_POOL_COUNT, sizeof(HASH_PAIR), _Alignof(HASH_PAIR));
     map->_class = &(CAT(HASH_COMBO, _class));
     return CAT(HASH_COMBO, _resize)(map, init_capacity);
 }
