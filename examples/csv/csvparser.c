@@ -13,13 +13,13 @@
 
 /* local includes */
 #include "csvparser.h"
-
-struct CSVData empty_csv = {0};
+#include "csv.h"
 
 void CSVData_dest(CSVData * csv_data) {
-    if (csv_data->data) {
-        free(csv_data->data);
+    if (csv_data->isalloc && csv_data->data) {
+        free((void *)csv_data->data);
         csv_data->data = NULL;
+        csv_data->isalloc = false;
     }
     if (csv_data->offsets) {
         free(csv_data->offsets);
@@ -33,38 +33,21 @@ typedef struct CSVParser {
 } CSVParser;
 
 err_type CSVParser_init(CSVParser * parser, char const * name, size_t name_length,
-                         char const * string, size_t string_length, char * log_file, unsigned char log_level) {
-    parser->csv = (CSVData) {
-        .data = NULL,
-        .offsets = NULL,
-        .ncols = 0,
-        .nrows = 0,
-        .nbytes = 0
-    };
-    return parser->Parser._class->init(&parser->Parser, name, name_length, string, string_length, (Rule *)&csv_token, (Rule *)&csv_csv, CSV_NRULES, 0, 0, 0, log_file, log_level);
+                        char const * string, size_t string_length, char * log_file, unsigned char log_level) {
+    parser->csv.data = string;
+    parser->csv.offsets = NULL;
+    parser->csv.ncols = 0;
+    parser->csv.nrows = 0;
+    parser->csv.noffsets = 0;
+    parser->csv.nbytes = string_length;
+    Parser_init((Parser *)parser, name, name_length, (Rule *)&csv_token, (Rule *)&csv_csv, CSV_NRULES, 0, log_file, log_level);
+    Parser_parse((Parser *)parser, string, string_length);
+    return 0;
 }
 
 /* does not destroy the CSVData, which is expected to be returned/used elsewhere */
 void CSVParser_dest(CSVParser * parser) {
-    parser->Parser._class->dest(&parser->Parser);
-}
-
-CSVParser csv = {
-    .Parser = {
-        ._class = &Parser_class,
-        .logger = DEFAULT_LOGGER_INIT,
-    }, 
-    .csv = {0}
-};
-
-ASTNode * process_string(Production * string_prod, Parser * parser, ASTNode * node) {
-    ((CSVParser *) parser)->csv.nbytes += node->str_length - 1; // remove the encompassing double quotes but add a null terminator
-    return build_action_default(string_prod, parser, node);
-}
-
-ASTNode * process_nonstring(Production * nonstring_prod, Parser * parser, ASTNode * node) {
-    ((CSVParser *) parser)->csv.nbytes += node->str_length + 1; // add a null-terminator
-    return build_action_default(nonstring_prod, parser, node);
+    Parser_dest((Parser *)parser);
 }
 
 ASTNode * process_record(Production * record_prod, Parser * parser, ASTNode * node) {
@@ -83,41 +66,31 @@ ASTNode * process_record(Production * record_prod, Parser * parser, ASTNode * no
 }
 
 void handle_field(CSVParser * csv_parser, ASTNode * node, size_t index) {
-    Token tok;
-    csv_parser->Parser._class->get((Parser *)csv_parser, node->token_key, &tok);
-    char * dest = csv_parser->csv.data + csv_parser->csv.offsets[index];
-    char const * src;
+    Token * tok = node->token_start;
     size_t N = 0;
+    CSVData * data = &csv_parser->csv;
     if (node->child->rule->id == NONSTRING_FIELD) {
-        src = tok.string;
-        N = node->str_length;
+        data->offsets[index] = tok->string - data->data;
+        data->offsets[index + data->noffsets] = data->offsets[index] + node->str_length;
     } else { // STRING
-        src = tok.string + 1;
-        N = node->str_length - 2;
+        data->offsets[index] = (tok->string - data->data) + 1;
+        data->offsets[index + data->noffsets] = data->offsets[index] + node->str_length - 2;
     }
-    memcpy(dest, src, N);
-    dest[N] = '\0';
-    csv_parser->csv.offsets[index + 1] = csv_parser->csv.offsets[index] + N + 1;
 }
 
 void handle_record(CSVParser * csv_parser, ASTNode * node, size_t row) {
     size_t Nchild = node->nchildren;
-    size_t j = row * csv_parser->csv.ncols;
+    size_t index = row * csv_parser->csv.ncols;
     for (ASTNode * child = node->child; child ; child = child->next ? child->next->next : NULL) {
-        handle_field(csv_parser, child, j++);
+        handle_field(csv_parser, child, index++);
     }
 }
 
 ASTNode * handle_csv(Production * csv_prod, Parser * parser, ASTNode * node) {
     CSVParser * csv = (CSVParser *) parser;
-    csv->csv.data = malloc(sizeof(*csv->csv.data) * csv->csv.nbytes);
-    if (!csv->csv.data) {
-        return &ASTNode_fail;
-    }
-    csv->csv.offsets = malloc(sizeof(*csv->csv.offsets) * (csv->csv.ncols * csv->csv.nrows + 1)); // add one to be able to set one past
+    csv->csv.noffsets = (csv->csv.ncols * csv->csv.nrows + 1);
+    csv->csv.offsets = malloc(sizeof(*csv->csv.offsets) * csv->csv.noffsets * 2); // add one to be able to set one past
     if (!csv->csv.offsets) {
-        free(csv->csv.data);
-        csv->csv.data = NULL;
         return &ASTNode_fail;
     }
 
@@ -125,33 +98,45 @@ ASTNode * handle_csv(Production * csv_prod, Parser * parser, ASTNode * node) {
 
     ASTNode * record_list = node->child;
     size_t Nchild = record_list->nchildren;
-    size_t j = 0;
+    size_t row = 0;
     for (ASTNode * child = record_list->child; child; child = child->next ? child->next->next : NULL) {
-        handle_record(csv, child, j++);
+        handle_record(csv, child, row++);
     }
     return node;
 }
 
+/***************** globals and driver *******************/
+
+CSVParser csv = {
+    .Parser = {
+        ._class = &Parser_class,
+        .logger = DEFAULT_LOGGER_INIT,
+    }, 
+    .csv = {0}
+};
+struct CSVData empty_csv = {0};
 bool timeit = false;
 
-CSVData from_string(char * string, size_t string_length, char * name, size_t name_length, char * log_file, unsigned char log_level) {
+CSVData from_string(char * string, size_t string_length) {
     err_type status = PEGGY_SUCCESS;
     if (!timeit) {
-        if ((status = CSVParser_init(&csv, name, name_length, string, string_length, log_file, log_level))) {
+        if ((status = CSVParser_init(&csv, NULL, 0, string, string_length, NULL, LOG_LEVEL_DISABLE))) {
             return empty_csv;
         }
         return csv.csv;
     }
-    static char const * const record_format = "%zu, %10.8lf, %s\n";
+#ifdef CLOCK_MONOTONIC
+    static char const * const record_format = "%zu, %10.8lf\n";
     char buffer[1024] = {'\0'};
     FILE * time_records = fopen("times.csv", "ab");
     
     struct timespec t0, t1;
+
     double time;
     clockid_t clk = CLOCK_MONOTONIC;
     //double clock_conversion = 1.0e-6;
     clock_gettime(clk, &t0);
-    status = CSVParser_init(&csv, name, name_length, string, string_length, log_file, log_level);
+    status = CSVParser_init(&csv, NULL, 0, string, string_length, NULL, LOG_LEVEL_DISABLE);
     clock_gettime(clk, &t1);
 
     if (t1.tv_nsec < t0.tv_nsec) {
@@ -160,15 +145,15 @@ CSVData from_string(char * string, size_t string_length, char * name, size_t nam
         time = ((1 + 1.0e-9 * t1.tv_nsec) - 1.0e-9 * t0.tv_nsec) + t1.tv_sec - 1.0 - t0.tv_sec;
     }
 
-    snprintf(buffer, 1024, record_format, csv.csv.ncols*csv.csv.nrows, time, name);
+    snprintf(buffer, 1024, record_format, csv.csv.ncols*csv.csv.nrows, time);
     fprintf(time_records, "%s", buffer);
-    printf("%s", buffer);
-    
+    printf("%s", buffer);    
     fclose(time_records);
+#endif
     return csv.csv;
 }
 
-CSVData from_file(char * filename, char * log_file, unsigned char log_level) {
+CSVData from_file(char * filename) {
     FILE * pfile = fopen(filename, "rb");
     if (!pfile) {
         LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - failed to open file %s\n", __func__, filename);
@@ -191,6 +176,7 @@ CSVData from_file(char * filename, char * log_file, unsigned char log_level) {
 
     fclose(pfile);
 
+    /*
     size_t name_length = strlen(filename);
     char const * name = filename;
 
@@ -204,44 +190,33 @@ CSVData from_file(char * filename, char * log_file, unsigned char log_level) {
     if (strstr(name, ".grmr")) {
         name_length = (size_t)(strstr(name, ".grmr") - name);
     }
-    CSVData csv_data = from_string(string, (size_t) file_size, filename, name_length, log_file, log_level);
-
-    free(string);
+    */
+    csv.csv.isalloc = true;
+    CSVData csv_data = from_string(string, (size_t) file_size);
     return csv_data;
 }
 
 int main(int narg, char ** args) {
-    //printf("built!\n");
-    char * input_file = NULL;
     char * log_file = NULL;
     unsigned char log_level = LOG_LEVEL_INFO;
     int iarg = 1;
     while (iarg < narg) {
         printf("arg %d: %s\n", iarg, args[iarg]);
-        if (!timeit && !strcmp(args[iarg], "--timeit")) {
+        if (!strcmp(args[iarg], "--timeit")) {
             timeit = true;
-            iarg++;
-            continue;
+        } else if (!strncmp(args[iarg], "--log=", 6)) {
+            log_file = args[iarg] + 6;
+        } else if (!strncmp(args[iarg], "--log_level=", 12)) {
+            log_level = Logger_level_to_uchar(args[iarg] + 12, strlen(args[iarg] + 12));
+        } else {
+            csv.csv.isalloc = false;
+            printf("processing file %s\n", args[iarg]);
+            CSVData csv_data = from_file(args[iarg]);
+            /* insert any code you want to handle the csv here */
+            CSVParser_dest(&csv);
+            CSVData_dest(&csv_data);
         }
-        if (!input_file) {
-            input_file = args[iarg++];
-            continue;
-        }
-        if (!log_file) {
-            log_file = args[iarg++];
-            continue;
-        }
-        log_level = Logger_level_to_uchar(args[iarg], strlen(args[iarg]));
         iarg++;
-    }
-    if (input_file) {
-        printf("processing file %s\n", input_file);
-        CSVData csv_data = from_file(input_file, log_file, log_level);
-
-        /* insert any code you want to handle the csv here */
-
-        CSVParser_dest(&csv);
-        CSVData_dest(&csv_data);
     }
     csv_dest();
     Logger_tear_down();

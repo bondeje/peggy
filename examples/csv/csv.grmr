@@ -20,7 +20,7 @@ token:
 record(process_record):
     ','.field
 
-nonstring_field(process_nonstring):
+nonstring_field:
     "[^,\r\n]+"
     
 field:
@@ -32,7 +32,6 @@ whitespace(skip_token):
 crlf:
     '\r\n'
 
-string(process_string):
-    "\"((\\\\\")|[^\"])*\""
-
 // allows escaped double quotes and accounts for characters production
+string:
+    "\"((\\\\\")|[^\"])*\""

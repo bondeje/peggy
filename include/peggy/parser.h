@@ -17,8 +17,8 @@
 #include <peggy/rule.h>
 #include <peggy/packrat_cache.h>
 
-#define PARSER_DEFAULT_NTOKENS 512
-#define PARSER_DEFAULT_NNODES 16384
+#define PARSER_DEFAULT_NTOKENS 16384
+#define PARSER_DEFAULT_NNODES 262144
 
 /* Parser definitions and declarations */
 
