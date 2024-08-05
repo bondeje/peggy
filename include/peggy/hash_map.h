@@ -64,11 +64,7 @@
 #include <string.h>
 #include <stdio.h> // for debug print statements
 #include <peggy/utils.h>
-#include <mempool.h>
-
-#if __STDC_VERSION__ < 201112L
-    #define _Alignof(type) offsetof(struct { char c; type d; }, d)
-#endif
+#include "mempool.h"
 
 typedef enum hash_map_err {
     HM_SUCCESS = 0,

@@ -3,7 +3,7 @@
 CC = gcc
 NAME = test
 DBG_LOG_LEVEL=LOG_LEVEL_DEBUG
-CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O0 -g3 -DMAX_LOGGING_LEVEL=$(DBG_LOG_LEVEL) `if [ -n "$(SANITIZE)" ] ; then echo "-fsanitize=address,undefined"; fi`
+CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O0 -g2 -DMAX_LOGGING_LEVEL=$(DBG_LOG_LEVEL) `if [ -n "$(SANITIZE)" ] ; then echo "-fsanitize=address,undefined"; fi`
 LFLAGS = '-Wl,-rpath,$$ORIGIN/../bin' -L. -L../bin -lpeggyd
 IFLAGS = -I../include -I../lib/logger/include -I../lib/TypeMemPools/include
 
@@ -15,11 +15,7 @@ all: clean test
 .MAIN: all
 
 clean:
-	@rm -f *.o
-	@rm -f test
-	@rm -f *.txt
-	@rm -f *.log
-	@rm -f *.so
+	@rm -f *.o test *.txt *.log *.so
 
 
 test: $(TEST_OBJS)

@@ -2,23 +2,11 @@
 #define PEGGYPARSER_H
 
 #include <peggy/parser.h>
+#include <peggystring.h>
 
 #define MAX_N_TRANSFORM_FUNCTIONS 1
 #define MAX_FUNCTION_NAME_LEN 255
 #define MAX_PRODUCTION_NAME_LEN 63
-
-typedef struct PeggyString {
-    char * str;
-    size_t len;
-} PeggyString;
-
-int PeggyString_comp(PeggyString a, PeggyString b);
-size_t PeggyString_hash(PeggyString a, size_t bin_size);
-
-#define ELEMENT_TYPE PeggyString
-#define ELEMENT_COMP PeggyString_comp
-#include <peggy/stack.h>
-
 
 /* TODO: add a field to note where the production was defined for the case of troubleshooting duplicate productions */
 typedef struct PeggyProduction { 
@@ -38,15 +26,11 @@ typedef struct PeggyParser PeggyParser;
 
 err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * log_file, unsigned char log_level);
 void PeggyParser_dest(PeggyParser * parser);
-void PeggyParser_parse(Parser * self, char const * string, size_t string_length);
 
 #define PeggyParser_NAME "PeggyParser.Parser"
 
 extern struct PeggyParserType {
     struct ParserType Parser_class;
-    char const * type_name;
-    err_type (*init)(PeggyParser * parser, char const * name, size_t name_length, char const * log_file, unsigned char log_level);
-    void (*dest)(PeggyParser * parser);
 } PeggyParser_class;
 
 #define ELEMENT_TYPE PeggyProduction
@@ -68,8 +52,8 @@ struct PeggyParser {
     bool export_found;
 };
 
-ASTNode * handle_peggy(Production * peggy_prod, Parser * parser, ASTNode * node);
-
-ASTNode * simplify_rule(Production * simplifiable_rule, Parser * parser, ASTNode * node);
+char * copy_export(PeggyParser * parser, char * buffer);
+PeggyString get_string_from_parser(PeggyParser * parser, ASTNode * node);
+char * punctuator_lookup(char * punctuation, size_t len);
 
 #endif // PEGGY_H

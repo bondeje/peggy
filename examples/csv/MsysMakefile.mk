@@ -9,18 +9,15 @@ CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=
 IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/../../bin' -L../../bin -lpeggy
 
-SRC_OBJS = csvparser.o csv.o
+EXE_SRCS = csvparser.c csv.c
 
-all: csv.c csv.exe
+all: csv.exe
 
 .MAIN: all
 
-csv.c: $(GRAMMAR)
-	@rm -f *.log
+csv.exe: $(GRAMMAR)
 	../../bin/peggy.exe $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
-
-csv.exe: $(SRC_OBJS)
-	$(CC) $(CFLAGS) $(IFLAGS) $(SRC_OBJS) -o $@ $(LFLAGS)
+	$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 	cp ../../bin/libpeggy.dll .
 
 clean:

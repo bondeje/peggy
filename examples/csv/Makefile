@@ -1,4 +1,5 @@
 .POSIX:
+# just in case FreeBSD's make implementation screws up the current directory
 .OBJDIR: .
 CC = gcc
 NAME = csv
@@ -9,18 +10,15 @@ CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=
 IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/../../bin' -L../../bin -lpeggy
 
-SRC_OBJS = csvparser.o csv.o
+EXE_SRCS = csvparser.c csv.c
 
-all: csv.c csv
+all: csv
 
 .MAIN: all
 
-csv.c: $(GRAMMAR)
-	@rm -f *.log
+csv: $(GRAMMAR)
 	../../bin/peggy $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
-
-csv: $(SRC_OBJS)
-	$(CC) $(CFLAGS) $(IFLAGS) $(SRC_OBJS) -o $@ $(LFLAGS)
+	$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 
 clean:
 	@rm -f csv.c csv.h *.o csv *.log

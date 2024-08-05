@@ -6,7 +6,7 @@ EXAMPLE_NAME = peggy
 GRAMMAR = $(EXAMPLE_NAME).grmr
 BLD_LOG_LEVEL = LOG_LEVEL_INFO
 TEST_LOG_LEVEL = LOG_LEVEL_ERROR
-CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) -DNDEBUG -fPIC
+CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) `if [ -n "$(SANITIZE)" ] ; then echo "-g -fsanitize=address,undefined"; else echo "-DNDEBUG"; fi` -fPIC
 IFLAGS = -I../../include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/../../bin' -L../../bin -lpeggy
 
@@ -18,21 +18,22 @@ SRCS = $(SRC_DIR)/peggybuild.c $(SRC_DIR)/peggyparser.c $(SRC_DIR)/peggystring.c
 
 EXE_SRCS = peggybuild.c peggyparser.c peggystring.c peggytransform.c peggy.c
 
-all: peggy
+all: peggy.exe
 
 # OpenBSD weirdness
 .MAIN: all
 
-peggy: 
+peggy.exe: 
 	@cp $(SRCS) $(INCS) .
-	@../../bin/peggy $(GRAMMAR) $(GRAMMAR).log LOG_LEVEL_DEBUG
+	@../../bin/peggy $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
 	@$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
+	cp ../../bin/libpeggy.dll .
 
-test: peggy
+test: peggy.exe
 	@mv peggy.c peggy_orig.c
 	@mv peggy.h peggy_orig.h
-	@./peggy peggy.grmr
+	@./peggy.exe peggy.grmr
 	@(if [ -z "`comm -3 peggy_orig.h peggy.h`" ] && [ -z "`comm -3 peggy_orig.c peggy.c`" ] ; then echo "test peggy bootstrap...passed" ; else echo "test peggy bootstrap...failed" ; fi)
 
 clean:
-	@rm -f *.c *.h peggy *.log *.o
+	@rm -f *.c *.h peggy.exe *.log *.o

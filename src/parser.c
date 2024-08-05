@@ -20,24 +20,10 @@
 
 struct ParserType Parser_class = {
     .type_name = Parser_NAME,
-    .new = &Parser_new,
-    .init = &Parser_init,
-    .dest = &Parser_dest,
-    .del = &Parser_del,
-    .tell = &Parser_tell,
-    .seek = &Parser_seek,
-    .get_line_col_end = &Parser_get_line_col_end,
-    //.gen_final_token_ = &Parser_gen_final_token_,
-    .skip_token = &Parser_skip_token,
     .add_token = &Parser_add_token,
     .add_node = &Parser_add_node,
-    //.gen_next_token_ = &Parser_gen_next_token_,
     .parse = &Parser_parse,
     .tokenize = &Parser_tokenize,
-    .check_cache = &Parser_check_cache,
-    .cache_check = &Parser_cache_check,
-    .traverse = &Parser_traverse,
-    .print_ast = &Parser_print_ast
 };
 
 Parser * Parser_new(char const * name, size_t name_length, Rule * token_rule, 
@@ -80,7 +66,6 @@ err_type Parser_init(Parser * self, char const * name, size_t name_length,
     // initialize token manager
     self->token_mgr = MemPoolManager_new(PARSER_DEFAULT_NTOKENS, sizeof(Token), 8);
     self->token_head = MemPoolManager_next(self->token_mgr);
-    //*self->token_head = (Token){0};
     self->token_tail = MemPoolManager_next(self->token_mgr);
     *self->token_head = (Token){.next = self->token_tail};
     *self->token_tail = (Token){.string = "", .length = 0, .prev = self->token_head, .id = SIZE_MAX}; // this is a sentinel to allow tokenization
@@ -89,6 +74,11 @@ err_type Parser_init(Parser * self, char const * name, size_t name_length,
 
     // initialize node manager
     self->node_mgr = MemPoolManager_new(PARSER_DEFAULT_NNODES, sizeof(ASTNode), 8);
+
+    self->fail_node = MemPoolManager_next(self->node_mgr);
+    *self->fail_node = (ASTNode) ASTNode_DEFAULT_INIT;
+    self->lookahead_node = MemPoolManager_next(self->node_mgr);
+    *self->lookahead_node = (ASTNode) ASTNode_DEFAULT_INIT;
 
     self->tokenizing = false;
     self->flags = flags;
@@ -107,7 +97,7 @@ void Parser_dest(Parser * self) {
     LOG_DEST(&self->logger);
 
     // clear the cache
-    self->cache._class->dest(&self->cache);
+    PackratCache_dest(&self->cache);
 
     /* clear the token list */
     self->token_head = NULL;
@@ -150,7 +140,7 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
             printf("failed node\n");
             return 0;
         }
-        if (node == &ASTNode_fail) {
+        if (node == self->fail_node) {
             LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to tokenize string at line: %hu, col: %hu - %.*s\n", __func__, cur->coords.line, cur->coords.col, REMAINING_TOKEN_MAX_SIZE < cur->length ? REMAINING_TOKEN_MAX_SIZE : cur->length, cur->string);
         }
         if (!is_skip_node(node)) {
@@ -179,12 +169,6 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
     return ntokens;
 }
 
-Token * Parser_tell(Parser * self) {
-    return self->token_cur;
-}
-void Parser_seek(Parser * self, Token * tok) {
-    self->token_cur = tok;
-}
 void Parser_get_line_col_end(Parser * self, Token * tok, unsigned int * line_out, unsigned int * col_out) {
     char const * start = tok->string;
     char const * end = tok->string + tok->length;
@@ -196,7 +180,7 @@ void Parser_get_line_col_end(Parser * self, Token * tok, unsigned int * line_out
         chr = strchr(start, '\n');
     }
     unsigned int col = (unsigned int) (end - start);
-    if (line == tok->coords.line) { /* no change */
+    if (line == tok->coords.line) {
         col += tok->coords.col;
     }
     if (!col) {
@@ -246,27 +230,6 @@ void Parser_generate_new_token(Parser * self, size_t token_length, Token * cur) 
     Parser_add_string(self, cur, cur->string + token_length, length);
 }
 
-
-// try to remove this, replace with Parser_generate_new_token
-/*
-Token Parser_gen_final_token_(Parser * self, ASTNode * node) {
-    // TODO: need to rework this
-    Token * final = self->tokens.bins + self->tokens.fill - 1;
-    size_t length = final->length - node->str_length;
-    final->length = node->str_length;
-    char const * string = final->string + final->length;
-    unsigned int line;
-    unsigned int col;
-
-    // initialize tok 
-    self->_class->get_line_col_end(self, final, &line, &col); // get token coordinates
-    // override const in initializing "tok" 
-    //return final->_class->new(final->string, start, end, line, col);
-    Token new_tok = Token_DEFAULT_INIT;
-    new_tok._class->init(&new_tok, string, length, line, col);
-    return new_tok;
-}
-*/
 err_type Parser_skip_token(Parser * self, ASTNode * node) {
     Token * skipped = node->token_start;
     LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - skipping token at line %u, col %u of length %zu\n", __func__, skipped->coords.line, skipped->coords.col, node->str_length);
@@ -300,20 +263,6 @@ ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start, Token * end
     return new_node;
 }
 
-//ASTNode * Parser_extend_node(Parser * self, ASTNode * node)
-//void Parser_move_node(Parser * self, ASTNode * node)
-
-/*
-bool Parser_gen_next_token_(Parser * self) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - generating next token\n", __func__);
-
-    self->disable_cache_check = true;
-    ASTNode * result = self->token_rule->_class->check(self->token_rule, self);
-    self->disable_cache_check = false;
-    
-    return result != &ASTNode_fail;
-}
-*/
 void Parser_parse(Parser * self, char const * string, size_t string_length) {
     LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - initiating parse\n", __func__);
     Token * start;
@@ -328,7 +277,7 @@ void Parser_parse(Parser * self, char const * string, size_t string_length) {
         self->token_cur = start;
         if (self->root_rule) {
             self->ast = self->root_rule->_class->check(self->root_rule, self);
-            LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - parser %ssuccessfully completed\n", __func__, self->ast == &ASTNode_fail ? "un" : "");
+            LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - parser %ssuccessfully completed\n", __func__, self->ast == self->fail_node ? "un" : "");
         }
     }
     
@@ -339,22 +288,15 @@ ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, Token * tok) {
     if (tok == self->token_head || tok == self->token_tail) {
         return NULL;
     }
-    /*
-    if (self->disable_cache_check) {
-        return NULL;
-    }
-    */
-    return self->cache._class->get(&self->cache, rule_id, Parser_tell(self));
+    return PackratCache_get(&self->cache, rule_id, Parser_tell(self));
 }
 void Parser_cache_check(Parser * self, rule_id_type rule_id, Token * tok, ASTNode * node) {
     LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - caching result of rule id %d at line: %hu, col: %hu: %p\n", __func__, rule_id, tok->coords.line, tok->coords.col, (void*)node);
     if (tok != self->token_head && tok != self->token_tail) {
-        self->cache._class->set(&self->cache, self, rule_id, tok, node);
+        PackratCache_set(&self->cache, self, rule_id, tok, node);
     }
 }
 err_type Parser_traverse(Parser * self, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt) {
-    /* TODO */
-    /* requires a stack implementation */
     return PEGGY_NOT_IMPLEMENTED;
 }
 typedef struct ASTNodeSize {
@@ -406,7 +348,7 @@ void Parser_print_tokens(Parser * self, FILE * stream) {
 
 err_type Parser_print_ast(Parser * self, FILE * stream) {
     LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - starting ast print %p\n", __func__, (void*)self->ast);
-    if (self->ast == &ASTNode_fail) {
+    if (self->ast == self->fail_node) {
         LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - invalid AST for printing\n", __func__);
         return PEGGY_SUCCESS;
     }
@@ -424,7 +366,6 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
     err_type status = PEGGY_SUCCESS;
     int snp_size = 0;
     while (st.fill) {
-        //printf("starting ast traversal loop with %zu elements in stack\n", st.fill);
         if ((status = st._class->pop(&st, &pair))) {
             fprintf(stream, "%.*s\nERROR: status %d retrieving node...aborting Parser_print_ast\n", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer, status);
             fflush(stream);
@@ -441,7 +382,6 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
             }
             fprintf(stream, "\n");
         } else { // the node is not a leaf. Print the node into the buffer
-            //printf("printing branch to buffer\n");
             fprintf(stream, "%*s%s: rule id: %d, nchildren: %zu\n", (int)pair.size * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->nchildren);
             // increment the number of tabs and add the children in reverse order (pre-order traversal)
             pair.size++;
@@ -462,31 +402,6 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
                 st._class->push(&st, pair);
             }
         }
-        /*
-        // update the buffer data based on how many characters were printed to the buffer
-        if (snp_size >= 0) {
-            if (snp_size < buffer_size) {
-                buffer_size -= snp_size;
-                buffer += snp_size;
-                //printf("successfully updated buffer");
-            } else if (snp_size < PARSER_PRINT_BUFFER_SIZE) {
-                fprintf(stream, "%.*s", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer);
-                fflush(stream);
-                buffer = &print_buffer[0];
-                buffer_size = PARSER_PRINT_BUFFER_SIZE;
-            } else {
-                fprintf(stream, "%.*sERROR: static buffer of insufficient size %d, need %d\n", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer, PARSER_PRINT_BUFFER_SIZE, snp_size);
-                fflush(stream);
-                buffer = &print_buffer[0];
-                buffer_size = PARSER_PRINT_BUFFER_SIZE;
-            }
-        } else {
-            fprintf(stream, "%.*s\nERROR: status %d retrieving node...aborting Parser_print_ast\n", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer, status);
-            fflush(stream);
-            goto print_ast_fail;
-        }
-        */
-        //printf("buffer contents: %.*s\n", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer);
     }
 
     fflush(stream);
@@ -501,16 +416,14 @@ ASTNode * skip_token(Production * production, Parser * parser, ASTNode * node) {
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - skipping node at line %u, col %u of length %zu\n", __func__, node->token_start->coords.line, node->token_start->coords.col, node->str_length);
     node = make_skip_node(node);
     DEBUG_ASSERT(is_skip_node(node), "ASSERT FAILURE: %s - node made skip node not registering as skip node\n", __func__);
-    //printf("is_skip_node: %s\n", is_skip_node(node) ? "True" : "False");
     return node;
 }
 
 ASTNode * token_action(Production * token, Parser * parser, ASTNode * node) {
-    if (node != &ASTNode_fail) {
+    if (node != parser->fail_node) {
         if (is_skip_node(node)) {
             LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - skipping token generated at line %u, col %u of length %zu\n", __func__, node->token_start->coords.line, node->token_start->coords.col, node->str_length);
-            parser->_class->skip_token(parser, node);
-            // TODO: how to seek here?
+            Parser_skip_token(parser, node);
         } else {
             LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - adding token generated at line %u, col %u of length %zu\n", __func__, node->token_start->coords.line, node->token_start->coords.col, node->str_length);
             parser->_class->add_token(parser, node);

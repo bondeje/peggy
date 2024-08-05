@@ -1,6 +1,6 @@
 // peggy.grmr
 export = peggy
-import = peggyparser
+import = peggytransform
 
 whitespace(skip_token):
     "([ \t\r\n\v\f]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+" // includes C-style comments as whitespace
