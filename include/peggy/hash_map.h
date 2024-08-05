@@ -132,6 +132,13 @@ typedef struct HASH_PAIR {
     VALUE_TYPE value;
 } HASH_PAIR;
 
+#if __STDC_VERSION__ < 201112L && !defined(_Alignof)
+struct CAT(HASH_PAIR,_OFFSET) {
+	char a;
+	HASH_PAIR b;
+};
+#endif
+
 typedef struct HASH_MAP_TYPE HASH_MAP_TYPE;
 
 typedef struct CAT(HASH_COMBO, _Type) {
@@ -414,7 +421,11 @@ static hash_map_err CAT(HASH_COMBO, _init)(HASH_MAP_TYPE * map, size_t init_capa
     map->bins = NULL;
     map->capacity = 0;
     map->fill = 0;
+#if __STDC_VERSION__ < 201112L && !defined(_Alignof)
+	map->pair_mgr = MemPoolManager_new(HASH_PAIR_POOL_COUNT, sizeof(HASH_PAIR), offsetof(struct  CAT(HASH_PAIR,_OFFSET), b));
+#else
     map->pair_mgr = MemPoolManager_new(HASH_PAIR_POOL_COUNT, sizeof(HASH_PAIR), _Alignof(HASH_PAIR));
+#endif
     map->_class = &(CAT(HASH_COMBO, _class));
     return CAT(HASH_COMBO, _resize)(map, init_capacity);
 }

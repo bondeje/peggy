@@ -8,10 +8,6 @@
 extern unsigned char const CHAR_BIT_DIV_SHIFT;
 extern unsigned char const CHAR_BIT_MOD_MASK;
 
-#if __STDC_VERSION__ < 201112L && !defined(_Alignof)
-    #define _Alignof(type) offsetof(struct { char c; type d; }, d)
-#endif
-
 #ifndef CAT
     #define CAT_(A, B) A##B
     #define CAT(A, B) CAT_(A, B)
