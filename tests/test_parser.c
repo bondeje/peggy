@@ -337,7 +337,8 @@ int test_parser_doc(void) {
     Parser parser;
     Parser_init(&parser, __func__, strlen(__func__), (Rule *)&test_parser_token, (Rule *)&doc, DOC+1, 0, test_log_file, LOG_LEVEL_ERROR);
     
-    parser._class->parse(&parser, string, strlen(string));
+    size_t string_length = strlen(string);
+    parser._class->parse(&parser, string, string_length);
     nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
     nerrors += check_ASTNodes(parser.ast, result_nodes, __FILE__, __func__, __LINE__);
     /* // for print debugging

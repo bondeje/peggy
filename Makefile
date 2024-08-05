@@ -11,8 +11,8 @@ SUB_MAKE_ARGS = CC=$(CC) SANITIZE=$(SANITIZE) BLD_LOG_LEVEL=$(BLD_LOG_LEVEL) DBG
 
 # for use in specifying a PCRE2 path and (for linux) overriding GNU_regex
 PCRE2 = 
-COMMON_CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -fPIC
-DBG_CFLAGS = $(COMMON_CFLAGS) -O0 -g3 -DMAX_LOGGING_LEVEL=$(DBG_LOG_LEVEL) `if [ -n "$(SANITIZE)" ] ; then echo "-fsanitize=address,undefined"; fi`
+COMMON_CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -fPIC -g
+DBG_CFLAGS = $(COMMON_CFLAGS) -O0 -DMAX_LOGGING_LEVEL=$(DBG_LOG_LEVEL) `if [ -n "$(SANITIZE)" ] ; then echo "-fsanitize=address,undefined"; fi`
 CFLAGS = $(COMMON_CFLAGS) -O2 -DNDEBUG -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL)
 COMMON_IFLAGS = -Iinclude -Ilib/logger/include/ -Ilib/TypeMemPools/include/
 DBG_IFLAGS = $(COMMON_IFLAGS)

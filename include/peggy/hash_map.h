@@ -207,7 +207,9 @@ static hash_map_err CAT(HASH_COMBO, _insert)(HASH_MAP_TYPE * map, HASH_PAIR * pa
     //printf("inserting pair into map of size %zu (%zu)\n", map->fill, map->capacity);
     hash_map_err status = HM_SUCCESS;
     if (map->fill >= map->capacity * HASH_FILL_RESIZE_RATIO) { /* this will even work if the HASH_MAP has been cleared since map->fill == map->capacity == 0 */
-        if ((status = CAT(HASH_COMBO, _resize)(map, next_prime(2*map->capacity)))) {
+        size_t new_cap = next_prime(2*map->capacity);
+        //printf("resizing hash %zu to %zu\n",map->capacity, new_cap);
+        if ((status = CAT(HASH_COMBO, _resize)(map, new_cap))) {
             return status;
         }
     }

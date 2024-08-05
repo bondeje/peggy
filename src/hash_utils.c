@@ -19,7 +19,7 @@ char const * const hs_messages[HASH_SET_N_MESSAGES] = {
     "failure to malloc the set storage"
 };
 
-int uintptr_comp(uintptr_t a, uintptr_t b) {
+int uintptr_t_comp(uintptr_t a, uintptr_t b) {
     if (a > b) {
         return 1;
     } else if (a < b) {
@@ -29,7 +29,24 @@ int uintptr_comp(uintptr_t a, uintptr_t b) {
 }
 
 /* from: https://stackoverflow.com/questions/664014/what-integer-hash-function-are-good-that-accepts-an-integer-hash-key */
-uintptr_t uintptr_hash(uintptr_t a, uintptr_t hash_size) {
+size_t uintptr_t_hash(uintptr_t a, size_t hash_size) {
+    a = ((a >> 16) ^ a) * 0x45d9f3b;
+    a = ((a >> 16) ^ a) * 0x45d9f3b;
+    a = (a >> 16) ^ a;
+    return a % hash_size;
+}
+
+int size_t_comp(size_t a, size_t b) {
+    if (a > b) {
+        return 1;
+    } else if (a < b) {
+        return -1;
+    }
+    return 0;
+}
+
+/* from: https://stackoverflow.com/questions/664014/what-integer-hash-function-are-good-that-accepts-an-integer-hash-key */
+size_t size_t_hash(size_t a, size_t hash_size) {
     a = ((a >> 16) ^ a) * 0x45d9f3b;
     a = ((a >> 16) ^ a) * 0x45d9f3b;
     a = (a >> 16) ^ a;

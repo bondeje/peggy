@@ -17,15 +17,17 @@
 #include <peggy/rule.h>
 #include <peggy/packrat_cache.h>
 
-#define PARSER_DEFAULT_NTOKENS 16384
-#define PARSER_DEFAULT_NNODES 262144
+#define PARSER_DEFAULT_NTOKENS 256
+#define PARSER_DEFAULT_NNODES 4096
 
 /* Parser definitions and declarations */
 
 //typedef struct Parser Parser; // handled in <peggy/utils.h>
 
+#ifdef PACKRAT_HASH
 #define ELEMENT_TYPE pASTNode
 #include <peggy/stack.h>
+#endif
 
 /*
 #define ELEMENT_TYPE Token
@@ -40,6 +42,7 @@ struct Parser {
     MemPoolManager * token_mgr;
     Token * token_head;
     Token * token_cur;
+    size_t ntokens;
     Token * token_tail;
     Rule * token_rule;
     Rule * root_rule;
@@ -115,6 +118,7 @@ err_type Parser_traverse(Parser * parser, void (*traverse_action)(void * ctxt, A
 void Parser_print_tokens(Parser * self, FILE * stream);
 size_t Parser_get_ntokens(Parser * self);
 err_type Parser_print_ast(Parser * parser, FILE * stream);
+size_t Parser_estimate_max_tokens(Parser * parser);
 
 // use in e.g. WHITESPACE or comments
 ASTNode * skip_token(Production * production, Parser * parser, ASTNode * node);

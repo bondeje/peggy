@@ -22,26 +22,27 @@ struct TokenType Token_class = {
     .equal_value = &Token_equal,
 };
 
-Token * Token_new(char const * string, size_t length, unsigned int line, unsigned int col) {
+Token * Token_new(size_t id, char const * string, size_t length, unsigned int line, unsigned int col) {
     Token * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
     // initialize class structure
     memcpy((void*)ret, (void *)&((Token)Token_DEFAULT_INIT), sizeof(Token));
-    if (ret->_class->init(ret, string, length, line, col)) {
+    if (ret->_class->init(ret, id, string, length, line, col)) {
         free(ret);
         return NULL;
     }
     return ret;
 }
-err_type Token_init(Token * self, char const * string, size_t length, unsigned int line, unsigned int col) {
+err_type Token_init(Token * self, size_t id, char const * string, size_t length, unsigned int line, unsigned int col) {
     self->coords.col = col;
     self->coords.line = line;
     self->string = string;
     self->length = length;
     self->next = NULL;
     self->prev = NULL;
+    self->id = id;
     return PEGGY_SUCCESS;
 }
 void Token_del(Token * self) {

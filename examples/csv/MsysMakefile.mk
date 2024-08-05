@@ -21,9 +21,10 @@ csv.c: $(GRAMMAR)
 
 csv.exe: $(SRC_OBJS)
 	$(CC) $(CFLAGS) $(IFLAGS) $(SRC_OBJS) -o $@ $(LFLAGS)
+	cp ../../bin/libpeggy.dll .
 
 clean:
-	@rm -f csv.c csv.h *.o csv *.log
+	@rm -f csv.c csv.h *.o csv *.log *.dll *.exe
 
 # run timing tests
 SAMPLE_DIR = sample_files

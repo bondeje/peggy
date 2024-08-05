@@ -72,7 +72,7 @@ err_type Parser_init(Parser * self, char const * name, size_t name_length,
     
     LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - initialized logger. finalizing initialization of parser\n", __func__);
     
-    err_type status = PackratCache_init(&self->cache, nrules, PACKRAT_DEFAULT); // PACKRAT_SPARSE probably not yet implemented
+    err_type status = PackratCache_init(&self->cache, nrules, PARSER_DEFAULT_NTOKENS, PACKRAT_DEFAULT); // PACKRAT_SPARSE probably not yet implemented
     if (status) {
         return status;
     }
@@ -83,8 +83,9 @@ err_type Parser_init(Parser * self, char const * name, size_t name_length,
     //*self->token_head = (Token){0};
     self->token_tail = MemPoolManager_next(self->token_mgr);
     *self->token_head = (Token){.next = self->token_tail};
-    *self->token_tail = (Token){.string = "", .length = 0, .prev = self->token_head}; // this is a sentinel to allow tokenization
+    *self->token_tail = (Token){.string = "", .length = 0, .prev = self->token_head, .id = SIZE_MAX}; // this is a sentinel to allow tokenization
     self->token_cur = self->token_head;
+    self->ntokens = 0;
 
     // initialize node manager
     self->node_mgr = MemPoolManager_new(PARSER_DEFAULT_NNODES, sizeof(ASTNode), 8);
@@ -131,7 +132,8 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
     Token * insert_right = insert_left->next;
     MemPoolManager * token_mgr = self->token_mgr;
     Token * cur = MemPoolManager_next(token_mgr);
-    Token_init(cur, string, string_length, 0, 0);
+    Token_init(cur, self->ntokens, string, string_length, 0, 0);
+    self->ntokens++;
     insert_left->next = cur;
     if (insert_right) {
         insert_right->prev = cur;
@@ -214,6 +216,10 @@ size_t Parser_get_ntokens(Parser * self) {
     return ntokens;
 }
 
+size_t Parser_estimate_max_tokens(Parser * parser) {
+    return parser->ntokens + parser->token_tail->prev->length / 5 + 1;
+}
+
 void Parser_add_string(Parser * self, Token * cur, char const * string, size_t string_length) {
     unsigned int line;
     unsigned int col;
@@ -222,7 +228,8 @@ void Parser_add_string(Parser * self, Token * cur, char const * string, size_t s
     if (!new_token) {
         // TODO: error code
     }
-    Token_init(new_token, string, string_length, line, col);
+    Token_init(new_token, self->ntokens, string, string_length, line, col);
+    self->ntokens++;
     new_token->next = cur->next;
     cur->next = new_token;
     new_token->prev = cur;
@@ -329,6 +336,9 @@ void Parser_parse(Parser * self, char const * string, size_t string_length) {
 // the token_key isn't strictly necessary, but should be used for safety
 ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, Token * tok) {
     LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - retrieving cache result of rule id %d at line: %hu, col: %hu\n", __func__, rule_id, Parser_tell(self)->coords.line, Parser_tell(self)->coords.col);
+    if (tok == self->token_head || tok == self->token_tail) {
+        return NULL;
+    }
     /*
     if (self->disable_cache_check) {
         return NULL;
@@ -338,7 +348,9 @@ ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, Token * tok) {
 }
 void Parser_cache_check(Parser * self, rule_id_type rule_id, Token * tok, ASTNode * node) {
     LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - caching result of rule id %d at line: %hu, col: %hu: %p\n", __func__, rule_id, tok->coords.line, tok->coords.col, (void*)node);
-    self->cache._class->set(&self->cache, self, rule_id, tok, node);
+    if (tok != self->token_head && tok != self->token_tail) {
+        self->cache._class->set(&self->cache, self, rule_id, tok, node);
+    }
 }
 err_type Parser_traverse(Parser * self, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt) {
     /* TODO */

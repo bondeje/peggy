@@ -20,6 +20,7 @@ examples/rtking
 examples/shh
 .bash_history
 *.log
+test_results/
 
 # to remove
 Makefile_old

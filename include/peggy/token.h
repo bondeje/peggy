@@ -23,12 +23,13 @@ struct Token {
     size_t length;
     Token * prev;
     Token * next;
+    size_t id;
 };
 
 extern struct TokenType {
     char const * type_name;
-    Token * (*new)(char const * string, size_t length, unsigned int line, unsigned int col);
-    err_type (*init)(Token * self, char const * string, size_t length, unsigned int line, unsigned int col);
+    Token * (*new)(size_t id, char const * string, size_t length, unsigned int line, unsigned int col);
+    err_type (*init)(Token * self, size_t id, char const * string, size_t length, unsigned int line, unsigned int col);
     void (*del)(Token * self);
     size_t (*len)(Token * self);
     struct TokenCoords (*coords)(Token * self);
@@ -38,8 +39,8 @@ extern struct TokenType {
     bool (*equal_value)(Token * self, Token * other);
 } Token_class;
 
-Token * Token_new(char const * string, size_t length, unsigned int line, unsigned int col);
-err_type Token_init(Token * self, char const * string, size_t length, unsigned int line, unsigned int col);
+Token * Token_new(size_t id, char const * string, size_t length, unsigned int line, unsigned int col);
+err_type Token_init(Token * self, size_t id, char const * string, size_t length, unsigned int line, unsigned int col);
 void Token_del(Token * self);
 size_t Token_len(Token * self);
 struct TokenCoords Token_coords(Token * self);

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 
 /* POSIX  includes */
 #include <time.h>
@@ -196,6 +197,23 @@ CSVData from_file(char * filename) {
     return csv_data;
 }
 
+void print_first_last_row(CSVData * data) {
+    size_t index = 0;
+    printf("first row: %.*s", (int)(data->offsets[index + data->noffsets] - data->offsets[index]), data->data + data->offsets[index]);
+    for (size_t i = 1; i < data->ncols; i++) {
+        index++;
+        printf(", %.*s", (int)(data->offsets[index + data->noffsets] - data->offsets[index]), data->data + data->offsets[index]);
+    }
+    index = (data->nrows - 1) * data->ncols;
+    printf("\nlast row: %.*s", (int)(data->offsets[index + data->noffsets] - data->offsets[index]), data->data + data->offsets[index]);
+    for (size_t i = 1; i < data->ncols; i++) {
+        index++;
+        printf(", %.*s", (int)(data->offsets[index + data->noffsets] - data->offsets[index]), data->data + data->offsets[index]);
+    }
+
+    printf("\n");
+}
+
 int main(int narg, char ** args) {
     char * log_file = NULL;
     unsigned char log_level = LOG_LEVEL_INFO;
@@ -212,6 +230,7 @@ int main(int narg, char ** args) {
             csv.csv.isalloc = false;
             printf("processing file %s\n", args[iarg]);
             CSVData csv_data = from_file(args[iarg]);
+            //print_first_last_row(&csv_data);
             /* insert any code you want to handle the csv here */
             CSVParser_dest(&csv);
             CSVData_dest(&csv_data);
