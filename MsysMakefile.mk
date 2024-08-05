@@ -24,24 +24,28 @@ LFLAGS = $(COMMON_LFLAGS)
 EXT_LIB_OBJS = lib/logger/src/logger.o lib/TypeMemPools/src/mempool.o
 LIB_OBJS = src/astnode.o src/hash_utils.o src/packrat_cache.o src/parser.o src/rule.o src/token.o src/utils.o 
 DBG_LIB_OBJS = src/astnode.do src/hash_utils.do src/packrat_cache.do src/parser.do src/rule.do src/token.do src/utils.do
-EXE_OBJS = src/peggy.o src/peggyparser.o
+EXE_OBJS = src/peggy.o src/peggyparser.o src/peggystring.o src/peggybuild.o src/peggytransform.o
 
 all: build_paths bin/lib$(NAME).dll bin/lib$(NAME)d.dll bin/$(NAME).exe tests/test.exe
 
 tests/test.exe: bin/lib$(NAME)d.dll
-	(cd tests && unset MAKELEVEL && make $(SUB_MAKE_ARGS) -f MsysMakefile.mk)
+	@(cd tests && unset MAKELEVEL && make $(SUB_MAKE_ARGS) -f MsysMakefile.mk)
 	tests/test.exe --verbose
+	@(cd examples/peggy && unset MAKELEVEL && make $(SUB_MAKE_ARGS) -f MsysMakefile.mk test)
 
 ext_libs: $(EXT_LIB_OBJS)
-	(cd lib/logger && unset MAKELEVEL && make $(SUB_MAKE_ARGS) | true)
-	(cd lib/TypeMemPools && unset MAKELEVEL && make $(SUB_MAKE_ARGS) | true)
+	@(cd lib/logger && unset MAKELEVEL && make $(SUB_MAKE_ARGS) | true)
+	@(cd lib/TypeMemPools && unset MAKELEVEL && make $(SUB_MAKE_ARGS) | true)
+	@cp lib/logger/include/* include/peggy/
+	@cp lib/TypeMemPools/include/* include/peggy/
 
 clean:
 	@rm -f src/*.o src/*.do
 	@rm -rf bin
-	(cd tests && unset MAKELEVEL && make -f MsysMakefile.mk clean)
-	(cd lib/TypeMemPools && unset MAKELEVEL && make clean)
-	(cd lib/logger && unset MAKELEVEL && make clean)
+	@(cd tests && unset MAKELEVEL && make -f MsysMakefile.mk clean)
+	@(cd lib/TypeMemPools && unset MAKELEVEL && make clean)
+	@(cd lib/logger && unset MAKELEVEL && make clean)
+	@(cd examples/peggy && unset MAKELEVEL && make -f MsysMakefile.mk clean)
 
 build_paths:
 	mkdir -p bin

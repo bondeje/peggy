@@ -39,8 +39,8 @@ tests/test: bin/lib$(NAME)d.so
 	@(cd examples/peggy && unset MAKELEVEL && make $(SUB_MAKE_ARGS) test)
 
 ext_libs: $(EXT_LIB_OBJS) $(DBG_EXT_LIB_OBJS)
-	(cd lib/logger && unset MAKELEVEL && make $(SUB_MAKE_ARGS))
-	(cd lib/TypeMemPools && unset MAKELEVEL && make $(SUB_MAKE_ARGS))
+	@(cd lib/logger && unset MAKELEVEL && make $(SUB_MAKE_ARGS))
+	@(cd lib/TypeMemPools && unset MAKELEVEL && make $(SUB_MAKE_ARGS))
 	@cp lib/logger/include/* include/peggy/
 	@cp lib/TypeMemPools/include/* include/peggy/
 

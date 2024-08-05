@@ -27,7 +27,7 @@ peggy.exe:
 	@cp $(SRCS) $(INCS) .
 	@../../bin/peggy $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
 	@$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
-	cp ../../bin/libpeggy.dll .
+	@cp ../../bin/libpeggy.dll .
 
 test: peggy.exe
 	@mv peggy.c peggy_orig.c

@@ -7,7 +7,7 @@ CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=
 LFLAGS = '-Wl,-rpath,$$ORIGIN/../bin' -L. -L../bin -lpeggyd
 IFLAGS = -I../include -I../lib/logger/include -I../lib/TypeMemPools/include
 
-TEST_OBJS = test_parser.o test_driver.o test_utils.o test_rules.o test_peggy_utils.o
+EXE_SRCS = test_parser.c test_driver.c test_utils.c test_rules.c test_peggy_utils.c
 
 all: clean test
 
@@ -18,8 +18,5 @@ clean:
 	@rm -f *.o test *.txt *.log *.so
 
 
-test: $(TEST_OBJS)
-	@$(CC) $(CFLAGS) $(IFLAGS) $(TEST_OBJS) -o $@ $(LFLAGS)
-
-.c.o:
-	@$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+test: $(EXE_SRCS)
+	@$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
