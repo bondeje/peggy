@@ -38,10 +38,10 @@ void PeggyString_fwrite(PeggyString a, FILE * output, unsigned int flags) {
     size_t start = PSFO_GET_LOFFSET(flags);
     size_t end = a.len;
     if (PSFO_STRIP & flags) {
-        while (start < end && isspace(a.str[start])) {
+        while (start < end && isspace((unsigned char)a.str[start])) {
             start++;
         }
-        while (end > start && isspace(a.str[end-1])) {
+        while (end > start && isspace((unsigned char)a.str[end-1])) {
             end--;
         }
         PeggyString_fwrite((PeggyString) {.str = a.str + start, .len = end-start}, output, (flags & ~PSFO_STRIP));
@@ -52,11 +52,11 @@ void PeggyString_fwrite(PeggyString a, FILE * output, unsigned int flags) {
     }
     if (flags & PSFO_LOWER) {
         for (size_t i = start; i < end; i++) {
-            fputc(tolower(a.str[i]), output);
+            fputc(tolower((unsigned char)a.str[i]), output);
         }
     } else {
         for (size_t i = start; i < end; i++) {
-            fputc(toupper(a.str[i]), output);
+            fputc(toupper((unsigned char)a.str[i]), output);
         }
     }
     

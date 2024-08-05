@@ -480,7 +480,7 @@ void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyStri
             size_t j = 4; // target index in prod.identifier.str
             for (size_t i = 1; i < prod.name.len - 1; i++) {
                 prod.identifier.str[j++] = '_';
-                if (isalnum(prod.name.str[i]) || prod.name.str[i] == '_') {
+                if (isalnum((unsigned char)prod.name.str[i]) || prod.name.str[i] == '_') {
                     prod.identifier.str[j++] = prod.name.str[i];
                 } else {
                     sprintf(prod.identifier.str + j, "%.3d", prod.name.str[i]);
