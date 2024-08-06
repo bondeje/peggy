@@ -219,14 +219,14 @@ err_type from_string(char const * string, size_t string_length, char const * nam
     Parser_parse(parser, string, string_length);
     if (parser->ast == NULL) {
         LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - parser failure. null node returned.\n", __func__);
-    } else if (Parser_is_fail(parser, parser->ast)) {
+    } else if (Parser_is_fail_node(parser, parser->ast)) {
         LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - parser failure\n", __func__); // TODO: need better messaging
     } else if (Parser_tell(parser)->next && Parser_tell(parser)->next->length) {
         LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - tokenizer failure. string was not fully tokenized. Remaining string of length %zu at line %u, col %u\n", __func__, Parser_tell(parser)->next->length, Parser_tell(parser)->next->coords.line, Parser_tell(parser)->next->coords.col);
     } else {
         LOG_EVENT(&parser->logger, LOG_LEVEL_INFO, "INFO: %s - parsing successful\n", __func__);
     }
-    if (Parser_is_fail(parser, parser->ast)) {
+    if (Parser_is_fail_node(parser, parser->ast)) {
         status = PEGGY_FAILURE;
     }
     return status;

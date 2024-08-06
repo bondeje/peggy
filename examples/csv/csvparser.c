@@ -59,7 +59,7 @@ ASTNode * process_record(Production * record_prod, Parser * parser, ASTNode * no
         csv->csv.ncols = ncols;
     } else if (csv->csv.ncols != ncols) {
         LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - csv parsing error: found a different number of columns in row %zu compared to prior rows - found %zu, expected %zu\n", __func__, csv->csv.nrows, ncols, csv->csv.ncols);
-        return Parser_fail(parser);
+        return Parser_fail_node(parser);
     }
 
     csv->csv.nrows++;
@@ -92,7 +92,7 @@ ASTNode * handle_csv(Production * csv_prod, Parser * parser, ASTNode * node) {
     csv->csv.noffsets = (csv->csv.ncols * csv->csv.nrows + 1);
     csv->csv.offsets = malloc(sizeof(*csv->csv.offsets) * csv->csv.noffsets * 2); // add one to be able to set one past
     if (!csv->csv.offsets) {
-        return Parser_fail(parser);
+        return Parser_fail_node(parser);
     }
 
     csv->csv.offsets[0] = 0;

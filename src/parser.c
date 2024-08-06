@@ -77,7 +77,7 @@ err_type Parser_init(Parser * self, char const * name, size_t name_length,
 
     self->fail_node = MemPoolManager_next(self->node_mgr);
     *self->fail_node = (ASTNode) ASTNode_DEFAULT_INIT;
-    //self->fail_node->token_start = self->token_head;
+    self->fail_node->token_start = self->token_head;
     self->lookahead_node = MemPoolManager_next(self->node_mgr);
     *self->lookahead_node = (ASTNode) ASTNode_DEFAULT_INIT;
 
@@ -141,7 +141,7 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
             printf("failed node\n");
             return 0;
         }
-        if (Parser_is_fail(self, node)) {
+        if (Parser_is_fail_node(self, node)) {
             LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to tokenize string at line: %hu, col: %hu - %.*s\n", __func__, cur->coords.line, cur->coords.col, REMAINING_TOKEN_MAX_SIZE < cur->length ? REMAINING_TOKEN_MAX_SIZE : cur->length, cur->string);
         }
         if (!is_skip_node(node)) {
@@ -278,7 +278,7 @@ void Parser_parse(Parser * self, char const * string, size_t string_length) {
         self->token_cur = start;
         if (self->root_rule) {
             self->ast = self->root_rule->_class->check(self->root_rule, self);
-            LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - parser %ssuccessfully completed\n", __func__, Parser_is_fail(self, self->ast) ? "un" : "");
+            LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - parser %ssuccessfully completed\n", __func__, Parser_is_fail_node(self, self->ast) ? "un" : "");
         }
     }
     
@@ -349,7 +349,7 @@ void Parser_print_tokens(Parser * self, FILE * stream) {
 
 err_type Parser_print_ast(Parser * self, FILE * stream) {
     LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - starting ast print %p\n", __func__, (void*)self->ast);
-    if (Parser_is_fail(self, self->ast)) {
+    if (Parser_is_fail_node(self, self->ast)) {
         LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - invalid AST for printing\n", __func__);
         return PEGGY_SUCCESS;
     }
@@ -421,7 +421,7 @@ ASTNode * skip_token(Production * production, Parser * parser, ASTNode * node) {
 }
 
 ASTNode * token_action(Production * token, Parser * parser, ASTNode * node) {
-    if (!Parser_is_fail(parser, node)) {
+    if (!Parser_is_fail_node(parser, node)) {
         if (is_skip_node(node)) {
             LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - skipping token generated at line %u, col %u of length %zu\n", __func__, node->token_start->coords.line, node->token_start->coords.col, node->str_length);
             Parser_skip_token(parser, node);
