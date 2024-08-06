@@ -858,7 +858,7 @@ ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * pars
         //parser->_class->seek(parser, tok);
         return Parser_add_node(parser, negative_lookahead, tok->prev, tok->prev, 0, 0, NULL, 0);
     }
-    return Parser_fail(parser, negative_lookahead);
+    return node;
 }
 /* PositiveLookahead implementations */
 

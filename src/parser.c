@@ -77,7 +77,7 @@ err_type Parser_init(Parser * self, char const * name, size_t name_length,
 
     self->fail_node = MemPoolManager_next(self->node_mgr);
     *self->fail_node = (ASTNode) ASTNode_DEFAULT_INIT;
-    self->fail_node->token_start = self->token_head;
+    //self->fail_node->token_start = self->token_head;
     self->lookahead_node = MemPoolManager_next(self->node_mgr);
     *self->lookahead_node = (ASTNode) ASTNode_DEFAULT_INIT;
 
@@ -141,7 +141,7 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
             printf("failed node\n");
             return 0;
         }
-        if (node == Parser_fail_node(self)) {
+        if (Parser_is_fail(self, node)) {
             LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to tokenize string at line: %hu, col: %hu - %.*s\n", __func__, cur->coords.line, cur->coords.col, REMAINING_TOKEN_MAX_SIZE < cur->length ? REMAINING_TOKEN_MAX_SIZE : cur->length, cur->string);
         }
         if (!is_skip_node(node)) {
