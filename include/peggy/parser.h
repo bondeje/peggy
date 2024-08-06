@@ -28,8 +28,10 @@
 
 #define Parser_tell(pparser) (((Parser *)pparser)->token_cur)
 #define Parser_seek(pparser, ptoken) (((Parser *)pparser)->token_cur = ptoken)
-#define Parser_fail(pparser) (((Parser *)pparser)->fail_node)
-#define Parser_is_fail(pparser, node) (node == Parser_fail(pparser))
+#define Parser_fail_node(pparser) (((Parser *)pparser)->fail_node)
+//#define Parser_fail(pparser, prule) (Parser_tell(pparser)->id >= Parser_fail_node(pparser)->token_start->id ? (Parser_fail_node(pparser)->rule->id = prule->id, Parser_fail_node(pparser)->token_start = Parser_tell(pparser)) : NULL, Parser_fail_node(pparser))
+#define Parser_fail(pparser, prule) Parser_fail_node(pparser)
+#define Parser_is_fail(pparser, node) (node == Parser_fail_node(pparser))
 
 struct Parser {
     struct ParserType * _class;
