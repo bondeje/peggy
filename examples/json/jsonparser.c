@@ -23,11 +23,6 @@
 // SIGN, 53 fraction digits, DEC, e/E, SIGN, 4 digit exponent  + '\0' + a few bytes
 #define MAX_DBL_STR_LENGTH 64
 
-/* globals */
-bool timeit = false;
-
-struct JSONDoc empty_json = {0};
-
 JSONParser json = {
     .Parser = {
         ._class = &Parser_class,
@@ -64,7 +59,7 @@ JSONValue * JSONParser_get_next_JSONValue(JSONParser * parser) {
     return parser->json.data.values + parser->json.data.nvalues_used++;
 }
 JSONString JSONParser_get_next_JSONString(JSONParser * parser, ASTNode * node) {
-    Token * tok = parser->Parser._class->get_tokens(&parser->Parser, node);
+    Token * tok = node->token_start;
     if (parser->json.data.string_used >= parser->json.data.string_size - tok->length - 1) {
         printf("%s - insufficient data to get next string\n", __func__);
         return (JSONString){0};
@@ -77,7 +72,7 @@ JSONString JSONParser_get_next_JSONString(JSONParser * parser, ASTNode * node) {
 }
 
 ASTNode * build_string(Production * prod, Parser * parser_, ASTNode * node) {
-    Token * tok = parser_->_class->get_tokens(parser_, node);
+    Token * tok = node->token_start;
     ((JSONParser *)parser_)->json.data.string_size += tok->length + 1; // add one for a null-terminator
     // not sure why this doesn't work. This would speed things up a little bit. The call to get_tokens is not cheap
     //((JSONParser *)parser_)->json.data.string_size += node->str_length + 1; // add one for a null-terminator
@@ -92,7 +87,7 @@ ASTNode * build_value(Production * prod, Parser * parser_, ASTNode * node) {
 JSONValue * handle_integer(JSONParser * parser, ASTNode * node) {
     static char integer_buffer[MAX_LLONG_STR_LENGTH] = {'\0'};
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
-    Token * tok = parser->Parser._class->get_tokens(&parser->Parser, node);
+    Token * tok = node->token_start;
     if (tok->length >= MAX_LLONG_STR_LENGTH) {
         LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - integer value at line %u, col %u has too many digits to fit in long long. cannot convert\n", __func__, tok->coords.line, tok->coords.col);
         return NULL;
@@ -107,7 +102,7 @@ JSONValue * handle_integer(JSONParser * parser, ASTNode * node) {
 JSONValue * handle_decimal(JSONParser * parser, ASTNode * node) {
     static char decimal_buffer[MAX_DBL_STR_LENGTH] = {'\0'};
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
-    Token * tok = parser->Parser._class->get_tokens(&parser->Parser, node);
+    Token * tok = node->token_start;
     if (tok->length >= MAX_DBL_STR_LENGTH) {
         /* this is technically correctable if the exponent is in range [0-2047] which means fraction bit is too long...trim it*/
         LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - decimal value at line %u, col %u has too many digits to fit in double. cannot convert\n", __func__, tok->coords.line, tok->coords.col);
@@ -271,15 +266,15 @@ void JSONDoc_dest(JSONDoc * json) {
     }
 }
 
-err_type JSONParser_init(JSONParser * parser, char const * string, size_t string_length, char * log_file, unsigned char log_level) {
+void JSONParser_init(JSONParser * parser, char * log_file, unsigned char log_level) {
     parser->json = (JSONDoc) {0};
-    return parser->Parser._class->init(&parser->Parser, "", 0, 
-        string, string_length, (Rule *)&json_token, (Rule *)&json_json, 
-        JSON_NRULES, 0, 0, 0, log_file, log_level);
+    Parser_init((Parser *)parser, NULL, 0, (Rule *)&json_token, (Rule *)&json_json, 
+        JSON_NRULES, 0, log_file, log_level);
+
 }
 
 void JSONParser_dest(JSONParser * parser) {
-    parser->Parser._class->dest(&parser->Parser);
+    Parser_dest((Parser *)parser);
 }
 
 JSONValue * JSONArray_get(JSONArray * array, size_t index) {
@@ -319,14 +314,22 @@ ASTNode * handle_json(Production * prod, Parser * parser_, ASTNode * node) {
     return node;
 }
 
-JSONDoc from_string(char * string, size_t string_length, char * log_file, unsigned char log_level) {
-    err_type status = PEGGY_SUCCESS;
+/* globals */
+_Bool timeit = false;
+
+struct JSONDoc empty_json = {0};
+
+JSONDoc * from_string(char * string, size_t string_length) {
+    JSONParser_init(&json, NULL, 0);
     if (!timeit) {
-        if ((status = JSONParser_init(&json, string, string_length, log_file, log_level))) {
-            return empty_json;
+        Parser_parse((Parser *)&json, string, string_length);
+        if (Parser_is_fail_node((Parser *)&json, json.Parser.ast)) {
+            return &empty_json;
         }
-        return json.json;
+        return &json.json;
     }
+
+#ifdef CLOCK_MONOTONIC
     static char const * const record_format = "%zu, %10.8lf\n";
     char buffer[1024] = {'\0'};
     FILE * time_records = fopen("times.csv", "ab");
@@ -336,7 +339,7 @@ JSONDoc from_string(char * string, size_t string_length, char * log_file, unsign
     clockid_t clk = CLOCK_MONOTONIC;
     //double clock_conversion = 1.0e-6;
     clock_gettime(clk, &t0);
-    status = JSONParser_init(&json, string, string_length, log_file, log_level);
+    Parser_parse((Parser *)&json, string, string_length);
     clock_gettime(clk, &t1);
 
     if (t1.tv_nsec < t0.tv_nsec) {
@@ -350,13 +353,19 @@ JSONDoc from_string(char * string, size_t string_length, char * log_file, unsign
     printf("%s", buffer);
     
     fclose(time_records);
-    return json.json;
+    if (Parser_is_fail_node((Parser *)&json, json.Parser.ast)) {
+        printf("parser failed\n");
+        return &empty_json;
+    }
+#endif
+    return &json.json;
 }
 
-JSONDoc from_file(char * filename, char * log_file, unsigned char log_level) {
+JSONDoc * from_file(char * filename) {
     FILE * pfile = fopen(filename, "rb");
     if (!pfile) {
         LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - failed to open file %s\n", __func__, filename);
+        return &empty_json;
     }
     fseek(pfile, 0, SEEK_END);
     long file_size = ftell(pfile);
@@ -364,32 +373,19 @@ JSONDoc from_file(char * filename, char * log_file, unsigned char log_level) {
 
     char * string = malloc(file_size + 1);
     if (!string) {
-        return empty_json;
+        return &empty_json;
     }
     size_t nbytes = fread(string, 1, file_size, pfile);
     if (ferror(pfile)) {
         LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - failed to read file: %s\n", __func__, filename);
         free(string);
-        return empty_json;
+        return &empty_json;
     }
     string[file_size] = '\0';
 
     fclose(pfile);
 
-    size_t name_length = strlen(filename);
-    char const * name = filename;
-
-    // set name of the parser
-    if (strchr(name, '/')) {
-        name = strrchr(name, '/');
-    }
-    if (strchr(name, '\\')) {
-        name = strrchr(name, '\\');
-    }
-    if (strstr(name, ".grmr")) {
-        name_length = (size_t)(strstr(name, ".grmr") - name);
-    }
-    JSONDoc json_data = from_string(string, (size_t) file_size, log_file, log_level);
+    JSONDoc * json_data = from_string(string, (size_t) file_size);
 
     free(string);
     return json_data;
@@ -397,36 +393,29 @@ JSONDoc from_file(char * filename, char * log_file, unsigned char log_level) {
 
 int main(int narg, char ** args) {
     //printf("built!\n");
-    char * input_file = NULL;
     char * log_file = NULL;
     unsigned char log_level = LOG_LEVEL_INFO;
     int iarg = 1;
     while (iarg < narg) {
         printf("arg %d: %s\n", iarg, args[iarg]);
-        if (!timeit && !strcmp(args[iarg], "--timeit")) {
+        if (!strcmp(args[iarg], "--timeit")) {
             timeit = true;
-            iarg++;
-            continue;
+        } else if (!strncmp(args[iarg], "--log=", 6)) {
+            log_file = args[iarg] + 6;
+        } else if (!strncmp(args[iarg], "--log_level=", 12)) {
+            log_level = Logger_level_to_uchar(args[iarg] + 12, strlen(args[iarg] + 12));
+        } else {
+            printf("processing file %s\n", args[iarg]);
+            JSONDoc * json_data = from_file(args[iarg]);
+            //print_first_last_row(&csv_data);
+            /* insert any code you want to handle the csv here */
+            if (json_data != &empty_json) {
+                JSONParser_dest(&json);
+                JSONDoc_dest(json_data);
+            }
+            
         }
-        if (!input_file) {
-            input_file = args[iarg++];
-            continue;
-        }
-        if (!log_file) {
-            log_file = args[iarg++];
-            continue;
-        }
-        log_level = Logger_level_to_uchar(args[iarg], strlen(args[iarg]));
         iarg++;
-    }
-    if (input_file) {
-        printf("processing file %s\n", input_file);
-        JSONDoc json_data = from_file(input_file, log_file, log_level);
-
-        /* insert any code you want to handle the csv here */
-
-        JSONParser_dest(&json);
-        JSONDoc_dest(&json_data);
     }
     json_dest();
     Logger_tear_down();

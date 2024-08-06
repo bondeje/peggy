@@ -177,21 +177,6 @@ CSVData from_file(char * filename) {
 
     fclose(pfile);
 
-    /*
-    size_t name_length = strlen(filename);
-    char const * name = filename;
-
-    // set name of the parser
-    if (strchr(name, '/')) {
-        name = strrchr(name, '/');
-    }
-    if (strchr(name, '\\')) {
-        name = strrchr(name, '\\');
-    }
-    if (strstr(name, ".grmr")) {
-        name_length = (size_t)(strstr(name, ".grmr") - name);
-    }
-    */
     csv.csv.isalloc = true;
     CSVData csv_data = from_string(string, (size_t) file_size);
     return csv_data;

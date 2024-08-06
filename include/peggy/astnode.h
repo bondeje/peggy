@@ -42,5 +42,7 @@ ASTNode * make_skip_node(ASTNode * node);
 
 bool is_skip_node(ASTNode * node);
 
+size_t ASTNode_string_length(ASTNode * node);
+
 #endif // PEGGY_ASTNODE_H
 

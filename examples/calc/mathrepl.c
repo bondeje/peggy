@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <string.h>
 #include <complex.h>
 #include <math.h>
 #include <assert.h>

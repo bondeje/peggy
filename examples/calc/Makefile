@@ -1,38 +1,24 @@
-include ../../environment.mk
-
+.POSIX:
+# just in case FreeBSD's make implementation screws up the current directory
+.OBJDIR: .
+CC = gcc
 EXAMPLE_NAME = calculator
 GRAMMAR = $(EXAMPLE_NAME).grmr
-PKG_PATH = ../..
-PKG_RETURN = examples/$(NAME)
-PEGGY_IFLAGS = -I../../include -I../../lib/logger/include
-ifneq ($(UNAME), Linux)
-    PEGGY_IFLAGS += -I../../lib/pcre2/include
-endif
-LIBS += -lm
-PARSER_SRC := $(EXAMPLE_NAME)parser$(SRC_SUFFIX)
-EXPORT_SRC = $(EXAMPLE_NAME)$(SRC_SUFFIX)
+BLD_LOG_LEVEL = LOG_LEVEL_INFO
+TEST_LOG_LEVEL = LOG_LEVEL_ERROR
+CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) `if [ -n "$(SANITIZE)" ] ; then echo "-g -fsanitize=address,undefined"; else echo "-DNDEBUG"; fi` -fPIC
+IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/include
+LFLAGS = '-Wl,-rpath,$$ORIGIN/../../bin' -L../../bin -lpeggy -lm
 
-SUPPORT_SRCS = mathrepl.c
+EXE_SRCS = mathrepl.c calculatorparser.c calculator.c
 
-all: generate_parser build_parser move_regex
+all: calculator
 
-ifneq ($(UNAME), Linux)
-move_regex:
-	cp ../../$(LIB_DIR)/pcre2/bin/libpcre2-* .
-else
-move_regex:
+.MAIN: all
 
-endif
-
-generate_parser:
-	rm -f *.log
-	$(PKG_PATH)/$(BIN_DIR)/$(EXE) $(GRAMMAR) $(GRAMMAR).log
-
-build_parser:
-	$(CC) $(CFLAGS) $(PEGGY_IFLAGS) $(PARSER_SRC) $(EXPORT_SRC) $(SUPPORT_SRCS) -o $(EXAMPLE_NAME)$(EXE_EXT) -L$(PKG_PATH)/$(BIN_DIR) -l:$(STATIC_LIB_FILE) $(LIBS)
+calculator: $(GRAMMAR)
+	../../bin/peggy $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
+	$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 
 clean:
-	rm -f $(EXAMPLE_NAME)$(EXE_EXT)
-	rm -f $(EXAMPLE_NAME)$(HDR_SUFFIX)
-	rm -f $(EXAMPLE_NAME)$(SRC_SUFFIX)
-	rm -f *.log
+	@rm -f calculator.h calculator.c calculator *.log

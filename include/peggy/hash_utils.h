@@ -2,6 +2,7 @@
 #define HASH_UTILS_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 int uintptr_t_comp(uintptr_t a, uintptr_t b);
 size_t uintptr_t_hash(uintptr_t a, size_t hash_size);
