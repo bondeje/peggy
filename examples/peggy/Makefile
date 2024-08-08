@@ -23,7 +23,7 @@ all: peggy
 # OpenBSD weirdness
 .MAIN: all
 
-peggy: 
+peggy: $(GRAMMAR)
 	@cp $(SRCS) $(INCS) .
 	@../../bin/peggy $(GRAMMAR) $(GRAMMAR).log LOG_LEVEL_DEBUG
 	@$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
@@ -31,7 +31,7 @@ peggy:
 test: peggy
 	@mv peggy.c peggy_orig.c
 	@mv peggy.h peggy_orig.h
-	@./peggy peggy.grmr
+	@./peggy peggy.grmr $(GRAMMAR).log LOG_LEVEL_ERROR
 	@(if [ -z "`comm -3 peggy_orig.h peggy.h`" ] && [ -z "`comm -3 peggy_orig.c peggy.c`" ] ; then echo "test peggy bootstrap...passed" ; else echo "test peggy bootstrap...failed" ; fi)
 
 clean:

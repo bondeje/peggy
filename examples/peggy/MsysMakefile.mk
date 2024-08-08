@@ -23,7 +23,7 @@ all: peggy.exe
 # OpenBSD weirdness
 .MAIN: all
 
-peggy.exe: 
+peggy.exe: $(GRAMMAR)
 	@cp $(SRCS) $(INCS) .
 	@../../bin/peggy $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
 	@$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)

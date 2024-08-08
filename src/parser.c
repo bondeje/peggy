@@ -123,7 +123,7 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
     Token * insert_right = insert_left->next;
     MemPoolManager * token_mgr = self->token_mgr;
     Token * cur = MemPoolManager_next(token_mgr);
-    Token_init(cur, self->ntokens, string, string_length, 0, 0);
+    Token_init(cur, self->ntokens, string, string_length, 1, 1);
     self->ntokens++;
     insert_left->next = cur;
     if (insert_right) {
@@ -143,6 +143,7 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
         }
         if (Parser_is_fail_node(self, node)) {
             LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to tokenize string at line: %hu, col: %hu - %.*s\n", __func__, cur->coords.line, cur->coords.col, REMAINING_TOKEN_MAX_SIZE < cur->length ? REMAINING_TOKEN_MAX_SIZE : cur->length, cur->string);
+            return ntokens;
         }
         if (!is_skip_node(node)) {
             ntokens++;
@@ -255,7 +256,7 @@ err_type Parser_add_token(Parser * self, ASTNode * node) {
 
 
 ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * child, size_t size) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - adding node with str_length %zu, nchildren %zu (%p) at line: %hu, col: %hu", __func__, str_length, nchildren, (void*)child, start->coords.line, start->coords.col);
+    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - adding node for rule id %d with str_length %zu, nchildren %zu (%p) at line: %hu, col: %hu", __func__, rule->id, str_length, nchildren, (void*)child, start->coords.line, start->coords.col);
     if (!size) {
         size = sizeof(ASTNode);
     }
@@ -340,6 +341,7 @@ size_t ast_depth(ASTNode * root) {
 void Parser_print_tokens(Parser * self, FILE * stream) {
     Token * tok = self->token_head->next;
     while (tok && tok->length) {
+        // should replace with a print function
         fprintf(stream, "\"%.*s\" ", (int)tok->length, tok->string);
         tok = tok->next;
     }
@@ -376,6 +378,7 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
         // TODO: should really only print if the rule is an instance of LiteralRule
         if (!pair.node->nchildren && pair.node->str_length) { // the node is a token leaf in the AST tree. Print the node and token into the buffer
             Token * tok = pair.node->token_start;
+            // replace with an actual print function
             fprintf(stream, "%*s%s: rule id: %d, nchildren: %zu, token: %.*s ", (int)pair.size * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->nchildren, (int)tok->length, tok->string);
             while (tok != pair.node->token_end) {
                 tok = tok->next;
@@ -383,6 +386,7 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
             }
             fprintf(stream, "\n");
         } else { // the node is not a leaf. Print the node into the buffer
+            // replace with an actual print function
             fprintf(stream, "%*s%s: rule id: %d, nchildren: %zu\n", (int)pair.size * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->nchildren);
             // increment the number of tabs and add the children in reverse order (pre-order traversal)
             pair.size++;
@@ -390,17 +394,20 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
             ASTNode * node = pair.node->child;
             if (node) {
                 // what a shitty way to do this with the "start" variable. I need to just make sure that the ->prev members are all set up correctly
-                ASTNode * start = node;
+                //ASTNode * start = node;
                 while (node->next) {
+                    assert(node->next->prev == node || !printf("assertion failure on rule id %d\n", node->rule->id));
                     node = node->next;
+                    
                 }
-                while (node != start) {
+                //while (node != start) {
+                while (node) {
                     pair.node = node;
                     st._class->push(&st, pair);
                     node = node->prev;
                 }
-                pair.node = start;
-                st._class->push(&st, pair);
+                //pair.node = start;
+                //st._class->push(&st, pair);
             }
         }
     }
