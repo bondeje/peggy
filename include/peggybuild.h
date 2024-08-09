@@ -17,7 +17,7 @@ void build_export_rules(PeggyParser * parser);
 
 void build_destructor(PeggyParser * parser);
 
-PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, char const * type);
+PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, RuleTypeID type);
 
 void PeggyProduction_declare(PeggyParser * parser, PeggyProduction prod);
 

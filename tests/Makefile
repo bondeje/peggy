@@ -3,11 +3,11 @@
 CC = gcc
 NAME = test
 DBG_LOG_LEVEL=LOG_LEVEL_DEBUG
-CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O0 -g2 -DMAX_LOGGING_LEVEL=$(DBG_LOG_LEVEL) `if [ -n "$(SANITIZE)" ] ; then echo "-fsanitize=address,undefined"; fi`
+CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O0 -g2 -DMAX_LOGGING_LEVEL=$(DBG_LOG_LEVEL)
 LFLAGS = '-Wl,-rpath,$$ORIGIN/../bin' -L. -L../bin -lpeggyd
 IFLAGS = -I../include -I../lib/logger/include -I../lib/TypeMemPools/include
 
-EXE_SRCS = test_parser.c test_driver.c test_utils.c test_rules.c test_peggy_utils.c
+EXE_SRCS = test_parser.c test_driver.c test_utils.c test_peggy_utils.c test_rules.c 
 
 all: clean test
 
@@ -19,4 +19,5 @@ clean:
 
 
 test: $(EXE_SRCS)
-	@$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
+	@if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="" ; fi ; \
+	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)

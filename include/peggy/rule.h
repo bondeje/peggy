@@ -42,10 +42,12 @@
 
 /* Rule definitions and declarations */
 
+/*
 #define Rule_DEFAULT_INIT {._class = &Rule_class, \
                            .id = Rule_DEFAULT_ID \
                            }
 #define RuleType_DEFAULT_INIT 
+*/
 
 //typedef struct Rule Rule; // handled in <peggy/utils.h>
 typedef struct RuleType RuleType;
@@ -53,16 +55,10 @@ typedef struct RuleType RuleType;
 struct Rule {
     RuleType * _class;   /* internal */
     rule_id_type id;            /* public */
-#ifndef NDEBUG
-    size_t ncalls;
-    size_t nevals;
-#endif
 };
 
-
-
 extern struct RuleType {
-    char const * type_name;
+    RuleTypeID type;
     Rule * (*new)(int);
     err_type (*init)(Rule * self, int id);
     void (*dest)(Rule * self);
@@ -82,6 +78,7 @@ ASTNode * Rule_check(Rule * self, Parser * parser);
 
 /* ChainRule definitions and declarations */
 
+/*
 #define ChainRule_DEFAULT_INIT {.Rule = { \
                                     ._class = &(ChainRule_class.Rule_class), \
                                     id = Rule_DEFAULT_ID, \
@@ -90,6 +87,7 @@ ASTNode * Rule_check(Rule * self, Parser * parser);
                                 .deps = NULL, \
                                 .deps_size = 0 \
                                 }
+*/
 
 typedef struct ChainRule ChainRule;
 
@@ -102,20 +100,21 @@ struct ChainRule {
 
 extern struct ChainRuleType {
     struct RuleType Rule_class;
-    ChainRule * (*new)(rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
-    err_type (*init)(ChainRule * self, rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
+    ChainRule * (*new)(rule_id_type id, size_t deps_size, Rule ** deps);
+    err_type (*init)(ChainRule * self, rule_id_type id, size_t deps_size, Rule ** deps);
     void (*dest)(ChainRule * self);
     void (*del)(ChainRule * self);
 } ChainRule_class;
 
-ChainRule * ChainRule_new(rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
-err_type ChainRule_init(ChainRule * self, rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
+ChainRule * ChainRule_new(rule_id_type id, size_t deps_size, Rule ** deps);
+err_type ChainRule_init(ChainRule * self, rule_id_type id, size_t deps_size, Rule ** deps);
 void ChainRule_dest(ChainRule * self);
 void ChainRule_del(ChainRule * self);
 void ChainRule_as_Rule_del(Rule * chain_rule);
 
 /* SequenceRule definitions and declarations */
 
+/*
 #define SequenceRule_DEFAULT_INIT { .ChainRule = { \
                                         .Rule = { \
                                             ._class = &SequenceRule_class.ChainRule_class.Rule_class, \
@@ -127,7 +126,8 @@ void ChainRule_as_Rule_del(Rule * chain_rule);
                                     }, \
                                     ._class = &SequenceRule_class \
                                     }
-          
+*/
+
 typedef struct SequenceRule SequenceRule;
 
 struct SequenceRule {
@@ -137,14 +137,14 @@ struct SequenceRule {
 
 extern struct SequenceRuleType {
     struct ChainRuleType ChainRule_class;
-    SequenceRule * (*new)(rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
-    err_type (*init)(SequenceRule * self, rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
+    SequenceRule * (*new)(rule_id_type id, size_t deps_size, Rule ** deps);
+    err_type (*init)(SequenceRule * self, rule_id_type id, size_t deps_size, Rule ** deps);
     void (*dest)(SequenceRule * self);
     void (*del)(SequenceRule * self);
 } SequenceRule_class;
 
-SequenceRule * SequenceRule_new(rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
-err_type SequenceRule_init(SequenceRule * self, rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
+SequenceRule * SequenceRule_new(rule_id_type id, size_t deps_size, Rule ** deps);
+err_type SequenceRule_init(SequenceRule * self, rule_id_type id, size_t deps_size, Rule ** deps);
 void SequenceRule_dest(SequenceRule * self);
 void SequenceRule_del(SequenceRule * self);
 void SequenceRule_as_ChainRule_del(ChainRule * sequence_chain);
@@ -154,6 +154,7 @@ ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser);
 
 /* ChoiceRule definitions and declarations */
 
+/*
 #define ChoiceRule_DEFAULT_INIT {   .ChainRule = { \
                                         .Rule = { \
                                             ._class = &ChoiceRule_class.ChainRule_class.Rule_class, \
@@ -165,7 +166,8 @@ ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser);
                                     }, \
                                     ._class = &ChoiceRule_class \
                                     }
-          
+*/
+
 typedef struct ChoiceRule ChoiceRule;
 
 struct ChoiceRule {
@@ -175,14 +177,14 @@ struct ChoiceRule {
 
 extern struct ChoiceRuleType {
     struct ChainRuleType ChainRule_class;
-    ChoiceRule * (*new)(rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
-    err_type (*init)(ChoiceRule * self, rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
+    ChoiceRule * (*new)(rule_id_type id, size_t deps_size, Rule ** deps);
+    err_type (*init)(ChoiceRule * self, rule_id_type id, size_t deps_size, Rule ** deps);
     void (*dest)(ChoiceRule * self);
     void (*del)(ChoiceRule * self);
 } ChoiceRule_class;
 
-ChoiceRule * ChoiceRule_new(rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
-err_type ChoiceRule_init(ChoiceRule * self, rule_id_type id, size_t deps_size, Rule * deps[deps_size]);
+ChoiceRule * ChoiceRule_new(rule_id_type id, size_t deps_size, Rule ** deps);
+err_type ChoiceRule_init(ChoiceRule * self, rule_id_type id, size_t deps_size, Rule ** deps);
 void ChoiceRule_dest(ChoiceRule * self);
 void ChoiceRule_del(ChoiceRule * self);
 void ChoiceRule_as_ChainRule_del(ChainRule * choice_chain);
@@ -194,6 +196,7 @@ ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser);
 
 /* this captures both StringRule and RegexRule from peggen.py since I only ever use regex anyway. punctuators have to go through a regex cleanup */
 
+/*
 #define LiteralRule_DEFAULT_INIT {  .Rule = { \
                                         ._class = &LiteralRule_class.Rule_class, \
                                         .id = Rule_DEFAULT_ID, \
@@ -203,7 +206,8 @@ ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser);
                                     .compiled = false, \
                                     }
 #define LiteralRuleType_DEFAULT_INIT 
-          
+*/        
+
 typedef struct LiteralRule LiteralRule;
 
 struct LiteralRule {
@@ -241,6 +245,7 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser);
 
 /* DerivedRule abstract class definitions and declarations */
 
+/*
 #define DerivedRule_DEFAULT_INIT {  .Rule = { \
                                         ._class = &DerivedRule_class.Rule_class, \
                                         .id = Rule_DEFAULT_ID, \
@@ -249,8 +254,10 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser);
                                     .rule = NULL \
                                     }
 #define DerivedRuleType_DEFAULT_INIT 
+*/
 
 typedef struct DerivedRule DerivedRule;
+typedef struct DerivedRuleType DerivedRuleType;
 
 struct DerivedRule {
     Rule Rule;
@@ -274,6 +281,7 @@ void DerivedRule_as_Rule_del(Rule * derived_rule);
 
 /* ListRule class definitions and declarations */
 
+/*
 #define ListRule_DEFAULT_INIT { .DerivedRule = {\
                                     .Rule = { \
                                         ._class = &ListRule_class.DerivedRule_class.Rule_class, \
@@ -286,6 +294,7 @@ void DerivedRule_as_Rule_del(Rule * derived_rule);
                                 .delim = NULL \
                                 }
 #define ListRuleType_DEFAULT_INIT 
+*/
 
 typedef struct ListRule ListRule;
 
@@ -316,6 +325,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser);
 
 /* TODO: HERE...need to fix the members of repeat rule to include min_rep and max_rep*/
 
+/*
 #define RepeatRule_DEFAULT_INIT {   .DerivedRule = {\
                                         .Rule = { \
                                             ._class = &(RepeatRule_class.DerivedRule_class.Rule_class), \
@@ -329,6 +339,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser);
                                     .max_rep = 0 \
                                     }
 #define RepeatRuleType_DEFAULT_INIT 
+*/
 
 typedef struct RepeatRule RepeatRule;
 
@@ -358,6 +369,7 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser);
 
 /* NegativeLookahead Rule class definitions and declarations */
 
+/*
 #define NegativeLookahead_DEFAULT_INIT { \
                                         .DerivedRule = {\
                                             .Rule = { \
@@ -369,6 +381,7 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser);
                                         }, \
                                         ._class = &NegativeLookahead_class, \
                                         }
+*/
 
 typedef struct NegativeLookahead NegativeLookahead;
 
@@ -396,6 +409,7 @@ ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * pars
 
 /* PositiveLookahead Rule definitions and declarations */
 
+/*
 #define PositiveLookahead_DEFAULT_INIT {.DerivedRule = {\
                                             .Rule = { \
                                                 ._class = &PositiveLookahead_class.DerivedRule_class.Rule_class, \
@@ -406,6 +420,7 @@ ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * pars
                                         }, \
                                         ._class = &PositiveLookahead_class, \
                                         }
+*/
 
 typedef struct PositiveLookahead PositiveLookahead;
 
@@ -432,17 +447,9 @@ void PositiveLookahead_as_Rule_del(Rule * positive_lookahead);
 ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser);
 /* Production Rule abstract class definitions and declarations */
 
-#define Production_DEFAULT_INIT {   .DerivedRule = { \
-                                        .Rule = { \
-                                            ._class = &Production_class.DerivedRule_class.Rule_class, \
-                                            .id = Rule_DEFAULT_ID, \
-                                        }, \
-                                        ._class = &Production_class.DerivedRule_class, \
-                                        .rule = NULL \
-                                    }, \
-                                    ._class = &Production_class, \
-                                    .build_action = &build_action_default, \
-                                    }
+/*
+#define Production_DEFAULT_INIT 
+*/
 
 typedef struct Production Production;
 

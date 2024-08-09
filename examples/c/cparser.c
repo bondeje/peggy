@@ -98,11 +98,9 @@ void CParser_dest(CParser * self) {
 }
 
 ASTNode * simplify_binary_op(Production * binary_op, Parser * parser, ASTNode * node) {
-    if (!node->child->next->nchildren) { // there is no binary operator. reduce to left-hand operand type
-        LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - simplify rule id %d to rule id %d from line %u, col %u\n", __func__, node->rule->id, node->child->rule->id, node->token_start->coords.line, node->token_start->coords.col);
-        node->child->next->prev = NULL;
-        node->child->next = NULL; // to terminate children list
-        return node->child;
+    if (!node->children[1]->nchildren) { // there is no binary operator. reduce to left-hand operand type
+        LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - simplify rule id %d to rule id %d from line %u, col %u\n", __func__, node->rule->id, node->children[0]->rule->id, node->token_start->coords.line, node->token_start->coords.col);
+        return node->children[0];
     }
     return build_action_default(binary_op, parser, node);
 }
@@ -123,7 +121,8 @@ ASTNode * _close_scope(Production * rule, Parser * parser, ASTNode * node) {
 
 // extracts the identifier from the declarator
 CString get_declarator_identifier(ASTNode * declrtr) {
-    ASTNode * possible_id = declrtr->child->next->child->child->next;
+    //ASTNode * possible_id = declrtr->child->next->child->child->next;
+    ASTNode * possible_id = declrtr->children[1]->children[0]->children[1];
     if (possible_id->rule->id == IDENTIFIER) {
         return (CString) {.str = possible_id->token_start->string, .len = possible_id->str_length};
     }
@@ -134,21 +133,16 @@ CString get_declarator_identifier(ASTNode * declrtr) {
 ASTNode * c_process_declaration_specifiers(Production * decl_specs, Parser * parser, ASTNode * node) {
     _Bool has_type_spec = false;
 
-    ASTNode * decl_spec = node->child;
-    assert(decl_spec->rule->id == DECLARATION_SPECIFIER | !printf("%s, %zu is not a declaration specifier\n"));
+    assert(node->children[0]->rule->id == DECLARATION_SPECIFIER | !printf("%s, %zu is not a declaration specifier\n"));
     size_t nchildren = 0;
-    for (; decl_spec; decl_spec = decl_spec->next) {
-        if (decl_spec->child->rule->id == TYPE_SPECIFIER) {
-            ASTNode * type_spec = decl_spec->child;
-            if (type_spec->child->rule->id == TYPEDEF_NAME && has_type_spec) {
+    for (size_t i = 0; i < node->nchildren; i++) {
+        ASTNode * decl_spec = node->children[i];
+        if (decl_spec->children[0]->rule->id == TYPE_SPECIFIER) {
+            ASTNode * type_spec = decl_spec->children[0];
+            if (type_spec->children[0]->rule->id == TYPEDEF_NAME && has_type_spec) {
                 // strip declaration specifiers at this point
-                ASTNode * decl_specs_end = decl_spec->prev;
-                LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - removing typedef name at line: %u, col: %u\n", __func__, decl_spec->token_start->coords.line, decl_spec->token_start->coords.col);
-                decl_spec->prev = NULL;
-                decl_spec->parent = NULL;
-
-                decl_specs_end->next = NULL;
-                
+                ASTNode * decl_specs_end = node->children[i - 1];
+                LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - removing typedef name at line: %u, col: %u\n", __func__, decl_spec->token_start->coords.line, decl_spec->token_start->coords.col);            
                 node->nchildren = nchildren;
                 node->token_end = decl_specs_end->token_end;
                 node->str_length = (size_t)(decl_specs_end->token_end->string - node->token_start->string) + decl_specs_end->token_end->length;
@@ -164,25 +158,25 @@ ASTNode * c_process_declaration_specifiers(Production * decl_specs, Parser * par
 // takes a declaration and if it detects a typedef, registers it in the current scope
 ASTNode * c_process_declaration(Production * decl, Parser * parser, ASTNode * node) {
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - checking for typedef in %.*s\n", __func__, (int)node->str_length, node->token_start->string);
-    ASTNode * decl_specs = node->child->child;
-    if (!decl_specs->next) {
+    ASTNode * decl_specs = node->children[0]->children[0];
+    ASTNode * init_declarators = node->children[0]->children[1]->nchildren ? node->children[0]->children[1]->children[0] : NULL;
+    if (!node->children[0]->children[1]) {
         return build_action_default(decl, parser, node);
     }
     // check declaration specifiers for typedef_kw
     if (decl_specs->rule->id != DECLARATION_SPECIFIERS) {
-        decl_specs = decl_specs->next;
-        assert(decl_specs->rule->id == DECLARATION_SPECIFIERS || !printf("c_process_declaration failed to find the declaration_specifiers"));
+        decl_specs = node->children[0]->children[1];
+        init_declarators = node->children[0]->children[2];
     }
-    for (ASTNode * child = decl_specs->child; child; child = child->next) {
-        ASTNode * gchild = child->child;
-        if (gchild->rule->id == STORAGE_CLASS_SPECIFIER && gchild->child->rule->id == TYPEDEF_KW) {
-            ASTNode * init_declarator = decl_specs->next->child;
-            if (init_declarator->rule->id != INIT_DECLARATOR) {
-                init_declarator = init_declarator->child;
-                assert(init_declarator->rule->id == INIT_DECLARATOR);
-            }
-            for (; init_declarator; init_declarator = (init_declarator->next ? init_declarator->next->next : NULL)) {
-                CString new_typedef = get_declarator_identifier(init_declarator->child);
+    assert(decl_specs->rule->id == DECLARATION_SPECIFIERS || !printf("c_process_declaration failed to find the declaration_specifiers"));
+    assert(init_declarators == NULL || init_declarators->rule->id == INIT_DECLARATOR);
+    for (size_t i = 0; i < decl_specs->nchildren; i++) {
+        ASTNode * child = decl_specs->children[i];
+        ASTNode * gchild = child->children[0];
+        if (gchild->rule->id == STORAGE_CLASS_SPECIFIER && gchild->children[0]->rule->id == TYPEDEF_KW) {
+            for (size_t i = 0; i < init_declarators->nchildren; i += 2) {
+                ASTNode * init_declarator = init_declarators->children[i];
+                CString new_typedef = get_declarator_identifier(init_declarator->children[0]);
                 LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - found new typedef: %.*s\n", __func__, (int)new_typedef.len, new_typedef.str);
                 Scope_add_typedef(((CParser *)parser)->scope, new_typedef, node);
             }
@@ -194,7 +188,7 @@ ASTNode * c_process_declaration(Production * decl, Parser * parser, ASTNode * no
 
 // takes a typedef_name type_specifier and if the identifier is registered as a typedef in any of the open scopes, returns the node as-is else fails
 ASTNode * c_check_typedef(Production * decl_specs, Parser * parser, ASTNode * node) {
-    ASTNode * identifier = node->child;
+    ASTNode * identifier = node->children[0];
     if (Scope_is_typedef(((CParser *)parser)->scope, (CString) {.str = identifier->token_start->string, .len = identifier->str_length})) {
         LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - typedef accepted %.*s\n", __func__, (int)identifier->str_length, identifier->token_start->string);
         return build_action_default(decl_specs, parser, node); // ignore the negative lookahead from now on

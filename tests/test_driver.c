@@ -11,7 +11,6 @@ int main(int narg, char ** args) {
     }
     int nerrors = 0;
     
-    
     nerrors += test_tokenizer_single_char();
     nerrors += test_tokenizer_alphanumeric();
     nerrors += test_tokenizer_hexadecimal();
@@ -25,8 +24,8 @@ int main(int narg, char ** args) {
     nerrors += test_repeat();
     nerrors += test_list();
     nerrors += test_lookahead();
-    
     test_rule_cleanup();
+    
     return nerrors;
 }
 

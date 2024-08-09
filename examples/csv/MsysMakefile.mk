@@ -17,7 +17,8 @@ all: csv.exe
 
 csv.exe: $(GRAMMAR)
 	../../bin/peggy.exe $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
-	$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
+	if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="-DNDEBUG"; fi ; \
+	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 	cp ../../bin/libpeggy.dll .
 
 clean:
@@ -30,6 +31,3 @@ test_all: all
 
 test_one: all
 	./csv.exe --timeit --log=csvparser.log --log_level=$(TEST_LOG_LEVEL) $(FILE) 
-
-.c.o:
-	@$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@

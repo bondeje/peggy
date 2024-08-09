@@ -36,4 +36,4 @@ test: peggy.exe
 	@(if [ -z "`comm -3 peggy_orig.h peggy.h`" ] && [ -z "`comm -3 peggy_orig.c peggy.c`" ] ; then echo "test peggy bootstrap...passed" ; else echo "test peggy bootstrap...failed" ; fi)
 
 clean:
-	@rm -f *.c *.h peggy.exe *.log *.o
+	@rm -f *.c *.h peggy.exe *.log *.o *.dll

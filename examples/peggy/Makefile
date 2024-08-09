@@ -6,7 +6,7 @@ EXAMPLE_NAME = peggy
 GRAMMAR = $(EXAMPLE_NAME).grmr
 BLD_LOG_LEVEL = LOG_LEVEL_INFO
 TEST_LOG_LEVEL = LOG_LEVEL_ERROR
-CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) -DNDEBUG -fPIC
+CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) -fPIC
 IFLAGS = -I../../include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/../../bin' -L../../bin -lpeggy
 
@@ -26,7 +26,8 @@ all: peggy
 peggy: $(GRAMMAR)
 	@cp $(SRCS) $(INCS) .
 	@../../bin/peggy $(GRAMMAR) $(GRAMMAR).log LOG_LEVEL_DEBUG
-	@$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
+	@if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="-DNDEBUG"; fi ; \
+	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 
 test: peggy
 	@mv peggy.c peggy_orig.c

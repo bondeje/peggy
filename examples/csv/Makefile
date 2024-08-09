@@ -6,7 +6,7 @@ NAME = csv
 GRAMMAR = $(NAME).grmr
 BLD_LOG_LEVEL = LOG_LEVEL_INFO
 TEST_LOG_LEVEL = LOG_LEVEL_ERROR
-CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) `if [ -n "$(SANITIZE)" ] ; then echo "-g -fsanitize=address,undefined"; else echo "-DNDEBUG"; fi` -fPIC
+CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) -fPIC
 IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/../../bin' -L../../bin -lpeggy
 
@@ -18,7 +18,8 @@ all: csv
 
 csv: $(GRAMMAR)
 	../../bin/peggy $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
-	$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
+	if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="-DNDEBUG"; fi ; \
+	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 
 clean:
 	@rm -f csv.c csv.h *.o csv *.log
@@ -30,6 +31,3 @@ test_all: all
 
 test_one: all
 	./csv --timeit --log=csvparser.log --log_level=$(TEST_LOG_LEVEL) $(FILE) 
-
-.c.o:
-	@$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@

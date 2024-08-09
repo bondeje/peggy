@@ -31,12 +31,11 @@ ASTNode * check_ipv4(Production * octet, Parser * parser, ASTNode * node) {
         printf("%s is NOT valid ipv4. %zu octets not found, need 4.\n", parser->token_head->next->string, (node->nchildren + 1) / 2);
         return &ASTNode_syntax_error;
     }
-    size_t i = 0;
-    for (ASTNode * child = node->child; child; child = child->next ? child->next->next : NULL) {
-        if (check_octet(parser, child, i + 1)) {
+    
+    for (size_t i = 0; i < node->nchildren; i++) {
+        if (check_octet(parser, node->children[i], i + 1)) {
             return &ASTNode_syntax_error;
         }
-        i++;
     }
     printf("%s is valid ipv4\n", parser->token_head->next->string);
     return node;

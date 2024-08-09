@@ -43,6 +43,7 @@ struct Parser {
     Logger logger;
     MemPoolManager * node_mgr;
     MemPoolManager * token_mgr;
+    MemPoolManager * childarr_mgr;
     Token * token_head;
     Token * token_cur;
     size_t ntokens;
@@ -70,7 +71,7 @@ typedef struct ParserType ParserType;
 extern struct ParserType {
     char const * type_name;
     err_type (*add_token)(Parser * parser, ASTNode * node);
-    ASTNode * (*add_node)(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * child, size_t size);
+    ASTNode * (*add_node)(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode ** children, size_t size);
     void (*parse)(Parser * parser, char const * string, size_t string_length);
     size_t (*tokenize)(Parser * self, char const * string, size_t string_length, Token ** start, Token ** end);
 } Parser_class;
@@ -89,7 +90,8 @@ void Parser_generate_new_token(Parser * self, size_t token_length, Token * cur);
 size_t Parser_get_ntokens(Parser * self);
 err_type Parser_skip_token(Parser * parser, ASTNode * node);
 err_type Parser_add_token(Parser * parser, ASTNode * node);
-ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * child, size_t size);
+ASTNode ** Parser_make_child_array(Parser * self, size_t nchildren);
+ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode ** children, size_t size);
 void Parser_parse(Parser * parser, char const * string, size_t string_length);
 ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, Token * tok);
 void Parser_cache_check(Parser * self, rule_id_type rule_id, Token * tok, ASTNode * node);
