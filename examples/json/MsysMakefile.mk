@@ -13,15 +13,15 @@ LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
 
 EXE_SRCS = jsonparser.c json.c
 
-all: $(BIN_DIR)/json
+all: $(BIN_DIR)/json.exe
 
 .MAIN: all
 
-$(BIN_DIR)/json: $(GRAMMAR)
-	$(BIN_DIR)/peggy $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
+$(BIN_DIR)/json.exe: $(GRAMMAR)
+	$(BIN_DIR)/peggy.exe $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
 	if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="-DNDEBUG"; fi ; \
 	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 
 clean:
-	@rm -f json.h json.c json *.log $(BIN_DIR)/json
+	@rm -f json.h json.c $(BIN_DIR)/json.exe *.log *.dll
 

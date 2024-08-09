@@ -15,53 +15,59 @@ unsigned char const CHAR_BIT_MOD_SHIFT = 4;
 unsigned char const CHAR_BIT_MOD_MASK = 15;
 #endif
 
-// inspired by Implementation 5 https://stackoverflow.com/questions/4475996/given-prime-number-n-compute-the-next-prime
-bool is_prime(size_t x) {
-    if (x == 2 || x == 3) {
-        return true;
-    } else if (!(x & 1) || x < 2) {
-        return false;
-    }
-    size_t i = 2;
-    do {
-        if (!(x % ++i)) {
-            return false;
+char const * get_type_name(RuleTypeID type) {
+    char const * rule_resolve = NULL;
+    switch (type) {
+        case PEGGY_SEQUENCE: {
+            rule_resolve = "SequenceRule";
+            break;
         }
-    } while (x / i >= i);
-    return true;
+        case PEGGY_CHOICE: {
+            rule_resolve = "ChoiceRule";
+            break;
+        }
+        case PEGGY_LITERAL: {
+            rule_resolve = "LiteralRule";
+            break;
+        }
+        case PEGGY_LIST: {
+            rule_resolve = "ListRule";
+            break;
+        }
+        case PEGGY_REPEAT: {
+            rule_resolve = "RepeatRule";
+            break;
+        }
+        case PEGGY_NEGATIVELOOKAHEAD: {
+            rule_resolve = "NegativeLookahead";
+            break;
+        }
+        case PEGGY_POSITIVELOOKAHEAD: {
+            rule_resolve = "PositiveLookahead";
+            break;
+        }
+        case PEGGY_PRODUCTION: {
+            rule_resolve = "Production";
+            break;
+        }
+        default: {
+            // do nothing
+        }
+    }
+    return rule_resolve;
 }
 
-// inspired by Implementation 5 https://stackoverflow.com/questions/4475996/given-prime-number-n-compute-the-next-prime
-// but reconfigured to handle some of the swtich cases and reflect more the is_prime function
-size_t next_prime(size_t x) {
-    switch (x) {
-        case 0:
-        case 1:
-            return 2;
-        case 2:
-            return 3;
-        case 3:
-            return 5;
+// is here only due because of a potential use case for identifying parser types. Otherwise only used in rule.c
+bool isinstance(RuleTypeID const type, RuleTypeID const * types) {
+    while (*types != PEGGY_NOTRULE) {
+        if (*types == type) {
+            return true;
+        }
+        types++;
     }
-    size_t o;
-    if (!(x % 6)) { // x = 6*k, start at 6*k+1
-        o = 2;
-        x += 1;
-    } else if (!((x+1) % 6)) { // x = 6*k + 5, start at 6*(k+1) + 1
-        o = 2;
-        x += 2;
-    } else { // 6*k+1 <= x < 6*k + 5, start at 6*k + 5
-        o = 4;
-        x = 6*(x/6) + 5;
-    }
-    for (; !is_prime(x); x += o) {
-        o ^= 6;
-    }
-    return x;
-}
-
-bool isinstance(char const * type, char const ** types) {
-    static char buffer[256] = {'\0'};
+    return false;
+    /*
+    char buffer[256] = {'\0'}; // very much should not be static otherwise thread safety of the library is out the window
     while (*types != NULL) {
         unsigned char len = (unsigned char)(strchr(*types, '.') - *types);
         if (!len) {
@@ -69,12 +75,12 @@ bool isinstance(char const * type, char const ** types) {
         }
         memcpy((void *) buffer, *types, len);
         buffer[len] = '\0';
-        //printf("checking if %s is instance of %s: %d\n", type, buffer, strstr(type, buffer) != NULL);
         if (strstr(type, buffer)) {
             return true;
         }
         types++;
     }
     return false;
+    */
 }
 

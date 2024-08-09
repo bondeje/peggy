@@ -1,6 +1,12 @@
 #ifndef PEGGY_UTILS_H
 #define PEGGY_UTILS_H
 
+#if defined(__GNUC__) || defined(__clang__)
+    #define FALLTHROUGH __attribute__((fallthrough));
+#else
+    #define FALLTHROUGH
+#endif
+
 #include <stddef.h>
 #include <stdbool.h>
 #include <assert.h>
@@ -34,13 +40,6 @@ extern unsigned char const CHAR_BIT_MOD_MASK;
 
 #define DEBUG_ASSERT(X, ...) assert((X) || !printf(__VA_ARGS__))
 
-/*
-typedef struct StructInfo {
-    char const * const * const attrs;
-    size_t * const offsets;
-    size_t n_attrs;
-} StructInfo;
-*/
 typedef enum err_type {
     PEGGY_SUCCESS = 0,
     PEGGY_FAILURE,
@@ -58,27 +57,35 @@ typedef enum err_type {
     PEGGY_NO_TOKENIZER_FOUND,
 } err_type;
 
+typedef enum RuleTypeID {
+    PEGGY_NOTRULE = -1,
+    PEGGY_RULE,
+    PEGGY_CHAIN,
+    PEGGY_SEQUENCE,
+    PEGGY_CHOICE,
+    PEGGY_LITERAL,
+    PEGGY_DERIVED,
+    PEGGY_LIST,
+    PEGGY_REPEAT,
+    PEGGY_POSITIVELOOKAHEAD,
+    PEGGY_NEGATIVELOOKAHEAD,
+    PEGGY_PRODUCTION
+} RuleTypeID;
+
+// unused
 typedef enum iter_status {
     PEGGY_ITER_GO = 0,
     PEGGY_ITER_STOP
 } iter_status;
 
+// needed because of circular includes
 typedef int rule_id_type;
-
-typedef unsigned long long hash_type;
-
 typedef struct Rule Rule;
 typedef struct Parser Parser;
 
 #define Rule_DEFAULT_ID -1
 
-// inspired by Implementation 5 https://stackoverflow.com/questions/4475996/given-prime-number-n-compute-the-next-prime
-bool is_prime(size_t x);
-
-// inspired by Implementation 5 https://stackoverflow.com/questions/4475996/given-prime-number-n-compute-the-next-prime
-// but reconfigured to handle some of the swtich cases and reflect more the is_prime function
-size_t next_prime(size_t x);
-
-bool isinstance(char const * type, char const ** types);
+char const * get_type_name(RuleTypeID type);
+bool isinstance(RuleTypeID const type, RuleTypeID const * types);
 
 #endif // PEGGY_UTILS_H

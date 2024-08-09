@@ -15,15 +15,12 @@ typedef struct ASTNode ASTNode, * pASTNode;
 
 struct ASTNode {
     struct ASTNodeType * _class;
-    ASTNode * child; // leftmost child of node
-    ASTNode * next; // next sibling left-right
-    ASTNode * prev; // prev sibling left-right
-    ASTNode * parent; // parent of node
+    ASTNode ** children;
     Rule * rule;
-    size_t str_length;
-    size_t nchildren;
     Token * token_start;
     Token * token_end;
+    size_t str_length;
+    size_t nchildren;
 };
 
 #define ASTNode_NAME "ASTNode"
@@ -32,15 +29,15 @@ extern struct ASTNodeType {
     char const * type_name;
 } ASTNode_class;
 
-ASTNode * ASTNode_new(Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * children);
-void ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * children);
-void ASTNode_del(ASTNode * self);
+void ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode ** children);
 
 /************************** general node utilities *****************************/
 
 ASTNode * make_skip_node(ASTNode * node);
 
-bool is_skip_node(ASTNode * node);
+_Bool is_skip_node(ASTNode * node);
+
+size_t ASTNode_string_length(ASTNode * node);
 
 #endif // PEGGY_ASTNODE_H
 

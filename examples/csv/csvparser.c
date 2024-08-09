@@ -70,7 +70,7 @@ void handle_field(CSVParser * csv_parser, ASTNode * node, size_t index) {
     Token * tok = node->token_start;
     size_t N = 0;
     CSVData * data = &csv_parser->csv;
-    if (node->child->rule->id == NONSTRING_FIELD) {
+    if (node->children[0]->rule->id == NONSTRING_FIELD) {
         data->offsets[index] = tok->string - data->data;
         data->offsets[index + data->noffsets] = data->offsets[index] + node->str_length;
     } else { // STRING
@@ -82,8 +82,8 @@ void handle_field(CSVParser * csv_parser, ASTNode * node, size_t index) {
 void handle_record(CSVParser * csv_parser, ASTNode * node, size_t row) {
     size_t Nchild = node->nchildren;
     size_t index = row * csv_parser->csv.ncols;
-    for (ASTNode * child = node->child; child ; child = child->next ? child->next->next : NULL) {
-        handle_field(csv_parser, child, index++);
+    for (size_t i = 0; i < node->nchildren; i += 2) {
+        handle_field(csv_parser, node->children[i], index++);
     }
 }
 
@@ -97,11 +97,11 @@ ASTNode * handle_csv(Production * csv_prod, Parser * parser, ASTNode * node) {
 
     csv->csv.offsets[0] = 0;
 
-    ASTNode * record_list = node->child;
+    ASTNode * record_list = node->children[0];
     size_t Nchild = record_list->nchildren;
     size_t row = 0;
-    for (ASTNode * child = record_list->child; child; child = child->next ? child->next->next : NULL) {
-        handle_record(csv, child, row++);
+    for (size_t i = 0; i < record_list->nchildren; i += 2) {
+        handle_record(csv, record_list->children[i], row++);
     }
     return node;
 }
@@ -177,21 +177,6 @@ CSVData from_file(char * filename) {
 
     fclose(pfile);
 
-    /*
-    size_t name_length = strlen(filename);
-    char const * name = filename;
-
-    // set name of the parser
-    if (strchr(name, '/')) {
-        name = strrchr(name, '/');
-    }
-    if (strchr(name, '\\')) {
-        name = strrchr(name, '\\');
-    }
-    if (strstr(name, ".grmr")) {
-        name_length = (size_t)(strstr(name, ".grmr") - name);
-    }
-    */
     csv.csv.isalloc = true;
     CSVData csv_data = from_string(string, (size_t) file_size);
     return csv_data;

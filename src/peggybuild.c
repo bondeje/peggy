@@ -19,8 +19,8 @@ int PeggyProduction_write_arg(void * data, PeggyString arg) {
 int PeggyProduction_define(void * parser_, PeggyString name, PeggyProduction prod) {
     PeggyParser * parser = (PeggyParser *)parser_;
 
-    char * main_type_end = strchr(prod.type_name, '.');
-    PeggyString type_main = {.len = main_type_end ? (size_t)(main_type_end - prod.type_name) : strlen(prod.type_name), .str = (char *)prod.type_name};
+    char const * type_name_cstr = get_type_name(prod.type);
+    PeggyString type_main = {.len = strlen(type_name_cstr), .str = (char *)type_name_cstr};
     PeggyString_fwrite(type_main, parser->source_file, PSFO_UPPER);
 
     fputc('(', parser->source_file);
@@ -44,15 +44,12 @@ int PeggyProduction_define(void * parser_, PeggyString name, PeggyProduction pro
 int build_export_rules_resolved(void * parser_, PeggyString name, PeggyProduction prod) {
     PeggyParser * parser = (PeggyParser *) parser_;
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building export rules for %.*s\n", __func__, prod.name.len, prod.name.str);
-    char * rule_resolve = strchr(prod.type_name, '.');
-    size_t length = rule_resolve ? strlen(rule_resolve) : 0;
-    PeggyString arg = {.len = 1 + prod.identifier.len + length};
+    
+    PeggyString arg = {.len = 9 + prod.identifier.len};
     arg.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (arg.len + 1));
-    arg.str[0] = '&';
-    memcpy((void*)(arg.str + 1), (void*)prod.identifier.str, prod.identifier.len);
-    if (length) {
-        memcpy((void*)(arg.str + 1 + prod.identifier.len), rule_resolve, length);
-    }
+    memcpy((void *)(arg.str), "(Rule *)", 8);
+    arg.str[8] = '&';
+    memcpy((void*)(arg.str + 9), (void*)prod.identifier.str, prod.identifier.len);
 
     PeggyString_fwrite(arg, parser->source_file, PSFO_NONE);
     char * buffer = ",\n\t";
@@ -109,7 +106,7 @@ void build_destructor(PeggyParser * parser) {
     fwrite(buffer, sizeof(char), strlen(buffer), file);
 }
 
-PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, char const * type) {
+PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, RuleTypeID type) {
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building PeggyProduction rule id %d from line %u, col %u\n", __func__, id->rule->id, id->token_start->coords.line, id->token_start->coords.col);
     PeggyProduction prod;
     STACK_INIT(PeggyString)(&prod.args, 0);
@@ -121,10 +118,10 @@ PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, char c
     buffer[0] = '_';
     buffer++;
     memcpy(buffer, prod.name.str, prod.name.len);
-    if (type) {
-        prod.type_name = type;
+    if (type != PEGGY_NOTRULE) {
+        prod.type = type;
     } else {
-        prod.type_name = ((RuleType *) &Production_class)->type_name;
+        prod.type = PEGGY_PRODUCTION;
     }    
 
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding build of production rule id %d with name %.*s from line %u, col %u to production map\n", __func__, id->rule->id, prod.name.len, prod.name.str, id->token_start->coords.line, id->token_start->coords.col);
@@ -137,8 +134,8 @@ void PeggyProduction_declare(PeggyParser * parser, PeggyProduction prod) {
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - declaring type %.*s\n", __func__, prod.name.len, prod.name.str);
     //printf("declaring type: %s\n", prod.type_name);
 
-    char * main_type_end = strchr(prod.type_name, '.');
-    PeggyString type = {.len = main_type_end ? (size_t)(main_type_end - prod.type_name) : strlen(prod.type_name), .str = (char *)prod.type_name};
+    char const * main_type_end = get_type_name(prod.type);
+    PeggyString type = {.len = strlen(main_type_end), .str = (char *)main_type_end};
     PeggyString_fwrite(type, parser->source_file, PSFO_NONE);
     fputc(' ', parser->source_file);
     PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_NONE);

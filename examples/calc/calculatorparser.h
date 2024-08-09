@@ -72,3 +72,4 @@ void CalcNode_dest(ASTNode * value);
 void CalcNode_del(ASTNode * value);
 
 #endif
+

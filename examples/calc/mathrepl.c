@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <string.h>
 #include <complex.h>
 #include <math.h>
 #include <assert.h>
@@ -705,3 +706,4 @@ REPLFunction math_repl_get_func(char const * name, unsigned char length) {
     }
     return result;
 }
+

@@ -4,6 +4,7 @@
 #include <peggy/rule.h>
 #include <peggy/parser.h>
 #include <peggy/parser_gen.h>
+#include <peggy/utils.h>
 
 #include "test_utils.h"
 #include "test_parser.h"
@@ -218,121 +219,118 @@ int test_parser_doc(void) {
                         "N","8","O","P","Q","R","S","9",
                         "T","U","V","W","X","Y","Z", "a", NULL};
     size_t N = sizeof(result_tokens)/sizeof(result_tokens[0]);
-    TestASTNode * result_nodes = &TESTASTNODE(15, "0a", "a", 29, 
+    TestASTNode * result_nodes = &TESTASTNODE(15, "0a", "a", 29,
         &TESTASTNODE(11, "0a", "bc", 2, 
-            &TESTASTNODE(5, "0a", "0a", 0, NULLNODE,
-            &TESTASTNODE(5, "bc", "bc", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(5, "0a", "0a", 0, NULLNODE),
+            &TESTASTNODE(5, "bc", "bc", 0, NULLNODE)
+        ),
         &TESTASTNODE(11, "de", "1f", 2, 
-            &TESTASTNODE(5, "de", "de", 0, NULLNODE,
-            &TESTASTNODE(5, "1f", "1f", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(5, "de", "de", 0, NULLNODE),
+            &TESTASTNODE(5, "1f", "1f", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "g", "h", 2, 
-            &TESTASTNODE(0, "g", "g", 0, NULLNODE,
-            &TESTASTNODE(0, "h", "h", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "g", "g", 0, NULLNODE),
+            &TESTASTNODE(0, "h", "h", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "i", "j", 2, 
-            &TESTASTNODE(0, "i", "i", 0, NULLNODE,
-            &TESTASTNODE(0, "j", "j", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "i", "i", 0, NULLNODE),
+            &TESTASTNODE(0, "j", "j", 0, NULLNODE)
+        ),
         &TESTASTNODE(12, "2", "k", 2, 
-            &TESTASTNODE(2, "2", "2", 0, NULLNODE,
-            &TESTASTNODE(0, "k", "k", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(2, "2", "2", 0, NULLNODE),
+            &TESTASTNODE(0, "k", "k", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "l", "m", 2, 
-            &TESTASTNODE(0, "l", "l", 0, NULLNODE,
-            &TESTASTNODE(0, "m", "m", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "l", "l", 0, NULLNODE),
+            &TESTASTNODE(0, "m", "m", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "n", "o", 2, 
-            &TESTASTNODE(0, "n", "n", 0, NULLNODE,
-            &TESTASTNODE(0, "o", "o", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "n", "n", 0, NULLNODE),
+            &TESTASTNODE(0, "o", "o", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "3", "p", 2, 
-            &TESTASTNODE(2, "3", "3", 0, NULLNODE,
-            &TESTASTNODE(0, "p", "p", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(2, "3", "3", 0, NULLNODE),
+            &TESTASTNODE(0, "p", "p", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "q", "r", 2, 
-            &TESTASTNODE(0, "q", "q", 0, NULLNODE,
-            &TESTASTNODE(0, "r", "r", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "q", "q", 0, NULLNODE),
+            &TESTASTNODE(0, "r", "r", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "s", "t", 2, 
-            &TESTASTNODE(0, "s", "s", 0, NULLNODE,
-            &TESTASTNODE(0, "t", "t", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "s", "s", 0, NULLNODE),
+            &TESTASTNODE(0, "t", "t", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "4", "u", 2, 
-            &TESTASTNODE(2, "4", "4", 0, NULLNODE,
-            &TESTASTNODE(0, "u", "u", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(2, "4", "4", 0, NULLNODE),
+            &TESTASTNODE(0, "u", "u", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "v", "w", 2, 
-            &TESTASTNODE(0, "v", "v", 0, NULLNODE,
-            &TESTASTNODE(0, "w", "w", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "v", "v", 0, NULLNODE),
+            &TESTASTNODE(0, "w", "w", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "x", "y", 2, 
-            &TESTASTNODE(0, "x", "x", 0, NULLNODE,
-            &TESTASTNODE(0, "y", "y", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "x", "x", 0, NULLNODE),
+            &TESTASTNODE(0, "y", "y", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "5", "z", 2, 
-            &TESTASTNODE(2, "5", "5", 0, NULLNODE,
-            &TESTASTNODE(0, "z", "z", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(2, "5", "5", 0, NULLNODE),
+            &TESTASTNODE(0, "z", "z", 0, NULLNODE) 
+        ),
         &TESTASTNODE(11, "AB", "CD", 2, 
-            &TESTASTNODE(5, "AB", "AB", 0, NULLNODE,
-            &TESTASTNODE(5, "CD", "CD", 0, NULLNODE, 
-            NULLNODE)),
-        &TESTASTNODE(5, "6E", "6E", 0, // fix this
-            NULLNODE,
+            &TESTASTNODE(5, "AB", "AB", 0, NULLNODE),
+            &TESTASTNODE(5, "CD", "CD", 0, NULLNODE) 
+        ),
+        &TESTASTNODE(5, "6E", "6E", 0, NULLNODE),
         &TESTASTNODE(12, "F", "G", 2, 
-            &TESTASTNODE(0, "F", "F", 0, NULLNODE,
-            &TESTASTNODE(0, "G", "G", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "F", "F", 0, NULLNODE),
+            &TESTASTNODE(0, "G", "G", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "H", "I", 2, 
-            &TESTASTNODE(0, "H", "H", 0, NULLNODE,
-            &TESTASTNODE(0, "I", "I", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "H", "H", 0, NULLNODE),
+            &TESTASTNODE(0, "I", "I", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "7", "J", 2, 
-            &TESTASTNODE(2, "7", "7", 0, NULLNODE,
-            &TESTASTNODE(0, "J", "J", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(2, "7", "7", 0, NULLNODE),
+            &TESTASTNODE(0, "J", "J", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "K", "L", 2, 
-            &TESTASTNODE(0, "K", "K", 0, NULLNODE,
-            &TESTASTNODE(0, "L", "L", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "K", "K", 0, NULLNODE),
+            &TESTASTNODE(0, "L", "L", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "M", "N", 2, 
-            &TESTASTNODE(0, "M", "M", 0, NULLNODE,
-            &TESTASTNODE(0, "N", "N", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "M", "M", 0, NULLNODE),
+            &TESTASTNODE(0, "N", "N", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "8", "O", 2, 
-            &TESTASTNODE(2, "8", "8", 0, NULLNODE,
-            &TESTASTNODE(0, "O", "O", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(2, "8", "8", 0, NULLNODE),
+            &TESTASTNODE(0, "O", "O", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "P", "Q", 2, 
-            &TESTASTNODE(0, "P", "P", 0, NULLNODE,
-            &TESTASTNODE(0, "Q", "Q", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "P", "P", 0, NULLNODE),
+            &TESTASTNODE(0, "Q", "Q", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "R", "S", 2, 
-            &TESTASTNODE(0, "R", "R", 0, NULLNODE,
-            &TESTASTNODE(0, "S", "S", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "R", "R", 0, NULLNODE),
+            &TESTASTNODE(0, "S", "S", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "9", "T", 2, 
-            &TESTASTNODE(2, "9", "9", 0, NULLNODE,
-            &TESTASTNODE(0, "T", "T", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(2, "9", "9", 0, NULLNODE),
+            &TESTASTNODE(0, "T", "T", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "U", "V", 2, 
-            &TESTASTNODE(0, "U", "U", 0, NULLNODE,
-            &TESTASTNODE(0, "V", "V", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "U", "U", 0, NULLNODE),
+            &TESTASTNODE(0, "V", "V", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "W", "X", 2, 
-            &TESTASTNODE(0, "W", "W", 0, NULLNODE,
-            &TESTASTNODE(0, "X", "X", 0, NULLNODE, 
-            NULLNODE)),
+            &TESTASTNODE(0, "W", "W", 0, NULLNODE),
+            &TESTASTNODE(0, "X", "X", 0, NULLNODE) 
+        ),
         &TESTASTNODE(12, "Y", "Z", 2, 
-            &TESTASTNODE(0, "Y", "Y", 0, NULLNODE,
-            &TESTASTNODE(0, "Z", "Z", 0, NULLNODE, 
-            NULLNODE)),
-        &TESTASTNODE(0, "a", "a", 0, 
-            NULLNODE, 
-        NULLNODE))))))))))))))))))))))))))))),
-        NULLNODE);
+            &TESTASTNODE(0, "Y", "Y", 0, NULLNODE),
+            &TESTASTNODE(0, "Z", "Z", 0, NULLNODE) 
+        ),
+        &TESTASTNODE(0, "a", "a", 0, NULLNODE)
+    );
 
     Parser parser;
     Parser_init(&parser, __func__, strlen(__func__), (Rule *)&test_parser_token, (Rule *)&doc, DOC+1, 0, test_log_file, LOG_LEVEL_ERROR);

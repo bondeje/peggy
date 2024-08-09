@@ -1,36 +1,34 @@
-include ../../environment.mk
-
+.POSIX:
+# just in case FreeBSD's make implementation screws up the current directory
+.OBJDIR: .
+CC = gcc
 EXAMPLE_NAME = ipv4
+BIN_DIR = ../../bin
 GRAMMAR = $(EXAMPLE_NAME).grmr
-PKG_PATH = ../..
-PKG_RETURN = examples/$(NAME)
-PEGGY_IFLAGS = -I../../include -I../../lib/logger/include
-ifneq ($(UNAME), Linux)
-    PEGGY_IFLAGS += -I../../lib/pcre2/include
-endif
-PARSER_SRC := $(EXAMPLE_NAME)parser$(SRC_SUFFIX)
-EXPORT_SRC = $(EXAMPLE_NAME)$(SRC_SUFFIX)
+BLD_LOG_LEVEL = LOG_LEVEL_WARN
+TEST_LOG_LEVEL = LOG_LEVEL_ERROR
+CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) -fPIC
+IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/include
+LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
 
-all: generate_parser build_parser move_regex
+EXE_SRCS = ipv4parser.c ipv4.c
 
-ifneq ($(UNAME), Linux)
-move_regex:
-	cp ../../$(LIB_DIR)/pcre2/bin/libpcre2-* .
-else
-move_regex:
+all: $(BIN_DIR)/ipv4
 
-endif
+.MAIN: all
 
-generate_parser:
-	rm -f *.log
-	$(PKG_PATH)/$(BIN_DIR)/$(EXE) $(GRAMMAR) $(GRAMMAR).log LOG_LEVEL_INFO
+$(BIN_DIR)/ipv4: $(GRAMMAR)
+	$(BIN_DIR)/peggy $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
+	if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="-DNDEBUG"; fi ; \
+	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 
-build_parser:
-	$(CC) $(CFLAGS) $(PEGGY_IFLAGS) $(PARSER_SRC) $(EXPORT_SRC) -o $(EXAMPLE_NAME)$(EXE_EXT) -L$(PKG_PATH)/$(BIN_DIR) -l:$(STATIC_LIB_FILE) $(LIBS)
+# some tests
+# $(BIN_DIR)/ipv4 192.168.0.0 OK
+# $(BIN_DIR)/ipv4 192.168.0.-1 FAILS
+# $(BIN_DIR)/ipv4 192.168.0.255 OK
+# $(BIN_DIR)/ipv4 192.168.0.256 FAILS
+# $(BIN_DIR)/ipv4 192.168..0 FAILS
+# $(BIN_DIR)/ipv4 192.168.0 FAILS
 
 clean:
-	rm -f $(EXAMPLE_NAME)$(EXE_EXT)
-	rm -f $(EXAMPLE_NAME)$(HDR_SUFFIX)
-	rm -f $(EXAMPLE_NAME)$(SRC_SUFFIX)
-	rm -f gmon.out
-	rm -f *.log
+	@rm -f ipv4.h ipv4.c ipv4 *.log $(BIN_DIR)/ipv4

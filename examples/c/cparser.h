@@ -9,7 +9,11 @@
 #include "cparser.h"
 #include "c.h"
 
-ASTNode * handle_c(Production *, Parser *, ASTNode *);
-ASTNode * directive_line(Production *, Parser *, ASTNode *);
-
+ASTNode * simplify_binary_op(Production *, Parser *, ASTNode *);
+ASTNode * _open_scope(Production * rule, Parser * parser, ASTNode * node);
+ASTNode * _close_scope(Production * rule, Parser * parser, ASTNode * node);
+ASTNode * c_process_declaration(Production * decl, Parser * parser, ASTNode * node);
+ASTNode * c_process_declaration_specifiers(Production * decl_specs, Parser * parser, ASTNode * node);
+ASTNode * c_check_typedef(Production * decl_specs, Parser * parser, ASTNode * node);
 #endif
+

@@ -12,7 +12,7 @@
 typedef struct PeggyProduction { 
     PeggyString name; // the string identifying its definition. taken from input. prefixed by export name
     PeggyString identifier; // allocated later to be an appropriate identifier for the associated Rule. Allocated. The enum name is the same name without a prefix and capitalized
-    char const * type_name; // name of the type. This gives both the constructor and the resolution of the Rule
+    RuleTypeID type; // name of the type. This gives both the constructor and the resolution of the Rule
     STACK(PeggyString) args; // arguments for generator constructors. All allocated. Any empty args indicates an incomplete definition but only Literals can be complete in first pass
 } PeggyProduction;
 

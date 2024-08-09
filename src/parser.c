@@ -75,9 +75,12 @@ err_type Parser_init(Parser * self, char const * name, size_t name_length,
     // initialize node manager
     self->node_mgr = MemPoolManager_new(PARSER_DEFAULT_NNODES, sizeof(ASTNode), 8);
 
+    self->childarr_mgr = MemPoolManager_new(PARSER_DEFAULT_NNODES, sizeof(ASTNode*), 8);
+
     self->fail_node = MemPoolManager_next(self->node_mgr);
     *self->fail_node = (ASTNode) ASTNode_DEFAULT_INIT;
     self->fail_node->token_start = self->token_head;
+    self->ast = Parser_fail_node(self);
     self->lookahead_node = MemPoolManager_next(self->node_mgr);
     *self->lookahead_node = (ASTNode) ASTNode_DEFAULT_INIT;
 
@@ -106,6 +109,10 @@ void Parser_dest(Parser * self) {
     MemPoolManager_del(self->token_mgr);
     self->token_mgr = NULL;
 
+    /* clear the child array manager */
+    MemPoolManager_del(self->childarr_mgr);
+    self->childarr_mgr = NULL;
+
 }
 void Parser_del(Parser * self) {
     Parser_dest(self);
@@ -123,7 +130,7 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
     Token * insert_right = insert_left->next;
     MemPoolManager * token_mgr = self->token_mgr;
     Token * cur = MemPoolManager_next(token_mgr);
-    Token_init(cur, self->ntokens, string, string_length, 0, 0);
+    Token_init(cur, self->ntokens, string, string_length, 1, 1);
     self->ntokens++;
     insert_left->next = cur;
     if (insert_right) {
@@ -143,6 +150,7 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
         }
         if (Parser_is_fail_node(self, node)) {
             LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to tokenize string at line: %hu, col: %hu - %.*s\n", __func__, cur->coords.line, cur->coords.col, REMAINING_TOKEN_MAX_SIZE < cur->length ? REMAINING_TOKEN_MAX_SIZE : cur->length, cur->string);
+            return 0;
         }
         if (!is_skip_node(node)) {
             ntokens++;
@@ -250,17 +258,60 @@ err_type Parser_add_token(Parser * self, ASTNode * node) {
     
     Parser_generate_new_token(self, node->str_length, node->token_start);
     Parser_seek(self, node->token_end->next);
+    //self->token_tail->id = self->token_tail->prev->id + 1;
     return PEGGY_SUCCESS;
 }
 
+ASTNode ** Parser_make_child_array(Parser * self, size_t nchildren) {
+    return MemPoolManager_malloc(self->childarr_mgr, nchildren * sizeof(ASTNode *));
+}
 
-ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode * child, size_t size) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - adding node with str_length %zu, nchildren %zu (%p) at line: %hu, col: %hu", __func__, str_length, nchildren, (void*)child, start->coords.line, start->coords.col);
+ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode ** children, size_t size) {
+    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - adding node for rule id %d with str_length %zu, nchildren %zu (%p) at line: %hu, col: %hu", __func__, rule->id, str_length, nchildren, (void*)children, start->coords.line, start->coords.col);
     if (!size) {
         size = sizeof(ASTNode);
     }
     ASTNode * new_node = MemPoolManager_malloc(self->node_mgr, size); // probably have to worry about alignment. Could just require that the object has the same alignment as ASTNode
-    ASTNode_init(new_node, rule, start, end, str_length, nchildren, child);
+    // build children array
+    
+    if (nchildren) {
+        Token * tok = start;
+        children = MemPoolManager_malloc(self->childarr_mgr, nchildren * sizeof(ASTNode *));
+        if (!children) {
+            printf("what the fuck?!");
+            exit(EXIT_FAILURE);
+        }
+        switch (rule->_class->type) {
+            case PEGGY_LIST: {
+                rule_id_type id = ((DerivedRule *)rule)->rule->id;
+                rule_id_type delim_id = ((ListRule *)rule)->delim->id;
+                for (size_t i = 0; i < nchildren; i++) {
+                    children[i] = Parser_check_cache(self, i & 1 ? delim_id : id, tok);
+                    tok = children[i]->token_end->next;
+                }
+                break;
+            }
+            case PEGGY_SEQUENCE: {
+                Rule ** deps = ((ChainRule *)rule)->deps;
+                assert(((ChainRule *)rule)->deps_size == nchildren);
+                for (size_t i = 0; i < nchildren; i++) {
+                    children[i] = Parser_check_cache(self, deps[i]->id, tok);
+                    tok = children[i]->token_end->next;
+                }
+                break;
+            }
+            default: { // really just PEGGY_PRODUCTION, PEGGY_NEGATIVELOOKAHEAD, PEGGY_POSITIVELOOKAHEAD, PEGGY_REPEAT
+                rule_id_type id = ((DerivedRule *)rule)->rule->id;
+                for (size_t i = 0; i < nchildren; i++) {
+                    children[i] = Parser_check_cache(self, id, tok);
+                    tok = children[i]->token_end->next;
+                }
+            }
+        }
+        
+    }
+    
+    ASTNode_init(new_node, rule, start, end, str_length, nchildren, children);
     return new_node;
 }
 
@@ -268,14 +319,16 @@ void Parser_parse(Parser * self, char const * string, size_t string_length) {
     LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - initiating parse\n", __func__);
     Token * start;
     Token * end;
-    size_t status = self->_class->tokenize(self, string, string_length, &start, &end);
-    LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - tokenizer %ssuccessfully completed\n", __func__, status ? "" : "un");
-    if (status) {
+    size_t ntokens = self->_class->tokenize(self, string, string_length, &start, &end);
+    LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - tokenizer %ssuccessfully completed\n", __func__, ntokens ? "" : "un");
+    if (ntokens) {
         end->next = self->token_cur->next;
         end->next->prev =  end;
         self->token_cur->next = start;
         start->prev = self->token_cur;
         self->token_cur = start;
+        // this is an ugly hack to ensure cache checking on the tail node works, but it will only work so long as adding tokens to the stream only happens during
+        self->token_tail->id = (self->token_tail->prev->id > end->id ? self->token_tail->prev->id : end->id) + 1;
         if (self->root_rule) {
             self->ast = self->root_rule->_class->check(self->root_rule, self);
             LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - parser %ssuccessfully completed\n", __func__, Parser_is_fail_node(self, self->ast) ? "un" : "");
@@ -285,29 +338,33 @@ void Parser_parse(Parser * self, char const * string, size_t string_length) {
 }
 // the token_key isn't strictly necessary, but should be used for safety
 ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, Token * tok) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - retrieving cache result of rule id %d at line: %hu, col: %hu\n", __func__, rule_id, Parser_tell(self)->coords.line, Parser_tell(self)->coords.col);
-    if (tok == self->token_head || tok == self->token_tail) {
-        return NULL;
+    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - retrieving cache result of rule id %d at line: %hu, col: %hu\n", __func__, rule_id, tok->coords.line, tok->coords.col);
+    //if (tok == self->token_head || tok == self->token_tail) {
+    if (tok == self->token_head) {
+        return Parser_fail_node(self);
     }
-    return PackratCache_get(&self->cache, rule_id, Parser_tell(self));
+    return PackratCache_get(&self->cache, rule_id, tok);
 }
 void Parser_cache_check(Parser * self, rule_id_type rule_id, Token * tok, ASTNode * node) {
     LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, "TRACE: %s - caching result of rule id %d at line: %hu, col: %hu: %p\n", __func__, rule_id, tok->coords.line, tok->coords.col, (void*)node);
-    if (tok != self->token_head && tok != self->token_tail) {
+    //if (tok != self->token_head && tok != self->token_tail) {
+    if (tok != self->token_head) {
         PackratCache_set(&self->cache, self, rule_id, tok, node);
     }
+    
 }
 err_type Parser_traverse(Parser * self, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt) {
     return PEGGY_NOT_IMPLEMENTED;
 }
 typedef struct ASTNodeSize {
     ASTNode * node;
-    size_t size;
+    size_t index;
 } ASTNodeSize;
 #define ELEMENT_TYPE ASTNodeSize
 #include <peggy/stack.h>
 
 // this is unused and probably should be unused. delete
+/*
 size_t ast_depth(ASTNode * root) {
     if (!root) {
         return 0;
@@ -336,10 +393,12 @@ size_t ast_depth(ASTNode * root) {
     }
     return depth;
 }
+*/
 
 void Parser_print_tokens(Parser * self, FILE * stream) {
     Token * tok = self->token_head->next;
     while (tok && tok->length) {
+        // should replace with a print function
         fprintf(stream, "\"%.*s\" ", (int)tok->length, tok->string);
         tok = tok->next;
     }
@@ -360,48 +419,29 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
     char * buffer = &print_buffer[0];
     int buffer_size = PARSER_PRINT_BUFFER_SIZE;
     STACK(ASTNodeSize) st;
-    STACK_INIT(ASTNodeSize)(&st, PARSER_DEFAULT_NNODES);
+    STACK_INIT(ASTNodeSize)(&st, 32);
 
-    ASTNodeSize pair;
-    st._class->push(&st, (ASTNodeSize){.node = self->ast, .size = 0});
+    st._class->push(&st, (ASTNodeSize){.node = self->ast, .index = 0});
     err_type status = PEGGY_SUCCESS;
-    int snp_size = 0;
-    while (st.fill) {
-        if ((status = st._class->pop(&st, &pair))) {
-            fprintf(stream, "%.*s\nERROR: status %d retrieving node...aborting Parser_print_ast\n", PARSER_PRINT_BUFFER_SIZE - buffer_size, print_buffer, status);
-            fflush(stream);
-            goto print_ast_fail;
-        }
-        // print the information to the buffer
-        // TODO: should really only print if the rule is an instance of LiteralRule
+    while (st.fill) {  
+        ASTNodeSize pair; // pair is always the latest node put on the stack, unprocessed
+        st._class->peek(&st, &pair);
         if (!pair.node->nchildren && pair.node->str_length) { // the node is a token leaf in the AST tree. Print the node and token into the buffer
             Token * tok = pair.node->token_start;
-            fprintf(stream, "%*s%s: rule id: %d, nchildren: %zu, token: %.*s ", (int)pair.size * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->nchildren, (int)tok->length, tok->string);
-            while (tok != pair.node->token_end) {
-                tok = tok->next;
-                fprintf(stream, "%.*s ", (int)tok->length, tok->string);
-            }
-            fprintf(stream, "\n");
+            fprintf(stream, "%*s%s: rule id: %d, nchildren: %zu, token: %.*s\n", (int)(st.fill - 1) * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->nchildren, (int)tok->length, tok->string);
         } else { // the node is not a leaf. Print the node into the buffer
-            fprintf(stream, "%*s%s: rule id: %d, nchildren: %zu\n", (int)pair.size * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->nchildren);
-            // increment the number of tabs and add the children in reverse order (pre-order traversal)
-            pair.size++;
-            size_t i = pair.node->nchildren;
-            ASTNode * node = pair.node->child;
-            if (node) {
-                // what a shitty way to do this with the "start" variable. I need to just make sure that the ->prev members are all set up correctly
-                ASTNode * start = node;
-                while (node->next) {
-                    node = node->next;
-                }
-                while (node != start) {
-                    pair.node = node;
-                    st._class->push(&st, pair);
-                    node = node->prev;
-                }
-                pair.node = start;
-                st._class->push(&st, pair);
-            }
+            fprintf(stream, "%*s%s: rule id: %d, nchildren: %zu\n", (int)(st.fill - 1) * PARSER_PRINT_TAB_SIZE, "", pair.node->_class->type_name, pair.node->rule->id, pair.node->nchildren);
+        }
+        while (st.fill && pair.index >= pair.node->nchildren) {
+            st._class->pop(&st, NULL);
+            st._class->peek(&st, &pair);
+        }
+        if (!st.fill) {
+            break;
+        }
+        if (pair.index < pair.node->nchildren) {
+            st.bins[st.fill - 1].index++; // yeah...need to do this
+            st._class->push(&st, (ASTNodeSize){.index = 0, .node = pair.node->children[pair.index]});
         }
     }
 
