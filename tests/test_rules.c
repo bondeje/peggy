@@ -228,13 +228,13 @@ int test_sequence(void) {
     parser._class->parse(&parser, string, strlen(string));
     nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
     nerrors += check_ASTNodes(parser.ast, result_nodes, __FILE__, __func__, __LINE__);
-     // for print debugging
+    /* // for print debugging
     FILE * ast_out = fopen("test_sequence_ast.txt", "w");
     nerrors += CHECK(parser.ast != parser.fail_node, "failed to parse string in %s\n", __func__);
     Parser_print_tokens(&parser, ast_out);
     Parser_print_ast(&parser, ast_out);
     fclose(ast_out);
-    
+    */
     Parser_dest(&parser);
 
     if (verbose) {
