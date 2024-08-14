@@ -26,6 +26,9 @@ $(BIN_DIR)/c.exe: $(GRAMMAR)
 test: $(BIN_DIR)/c.exe
 	@for file in sample_files/*.c; do echo $$file && $(CC) $(STDC_DIALECT) -E $$file | $(BIN_DIR)/c.exe > $$file.ast; done
 
+check_peggy: $(BIN_DIR)/c
+	@for file in ../../src/*.c; do echo $$file && $(CC) -E -I../../include -I../../lib/logger/include $$file | $(BIN_DIR)/c.exe > $$file.ast; done
+
 check_libc: $(BIN_DIR)/c.exe
 	@echo using $(CC) with dialect $(STDC_DIALECT)
 	@for file in sample_files/libc/*.c; do echo $$file && $(CC) $(STDC_DIALECT) -E $$file | $(BIN_DIR)/c > $$file.ast; done

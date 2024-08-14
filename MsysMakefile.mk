@@ -43,7 +43,7 @@ ext_libs: $(EXT_LIB_OBJS) $(DBG_EXT_LIB_OBJS)
 	@cp lib/TypeMemPools/include/* include/peggy/
 
 clean:
-	@rm -f src/*.o src/*.do include/peggy/logger.h include/peggy/mempool.h
+	@rm -f src/*.o src/*.do src/*.ast include/peggy/logger.h include/peggy/mempool.h
 	@rm -rf bin
 	@(cd tests && unset MAKELEVEL && make -f MsysMakefile.mk clean)
 	@(cd lib/TypeMemPools && unset MAKELEVEL && make clean)
