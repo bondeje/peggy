@@ -22,6 +22,8 @@ examples/shh
 *.log
 *.csv
 test_results/
+ast/
+*.do
 
 # to remove
 Makefile_old

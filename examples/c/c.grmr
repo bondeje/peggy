@@ -210,10 +210,10 @@ generic_selection:
 	'_Generic', '(', assignment_expression, ',', ','.generic_association, ')'
 
 generic_association:
-	(type_name | 'default'), ':', assignment_expression
+	('default' | type_name), ':', assignment_expression
 
 postfix_expression:
-	(primary_expression | compound_literal),    ( '[', expression, ']'
+	(compound_literal | primary_expression),    ( '[', expression, ']'
 													// type_name here because of a gcc builtin
 													// (used in -std=c99 complex.h) that takes
 													// typename args
@@ -225,7 +225,7 @@ postfix_expression:
 												)*
 
 compound_literal:
-	'(', storage_class_specifier*, type_name, ')', '{', initializer_list, ','?, '}'
+	'(', storage_class_specifier*, type_name, ')', '{', initializer_list?, ','?, '}' // C23 made initializer_list in compound literals optional
 
 unary_expression:
 	  'sizeof', unary_expression // right-recursive
@@ -290,8 +290,14 @@ logOR_expression(simplify_binary_op):
 conditional_expression(c0nc0_pass1):
 	(logOR_expression, '?', expression, ':')*, logOR_expression
 
+/*
 assignment_expression(c0nc0_pass1):
 	(unary_expression, assignment_operator)*, conditional_expression
+*/
+
+assignment_expression(c0nc0_pass1):
+	  conditional_expression
+	| unary_expression, assignment_operator, assignment_expression
 
 assignment_operator:
 	  '='
@@ -607,9 +613,9 @@ asm_qualifiers:
 	'volatile' | '__volatile__' | '__inline__' | 'inline' | 'goto'
 
 label:
-	attribute_specifier*, (  identifier 
-	                       | 'case', constant_expression
-						   | 'default'), ':'
+	attribute_specifier*, (  'case', constant_expression
+						   | 'default'
+						   | identifier), ':'
 
 labeled_statement:
 	label, statement
@@ -624,11 +630,11 @@ compound_statement:
 	open_scope, block_item*, close_scope
 		
 /*
-for PEG parser, declaration must be check before statement in order that the identifier is 
+for PEG parser, declaration must be checked before statement in order that the identifier is 
 checked as typedef first
 */
 block_item:
-	declaration | statement | label 
+	label | declaration | statement
 	
 expression_statement:
 	  expression?, ';'
