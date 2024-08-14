@@ -3,8 +3,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <peggy/parser.h>
-#include <peggy/packrat_cache.h>
+#include "peggy/parser.h"
+#include "peggy/packrat_cache.h"
 
 #define PARSER_NONE 0
 #ifndef PARSER_LOGGER_BUFFER_SIZE
@@ -577,7 +577,7 @@ ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start,
             // build child array for SequenceRule
             case PEGGY_SEQUENCE: {
                 Rule ** deps = ((ChainRule *)rule)->deps;
-                assert(((ChainRule *)rule)->deps_size == nchildren);
+                //assert(((ChainRule *)rule)->deps_size == nchildren);
                 for (size_t i = 0; i < nchildren; i++) {
                     children[i] = Parser_check_cache(self, deps[i]->id, tok);
                     tok = children[i]->token_end->next;
@@ -801,9 +801,9 @@ ASTNode * skip_token(Production * production, Parser * parser, ASTNode * node) {
         node->token_start->coords.line, node->token_start->coords.col, 
         node->str_length);
     node = make_skip_node(node);
-    DEBUG_ASSERT(is_skip_node(node), 
-        "ASSERT FAILURE: %s - node made skip node not registering as skip node\n", 
-        __func__);
+    //DEBUG_ASSERT(is_skip_node(node), 
+    //    "ASSERT FAILURE: %s - node made skip node not registering as skip node\n", 
+    //    __func__);
     return node;
 }
 

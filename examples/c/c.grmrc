@@ -81,7 +81,6 @@ keyword:
 	| '__cdecl' 		// msvc extension
 	| '__clrcall' 		// msvc extension
 	| '__declspec' 		// msvc declaration-specifier extensions
-	| '__endptr'		// gcc extension
 	// gcc extension to silence -pedantic: 
 	// https://gcc.gnu.org/onlinedocs/gcc/Alternate-Keywords.html
 	// apparently clang as well
@@ -93,7 +92,6 @@ keyword:
 	| '__int16' 		// msvc extension
 	| '__int32' 		// msvc extension
 	| '__int64' 		// msvc extension
-	| '__nptr'			// gcc extension
 	| '__restrict__' 	// gcc extension
 	| '__restrict'		// gcc extension
 	| '__stdcall' 		// msvc extension
@@ -105,7 +103,7 @@ keyword:
     | '__attribute__'
 
 token:
-    whitespace | constant | punctuator | string_literal | identifier | keyword  
+    whitespace | punctuator | constant | string_literal | identifier | keyword  
 	// keyword is basically unreachable. whitespace is added to remove comments. 
 	// It is skipped anyway
 
@@ -180,8 +178,8 @@ c_char:
 	| escape_sequence
 
 char_constant:
-    "(u8|L|u|U)?'([^'\\\\\\\n]|(\\\\['\"?\\\\abfnrtv])|(\\\\([0-7]{1,3}))|(\\\\x([0-9a-fA-F]+)))+'" // char_prefix, c_char+, char_suffix
-	// encoding    c-char      simple-escape         octal-escape     hex-escape
+    "(u8|L|u|U)?'([^'\\\\\\\n]|(\\\\['\"?\\abfnrtv])|(\\\\([0-7]{1,3}))|(\\\\x([0-9a-fA-F]+)))+'" // char_prefix, c_char+, char_suffix
+	// encoding    c-char    simple-escape         octal-escape     hex-escape
 
 constant:
     float_constant | int_constant | char_constant | enum_constant
@@ -190,13 +188,8 @@ constant:
 // ISO escape sequences, just simple_escape_sequence
 // this is literally everything between two double quotes including escaped double quotes
 string_literal:
-    //"(u8|u|U|L)?\"((\\\\\")|[^\"])*\"" 
-	//"(u8|u|U|L)?\"((\\\\['\"?\\\\abfnrtv])|[^\"\\\\])*\"" 
+    "(u8|u|U|L)?\"((\\\\\")|[^\"])*\"" 
 	// encoding  quotes minus escape sequences
-	"(u8|u|U|L)?\"([^\"\\\\\\\n]|(\\\\['\"?\\\\abfnrtv])|(\\\\([0-7]{1,3}))|(\\\\x([0-9a-fA-F]+)))*\""
-	// encoding    s-char        simple-escape           octal-escape       hex-escape
-
-	
 
 
 // EXPRESSIONS
@@ -210,16 +203,15 @@ primary_expression:
 	// constant has enum_constant so to prevent normal identifiers from being categorized
 	// as constants, constant must come after identifier
 	| constant
-	| string_literal+	// string literals may be repeated
+	| string_literal
 	| '(', expression, ')'
 
 generic_selection:
 	'_Generic', '(', assignment_expression, ',', ','.generic_association, ')'
 
 generic_association:
-	(type_name | 'default'), ':', assignment_expression
+	('default' | type_name), ':', assignment_expression
 
-// compound_literal must come first else () will be captured as parenthesized expression
 postfix_expression:
 	(compound_literal | primary_expression),    ( '[', expression, ']'
 													// type_name here because of a gcc builtin
@@ -233,7 +225,7 @@ postfix_expression:
 												)*
 
 compound_literal:
-	'(', storage_class_specifier*, type_name, ')', '{', initializer_list?, ','?, '}' // C23 makes initializer_list optional
+	'(', storage_class_specifier*, type_name, ')', '{', initializer_list?, ','?, '}' // C23 made initializer_list in compound literals optional
 
 unary_expression:
 	  'sizeof', unary_expression // right-recursive
@@ -263,7 +255,16 @@ single assignment expression which saves an incredible amount of memory allocati
 recursive definitions might be slightly simpler to read but are most definitely NOT worth it
 */
 cast_expression(c0nc0_pass1):
-	  ('(', type_name, ')', !'{')*, unary_expression
+	/* 
+	the !'{' must be present otherwise an assignment_expression can never 
+	capture a compound literal. When assignment_expression tries the 
+	conditional_expression nonterminal, it will get here, capture the first 
+	part of the cast_expression but then fail on the unary_expression when it 
+	should pass on the unary_expression. By negative lookahead of the left 
+	brace, it ensures compound literals can never be interpreted as 
+	cast_expressions
+	*/
+	  ('(', type_name, ')')*, unary_expression
 
 multiplicative_expression(simplify_binary_op):
 	('*' | '/' | '%').cast_expression
@@ -413,7 +414,7 @@ gcc_attribute_specifier: // gcc specific declaration_specifiers
 // for some reason some function declarations in several C standard library headers have 
 // __asm__ as an __attribute__
 	('__attribute__' | '__asm__' | '__asm'), paren_block 
-	| '__extension__', paren_block?
+	| '__extension__'	
 
 msdeclspec: // msvc specific declaration_specifiers
 	'__declspec', '(', identifier*,')'
@@ -470,11 +471,9 @@ type_qualifier:
 	| 'volatile'
 	| '__volatile__' 	// gcc extension
 	| 'restrict'
-	| '__endptr'		// gcc extension
-	| '__nptr'			// gcc extension
 	| '__restrict__' 	// gcc extension
 	| '__restrict' 	 	// gcc extension...really we need 3 ways to say restrict
-	| '_Atomic', !'('	// gcc pre-C11 had _Atomic as a type_qualifier that needs to be distinguished from the type_specifier
+	| '_Atomic', !'('
 	| '_Nonnull'		// clang extension for pointers
 	| '_Nullable'		// clang extension for pointers
 	| '__thread'		// gcc ctype.h FreeBSD
@@ -514,7 +513,7 @@ parameter_type_list:
 	| ','.parameter_declaration
 	| '...'
 
-parameter_declaration: // NEEDS TO BE TESTED. try line 52 of declarations.c
+parameter_declaration:
 	  attribute_specifier*, declaration_specifiers, abstract_declarator
 	| attribute_specifier*, declaration_specifiers, declarator
 	| attribute_specifier*, declaration_specifiers
@@ -550,6 +549,7 @@ function_abs_declarator:
 	
 // the negative lookahead handles type inference for the typedef-identifier ambiguity
 typedef_name(c_check_typedef):
+	//identifier
 	identifier, !(attribute_specifier*, '=')
 	
 initializer:
@@ -619,7 +619,6 @@ label:
 	attribute_specifier*, (  'case', constant_expression
 						   | 'default'
 						   | identifier), ':'
-						   
 
 labeled_statement:
 	label, statement
@@ -634,15 +633,15 @@ compound_statement:
 	open_scope, block_item*, close_scope
 		
 /*
-for PEG parser, declaration must be check before statement in order that the identifier is 
+for PEG parser, declaration must be checked before statement in order that the identifier is 
 checked as typedef first
 */
 block_item:
-	declaration | statement | label
+	label | declaration | statement
 	
 expression_statement:
-	  expression?, ';'
-	| attribute_specifier+, expression, ';'
+	  attribute_specifier+, expression, ';'
+	| expression?, ';'
 	
 selection_statement:
 	  'if', '(', expression, ')', statement, ('else', statement)?

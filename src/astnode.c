@@ -13,7 +13,9 @@ struct ASTNodeType ASTNode_class = {
  * @brief initialize an ASTnode. This is no different than setting each member 
  * in the struct
  */
-void ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode ** children) {
+void ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end, 
+    size_t str_length, size_t nchildren, ASTNode ** children) {
+        
     self->_class = &ASTNode_class;
     self->children = children;
     self->nchildren = nchildren;

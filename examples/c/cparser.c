@@ -24,6 +24,10 @@ typedef struct CString {
 // add builtin types here so that the parsers work. The first two below are needed to parse the stand library with gcc and clang
 CString BUILTIN_TYPES[] = {
     {.str = "__builtin_va_list", .len = 17},    // gcc and clang
+    {.str = "_Float32", .len = 8},              // gcc
+    {.str = "_Float32x", .len = 9},              // gcc
+    {.str = "_Float64", .len = 8},              // gcc
+    {.str = "_Float64x", .len = 9},              // gcc
     {.str = "_Float128", .len = 9},             // gcc
     {.str = NULL, .len = 0}                     // sentinel that must be last
 };
