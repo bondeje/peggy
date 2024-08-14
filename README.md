@@ -53,7 +53,8 @@ All other OSes: [pcre2](https://www.pcre.org/), specifically the build for 8-bit
 - Left recursion is not yet implemented!
 - Better decoupling of the grammar parser from the executable so that parsers can be built from grammars at runtime
 - Right now `ASTNode`s are heavily wasted by the `PackratCache` objects, making the usefulness of parsing data files quite limited, e.g. my 16 GB RAM computer OOMs trying to parser a 32 MB `csv` file. It is possible to recover the "lost" `ASTNode`s that go unused during the parse stage reducing both allocation time and memory consumption.
-- automatic AST traversal functions so that the user doesn't necessarily have to know the specific AST architecture during traversal
+- Roll my own regex using peggy to perhaps replace the GNU regex & PCRE2
+- Automatic AST traversal functions so that the user doesn't necessarily have to know the specific AST architecture during traversal
 
 </details>
 
