@@ -255,7 +255,16 @@ single assignment expression which saves an incredible amount of memory allocati
 recursive definitions might be slightly simpler to read but are most definitely NOT worth it
 */
 cast_expression(c0nc0_pass1):
-	  ('(', type_name, ')')*, unary_expression
+	/* 
+	the !'{' must be present otherwise an assignment_expression can never 
+	capture a compound literal. When assignment_expression tries the 
+	conditional_expression nonterminal, it will get here, capture the first 
+	part of the cast_expression but then fail on the unary_expression when it 
+	should pass on the unary_expression. By negative lookahead of the left 
+	brace, it ensures compound literals can never be interpreted as 
+	cast_expressions
+	*/
+	  ('(', type_name, ')', !'{')*, unary_expression
 
 multiplicative_expression(simplify_binary_op):
 	('*' | '/' | '%').cast_expression
@@ -290,14 +299,14 @@ logOR_expression(simplify_binary_op):
 conditional_expression(c0nc0_pass1):
 	(logOR_expression, '?', expression, ':')*, logOR_expression
 
-/*
 assignment_expression(c0nc0_pass1):
 	(unary_expression, assignment_operator)*, conditional_expression
-*/
 
-assignment_expression(c0nc0_pass1):
-	  conditional_expression
-	| unary_expression, assignment_operator, assignment_expression
+/*
+assignment_expression:
+	  unary_expression, assignment_operator, assignment_expression
+	| conditional_expression
+*/
 
 assignment_operator:
 	  '='
@@ -510,7 +519,7 @@ parameter_type_list:
 	| ','.parameter_declaration
 	| '...'
 
-parameter_declaration: // NEEDS TO BE TESTED. try line 52 of declarations.c
+parameter_declaration:
 	  attribute_specifier*, declaration_specifiers, abstract_declarator
 	| attribute_specifier*, declaration_specifiers, declarator
 	| attribute_specifier*, declaration_specifiers
@@ -637,8 +646,8 @@ block_item:
 	label | declaration | statement
 	
 expression_statement:
-	  expression?, ';'
-	| attribute_specifier+, expression, ';'
+	  attribute_specifier+, expression, ';'
+	| expression?, ';'
 	
 selection_statement:
 	  'if', '(', expression, ')', statement, ('else', statement)?

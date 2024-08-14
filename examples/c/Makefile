@@ -15,7 +15,7 @@ LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
 
 EXE_SRCS = cparser.c c.c
 
-all: $(BIN_DIR)/c test
+all: $(BIN_DIR)/c
 
 .MAIN: all
 
