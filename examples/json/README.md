@@ -67,8 +67,7 @@ struct JSONValue {
 data are collected in a JSONDoc
 ```
 struct JSONDoc {
-    JSONValue ** values; // top-level list of JSONValue objects
-    size_t nvalues; // number of top-level JSONValue objects
+    JSONValue * value; // the top-level json value
     /* other internal bookkeeping data */
 };
 ```
