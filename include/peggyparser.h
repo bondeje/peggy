@@ -27,8 +27,6 @@ typedef struct PeggyParser PeggyParser;
 err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * log_file, unsigned char log_level);
 void PeggyParser_dest(PeggyParser * parser);
 
-#define PeggyParser_NAME "PeggyParser.Parser"
-
 extern struct PeggyParserType {
     struct ParserType Parser_class;
 } PeggyParser_class;
@@ -39,8 +37,6 @@ extern struct PeggyParserType {
 struct PeggyParser {
 	Parser Parser;
     struct PeggyParserType * _class;
-    //HASH_MAP(PeggyString, PeggyProduction) punctuators;
-    //HASH_MAP(PeggyString, PeggyProduction) keywords;
     HASH_MAP(PeggyString, PeggyProduction) productions;
     STACK(PeggyString) imports;
     MemPoolManager * str_mgr;

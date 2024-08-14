@@ -15,11 +15,12 @@ data/
 profile.txt
 gmon.out
 TODO.txt
-*.csv
+times.csv
 examples/rtking
 examples/shh
 .bash_history
 *.log
+*.csv
 test_results/
 
 # to remove

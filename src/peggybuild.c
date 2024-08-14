@@ -29,7 +29,7 @@ int PeggyProduction_define(void * parser_, PeggyString name, PeggyProduction pro
     fputc(',', parser->source_file);
 
     unsigned int offset = 0;
-    if (PeggyString_startswith(prod.identifier, parser->export)) {
+    if (PeggyString_startswith(prod.identifier, parser->export) && parser->export.len < prod.identifier.len && *(prod.identifier.str + parser->export.len) == '_') {
         offset = (unsigned int)(parser->export.len + 1);
     }
     PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER | PSFO_LOFFSET(offset));
@@ -107,7 +107,7 @@ void build_destructor(PeggyParser * parser) {
 }
 
 PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, RuleTypeID type) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building PeggyProduction rule id %d from line %u, col %u\n", __func__, id->rule->id, id->token_start->coords.line, id->token_start->coords.col);
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building PeggyProduction rule id %s from line %u, col %u\n", __func__, id->rule->name, id->token_start->coords.line, id->token_start->coords.col);
     PeggyProduction prod;
     STACK_INIT(PeggyString)(&prod.args, 0);
 
@@ -124,7 +124,7 @@ PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, RuleTy
         prod.type = PEGGY_PRODUCTION;
     }    
 
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding build of production rule id %d with name %.*s from line %u, col %u to production map\n", __func__, id->rule->id, prod.name.len, prod.name.str, id->token_start->coords.line, id->token_start->coords.col);
+    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding build of production rule id %s with name %.*s from line %u, col %u to production map\n", __func__, id->rule->name, prod.name.len, prod.name.str, id->token_start->coords.line, id->token_start->coords.col);
     parser->productions._class->set(&parser->productions, prod.name, prod);
 
     return prod;
@@ -143,7 +143,7 @@ void PeggyProduction_declare(PeggyParser * parser, PeggyProduction prod) {
     fwrite("; // ", 1, strlen("; // "), parser->source_file);
     
     unsigned int offset = 0;
-    if (PeggyString_startswith(prod.identifier, parser->export)) {
+    if (PeggyString_startswith(prod.identifier, parser->export) && parser->export.len < prod.identifier.len && *(prod.identifier.str + parser->export.len) == '_') {
         offset = (unsigned int)(parser->export.len + 1);
     }
 

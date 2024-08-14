@@ -1,0 +1,14 @@
+int a = 2 + 1;
+int b = 2 - 1;
+int c = 2 * 1;
+int d = 2 / 1;
+int e = 2 % 1;
+int f = 2 >> 1;
+int g = 2 << 1;
+int h = 2 == 1;
+int i = 2 != 1;
+int j = 2 ^ 1;
+int k = 2 & 1;
+int l = 2 | 1;
+int m = 2 && 1;
+int n = 2 || 1;

@@ -1,5 +1,44 @@
 
-/* for inclusion without implementation */
+/**
+ * This is an implementation of a type-safe stack
+ *      FEATURES:
+ *          perfectly fine to store struct with const values (uses memcpy)
+ *          minimal requirements for simple templating:
+ *              declaration: STACK(element_type) stack;
+ *              initialization: STACK_INIT(element_type)(&stack, 0)
+ *              no other accesses require specifying the key_type and 
+ *                  value_type. All other functionality are in vtable function 
+ *                  calls to "stack"
+ *      WARNINGS:
+ *          element types must be single identifiers (structs, enums, 
+ *              unions, pointers and base C types must be typedef'd)
+ *          to any handlers or setting values, data is copied by value so 
+ *              anything larger than a pointer should probably just be a 
+ *              pointer
+ *          if ELEMENT_COMP is not specified, default will compare 
+ *              directly by value meaning pointers will be compared by address 
+ *              and not by value. For example different pointers to the same 
+ *              string will not match
+ * 
+ * To include in a header and get access to macros and declarations and NO 
+ *      implementations, simply do not define ELEMENT_TYPE
+ * 
+ * To use an implementation: 
+ *  set #defines
+ *  include this header
+ * 
+ * the following #defines configure the stack:
+ *      required:
+ *          ELEMENT_TYPE
+ *      optional:
+ *          ELEMENT_COMP - The function used to compare two different elements
+ *              in the stack
+ *              required function prototype:
+ *                  int ELEMENT_COMP(ELEMENT_TYPE val1, ELEMENT_TYPE val2)
+ *                  returns 0 if val1 == val2 and non-zero if val1 != val2
+ * 
+ */
+
 #ifndef STACK_H
 #define STACK_H
 
@@ -28,6 +67,10 @@
 
 #define STACK_TYPE STACK(ELEMENT_TYPE)
 
+/**
+ * @brief default comparison function. copies bytes into automatic buffers
+ * and compares the bytes 
+ */
 #ifndef ELEMENT_COMP
 static int CAT(ELEMENT_TYPE, _comp)(ELEMENT_TYPE key1, ELEMENT_TYPE key2) {
     char bytes1[sizeof(ELEMENT_TYPE)+1];
@@ -42,6 +85,9 @@ static int CAT(ELEMENT_TYPE, _comp)(ELEMENT_TYPE key1, ELEMENT_TYPE key2) {
 
 typedef struct STACK_TYPE STACK_TYPE;
 
+/**
+ * @brief vtable struct for stack
+ */
 typedef struct CAT(STACK_TYPE, _Type) {
     bool (*in)(STACK_TYPE * stack, ELEMENT_TYPE el);
     size_t (*len)(STACK_TYPE * stack);
@@ -55,6 +101,9 @@ typedef struct CAT(STACK_TYPE, _Type) {
     err_type (*resize)(STACK_TYPE * stack, size_t new_capacity);
 } CAT(STACK_TYPE, _Type);
 
+/**
+ * @brief base struct for the stack
+ */
 struct STACK_TYPE {
     CAT(STACK_TYPE, _Type) const * _class;
     ELEMENT_TYPE * bins;
@@ -62,6 +111,7 @@ struct STACK_TYPE {
     size_t fill;
 };
 
+// Forward declarations
 static err_type CAT(STACK_TYPE, _pop)(STACK_TYPE * stack, ELEMENT_TYPE * value);
 static err_type CAT(STACK_TYPE, _peek)(STACK_TYPE * stack, ELEMENT_TYPE * value);
 static err_type CAT(STACK_TYPE, _push)(STACK_TYPE * stack, ELEMENT_TYPE value);
@@ -74,19 +124,33 @@ static void CAT(STACK_TYPE, _for_each)(STACK_TYPE * stack, int (*handle_item)(vo
 static err_type CAT(STACK_TYPE, _resize)(STACK_TYPE * stack, size_t new_capacity);
 static err_type CAT(STACK_TYPE, _init)(STACK_TYPE * stack, size_t init_capacity);
 
+/**
+ * @brief definition of the vtable
+ */
 static const CAT(STACK_TYPE, _Type) CAT(STACK_TYPE, _class) = {
-    .in = &(CAT(STACK_TYPE, _in)),
-    .len = &(CAT(STACK_TYPE, _len)),
-    .dest = &(CAT(STACK_TYPE, _dest)),
-    .get = &(CAT(STACK_TYPE, _get)),
-    .set = &(CAT(STACK_TYPE, _set)),
-    .pop = &(CAT(STACK_TYPE, _pop)),
-    .push = &(CAT(STACK_TYPE, _push)),
-    .peek = &(CAT(STACK_TYPE, _peek)),
-    .for_each = &(CAT(STACK_TYPE, _for_each)),
-    .resize = &(CAT(STACK_TYPE, _resize))
+    .in = &(CAT(STACK_TYPE, _in)),      //!< test for presence of key in stack
+    .len = &(CAT(STACK_TYPE, _len)),    //!< get height of stack, # of elements
+    .dest = &(CAT(STACK_TYPE, _dest)),  //!< destroy the stack and reclaim 
+                                        //!<    internal memory
+    .get = &(CAT(STACK_TYPE, _get)),    //!< retrieve a value at an index
+    .set = &(CAT(STACK_TYPE, _set)),    //!< set a value at an index
+    .pop = &(CAT(STACK_TYPE, _pop)),    //!< retrieve and remove a value at a 
+                                        //!<   specified index
+    .push = &(CAT(STACK_TYPE, _push)),  //!< add a value to the top of the stack
+    .peek = &(CAT(STACK_TYPE, _peek)),  //!< retrieve the value at the top of
+                                        //!<    the stack, do not remove
+    .for_each = &(CAT(STACK_TYPE, _for_each)),  //!< apply a function to each
+                                                //!< element of the stack
+    .resize = &(CAT(STACK_TYPE, _resize))       //!< resize the underlying array
 };
 
+/**
+ * @brief retrieve value and remove from stack
+ * @param[in] stack the stack from which to remove the top value
+ * @param[out] value a pointer to the value at the top of the stack, if found, 
+ *      else no change
+ * @returns a non-zero value if stack is empty, else 0
+ */
 static err_type CAT(STACK_TYPE, _pop)(STACK_TYPE * stack, ELEMENT_TYPE * value) {
     err_type status = CAT(STACK_TYPE, _peek)(stack, value);
     if (status) {
@@ -95,6 +159,14 @@ static err_type CAT(STACK_TYPE, _pop)(STACK_TYPE * stack, ELEMENT_TYPE * value) 
     stack->fill--;
     return PEGGY_SUCCESS;
 }
+
+/**
+ * @brief retrieve value at the top of the stack, do not remove
+ * @param[in] stack the stack from which to view the top value
+ * @param[out] value a pointer to the value at the top of the stack, if found, 
+ *      else no change
+ * @returns a non-zero value if stack is empty, else 0
+ */
 static err_type CAT(STACK_TYPE, _peek)(STACK_TYPE * stack, ELEMENT_TYPE * value) {
     if (!stack->fill) {
         return PEGGY_EMPTY_STACK;
@@ -104,6 +176,14 @@ static err_type CAT(STACK_TYPE, _peek)(STACK_TYPE * stack, ELEMENT_TYPE * value)
     }
     return PEGGY_SUCCESS;
 }
+
+/**
+ * @brief add a value to the top of the stack
+ * @param[in] stack the stack to which a value will be added
+ * @param[in] value an instance of ELEMENT_TYPE to be placed at the top of the 
+ *      stack
+ * @returns a non-zero value if element cannot be added else 0
+ */
 static err_type CAT(STACK_TYPE, _push)(STACK_TYPE * stack, ELEMENT_TYPE value) {
     err_type status = PEGGY_SUCCESS;
     if (stack->fill == stack->capacity) {
@@ -114,6 +194,14 @@ static err_type CAT(STACK_TYPE, _push)(STACK_TYPE * stack, ELEMENT_TYPE value) {
     stack->fill++; // before set to ensure it succeeds
     return CAT(STACK_TYPE, _set)(stack, stack->fill - 1, value);
 }
+
+/**
+ * @brief retrieve a value at an index
+ * @param[in] stack the stack from which to get a value
+ * @param[in] key the index from which to query value
+ * @param[out] value a pointer to where the value retrieved will be stored
+ * @returns a non-zero value if key is out of bounds, else 0
+ */
 static err_type CAT(STACK_TYPE, _get)(STACK_TYPE const * stack, size_t key, ELEMENT_TYPE * value) {
     if (key < stack->fill) {
         memcpy((void *)value, (void *)(stack->bins + key), sizeof(ELEMENT_TYPE));
@@ -121,6 +209,14 @@ static err_type CAT(STACK_TYPE, _get)(STACK_TYPE const * stack, size_t key, ELEM
     }
     return PEGGY_INDEX_OUT_OF_BOUNDS;
 }
+
+/**
+ * @brief test for presence of key in stack. For this to have sensible results
+ *      ELEMENT_COMP should have been defined to an appropriate function
+ * @param[in] stack the stack from which to get a value
+ * @param[in] el an instance of ELEMENT_TYPE to find in stack
+ * @returns true if element is found else false
+ */
 static bool CAT(STACK_TYPE, _in)(STACK_TYPE * stack, ELEMENT_TYPE el) {
     for (size_t i = 0; i < stack->fill; i++) {
         if (!ELEMENT_COMP(stack->bins[i], el)) {
@@ -129,9 +225,22 @@ static bool CAT(STACK_TYPE, _in)(STACK_TYPE * stack, ELEMENT_TYPE el) {
     }
     return false;
 }
+
+/**
+ * @brief wrapper to get length/height of stack
+ */
 static size_t CAT(STACK_TYPE, _len)(STACK_TYPE * stack) {
     return stack->fill;
 }
+
+/**
+ * @brief set a value at a specific index in the stack
+ * @param[in] stack the stack to which a value will be set
+ * @param[in] key the index at which to store an instance of ELEMENT_TYPE
+ *      NOTE: key must be within the bounds of the underlying stack array
+ * @param[in] value an instance of ELEMENT_TYPE to store at key in the stack
+ * @returns a non-zero value if key is out of bounds, else 0
+ */
 static err_type CAT(STACK_TYPE, _set)(STACK_TYPE * stack, size_t key, ELEMENT_TYPE value) {
     if (key < stack->fill) {
         memcpy((void *)(stack->bins + key), (void *)&value, sizeof(ELEMENT_TYPE));
@@ -139,6 +248,10 @@ static err_type CAT(STACK_TYPE, _set)(STACK_TYPE * stack, size_t key, ELEMENT_TY
     }
     return PEGGY_INDEX_OUT_OF_BOUNDS;
 }
+
+/**
+ * @brief destroy and reclaim memory from the stack
+ */
 static void CAT(STACK_TYPE, _dest)(STACK_TYPE * stack) {
     //printf("destroying the stack\n");
     if (stack->bins) {
@@ -148,6 +261,18 @@ static void CAT(STACK_TYPE, _dest)(STACK_TYPE * stack) {
     stack->capacity = 0;
     stack->fill = 0;
 }
+
+/**
+ * @brief apply a function for each element in the stack iteratively from
+ *      bottom to top
+ * @param[in] stack the stack over which to iterate
+ * @param[in] handle_item 
+ *      @brief the function to apply to each element
+ *      @param[inout] data a context pointer for each element
+ *      @param[in] value the instance of ELEMENT_TYPE at current iteration 
+ *      @returns 0 to continue iteration, non-zero to abort
+ * @param[inout] data the context pointer to pass to the handle_item function
+ */
 static void CAT(STACK_TYPE, _for_each)(STACK_TYPE * stack, int (*handle_item)(void * data, ELEMENT_TYPE value), void * data) {
     for (size_t i = 0; i < stack->fill; i++) {
         if (handle_item(data, stack->bins[i])) {
@@ -155,9 +280,14 @@ static void CAT(STACK_TYPE, _for_each)(STACK_TYPE * stack, int (*handle_item)(vo
         }
     }
 }
+
+/**
+ * @brief resize the underlying array
+ * @param[in] stack the stack over which to iterate
+ * @param[in] new_capacity the new capacity
+ * @returns non-zero if reallocation fails else 0
+ */
 static err_type CAT(STACK_TYPE, _resize)(STACK_TYPE * stack, size_t new_capacity) {
-    //printf("realloc from %zu to new size %zu in stack...", stack->capacity, new_capacity);
-    //ELEMENT_TYPE * new_bins = realloc(stack->bins, sizeof(*stack->bins) * new_capacity);
     ELEMENT_TYPE * new_bins = calloc(new_capacity, sizeof(*stack->bins));
     if (!new_bins) {
         return PEGGY_MALLOC_FAILURE;
@@ -168,9 +298,16 @@ static err_type CAT(STACK_TYPE, _resize)(STACK_TYPE * stack, size_t new_capacity
     }
     stack->bins = new_bins;
     stack->capacity = new_capacity;
-    //printf("...done\n");
     return PEGGY_SUCCESS;
 }
+
+/**
+ * @brief initialize the stack
+ * @param[in] stack the stack
+ * @param[in] init_capacity the initial capacity to assign to the stack. 
+ *      STACK_DEFAULT_SIZE is provided if set to 0
+ * @returns an error if initialization fails else 0
+ */
 static err_type CAT(STACK_TYPE, _init)(STACK_TYPE * stack, size_t init_capacity) {
     if (!init_capacity) {
         init_capacity = STACK_DEFAULT_SIZE;
@@ -182,6 +319,7 @@ static err_type CAT(STACK_TYPE, _init)(STACK_TYPE * stack, size_t init_capacity)
     return CAT(STACK_TYPE, _resize)(stack, init_capacity);
 }
 
+// undef all the input macros so that the header can be re-included
 #undef STACK_TYPE
 #undef ELEMENT_COMP
 #undef ELEMENT_TYPE

@@ -10,12 +10,10 @@ unsigned char size_t_strlen(size_t val);
 
 void handle_terminal(PeggyParser * parser, ASTNode * node, const PeggyString parent_id);
 
-
 void handle_lookahead_rule(PeggyParser * parser, ASTNode * node, PeggyString name);
 
 void handle_list_rule(PeggyParser * parser, ASTNode * node, PeggyString name);
 
-// This is a pretty garbage function that needs to get re-written
 void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name);
 
 void handle_sequence(PeggyParser * parser, ASTNode * node, PeggyString name);
@@ -30,7 +28,6 @@ void handle_production_(PeggyParser * parser, ASTNode * id, ASTNode * transforms
 
 void handle_production(PeggyParser * parser, ASTNode * node);
 
-// returns one after last written character or dest if error
 PeggyString format_regex(PeggyParser * parser, char const * src, size_t src_length);
 
 void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyString parent_id);

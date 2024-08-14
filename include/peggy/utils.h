@@ -19,6 +19,11 @@ extern unsigned char const CHAR_BIT_MOD_MASK;
     #define CAT(A, B) CAT_(A, B)
 #endif
 
+#ifndef STRINGIFY
+    #define STRINGIFY_(X) #X
+    #define STRINGIFY(X) STRINGIFY_(X)
+#endif
+
 #ifndef CAT3
     #define CAT3_(A, B, C) A##B##C
     #define CAT3(A, B, C) CAT3_(A, B, C)
@@ -55,6 +60,8 @@ typedef enum err_type {
     PEGGY_FILE_IO_ERROR,
     PEGGY_NO_ROOT_PRODUCTION_FOUND,
     PEGGY_NO_TOKENIZER_FOUND,
+    PEGGY_TOKENIZE_FAILURE,
+    PEGGY_PARSE_FAILURE,
 } err_type;
 
 typedef enum RuleTypeID {
@@ -72,12 +79,6 @@ typedef enum RuleTypeID {
     PEGGY_PRODUCTION
 } RuleTypeID;
 
-// unused
-typedef enum iter_status {
-    PEGGY_ITER_GO = 0,
-    PEGGY_ITER_STOP
-} iter_status;
-
 // needed because of circular includes
 typedef int rule_id_type;
 typedef struct Rule Rule;
@@ -85,7 +86,18 @@ typedef struct Parser Parser;
 
 #define Rule_DEFAULT_ID -1
 
+/**
+ * @brief utility to get a string from the enum identifiers for RuleTypeID above
+ */
 char const * get_type_name(RuleTypeID type);
+
+/**
+ * @brief check if a rule instance given by RuleTypeID is within the types 
+ * supplied
+ * @param[in] type the type of the rule: RuleType.id
+ * @param[in] types the types to check against
+ * @returns true if type is in types else false
+ */
 bool isinstance(RuleTypeID const type, RuleTypeID const * types);
 
 #endif // PEGGY_UTILS_H

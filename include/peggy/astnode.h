@@ -5,38 +5,61 @@
 
 #include <peggy/utils.h>
 #include <peggy/token.h>
-//#include <peggy/type.h>
 
+// default initializer for ASTNode to ensure the vtable is available
 #define ASTNode_DEFAULT_INIT { \
     ._class = &ASTNode_class, \
 }
 
 typedef struct ASTNode ASTNode, * pASTNode;
 
+/*
+The base structure for the ASTNode
+*/
 struct ASTNode {
-    struct ASTNodeType * _class;
-    ASTNode ** children;
-    Rule * rule;
-    Token * token_start;
-    Token * token_end;
-    size_t str_length;
-    size_t nchildren;
+    struct ASTNodeType * _class;//!< vtable
+    ASTNode ** children;        //!< Child node references. Note the array's memory is NOT owned by the node
+    Rule * rule;                //!< Pointer to the rule that succeeded in creation of the ASTNode
+    Token * token_start;        //!< Initial token encompassed by the ASTNode and its children
+    Token * token_end;          //!< Final token encompassed by the ASTNode and its children
+    size_t nchildren;           //!< Number of child nodes
+    size_t str_length;          //!< This is not what you think it is. Internal use only. DO NOT USE
 };
 
 #define ASTNode_NAME "ASTNode"
 
+// vtable current only has one element tracking the node type.
 extern struct ASTNodeType {
     char const * type_name;
 } ASTNode_class;
 
-void ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode ** children);
+/**
+ * @brief initialize an ASTnode. This is no different than setting each member 
+ * in the struct
+ */
+void ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end, 
+    size_t str_length, size_t nchildren, ASTNode ** children);
 
-/************************** general node utilities *****************************/
+/************************* general node utilities ****************************/
 
+/**
+ * @brief To facilitate the ability to skip tokens, e.g. whitespace, a node is 
+ * marked for skipping during tokenization. This should only be used for rules 
+ * evaluated during tokenization and the ASTNode should not be used for 
+ * anything else after it is marked for skipping
+ */
 ASTNode * make_skip_node(ASTNode * node);
 
+/**
+ * @brief check if a node has been marked for skipping
+ */
 _Bool is_skip_node(ASTNode * node);
 
+/**
+ * @brief calculate the combined token length encompassed by the node and its 
+ * children. This is a more accurate and reliable measure of the length of 
+ * the underlying string than using ASTNode.str_length
+ */
 size_t ASTNode_string_length(ASTNode * node);
 
 #endif // PEGGY_ASTNODE_H

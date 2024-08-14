@@ -223,7 +223,8 @@ int test_sequence(void) {
     );
 
     Parser parser;
-    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&ab_letter_token, (Rule *)&seq_parser, SEQ_PARSER+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, (Rule *)&ab_letter_token, (Rule *)&seq_parser, SEQ_PARSER+1, 0);
+    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     parser._class->parse(&parser, string, strlen(string));
     nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
@@ -284,7 +285,8 @@ int test_repeat(void) {
     );
 
     Parser parser;
-    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&ab_letter_token, (Rule *)&rep_parser, REP_PARSER+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, (Rule *)&ab_letter_token, (Rule *)&rep_parser, REP_PARSER+1, 0);
+    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);
@@ -354,7 +356,8 @@ int test_list(void) {
     );
 
     Parser parser;
-    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&ab_letter_token, (Rule *)&list_parser, LIST_PARSER+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, (Rule *)&ab_letter_token, (Rule *)&list_parser, LIST_PARSER+1, 0);
+    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);
@@ -406,7 +409,8 @@ int test_lookahead(void) {
     );
 
     Parser parser;
-    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&ab_letter_token, (Rule *)&la_parser, LA_PARSER+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, (Rule *)&ab_letter_token, (Rule *)&la_parser, LA_PARSER+1, 0);
+    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);

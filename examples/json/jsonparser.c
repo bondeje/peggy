@@ -30,6 +30,9 @@ JSONParser json = {
     }
 };
 
+
+void JSON_print_value_(JSONValue * val);
+
 int JSONString_comp(JSONString a, JSONString b) {
     if (a.len != b.len) {
         return 1;
@@ -60,15 +63,15 @@ JSONValue * JSONParser_get_next_JSONValue(JSONParser * parser) {
 }
 JSONString JSONParser_get_next_JSONString(JSONParser * parser, ASTNode * node) {
     Token * tok = node->token_start;
-    if (parser->json.data.string_used >= parser->json.data.string_size - tok->length - 1) {
+    if (parser->json.data.string_used >= parser->json.data.string_size - tok->length + 2) {
         printf("%s - insufficient data to get next string\n", __func__);
         return (JSONString){0};
     }
     char * result = parser->json.data.strings + parser->json.data.string_used;
-    memcpy(result, tok->string, tok->length); // copy value into allocated string
+    memcpy(result, tok->string + 1, tok->length - 2); // copy value into allocated string
     //result[tok->length] = '\0'; // set null-teriminator. This should be handled by the calloc for the dest
-    parser->json.data.string_used += tok->length + 1; // + 1 for null-terminator
-    return (JSONString){.str = result, .len = tok->length};
+    parser->json.data.string_used += tok->length - 2; // + 1 for null-terminator
+    return (JSONString){.str = result, .len = tok->length - 2};
 }
 
 ASTNode * build_string(Production * prod, Parser * parser_, ASTNode * node) {
@@ -118,10 +121,10 @@ JSONValue * handle_decimal(JSONParser * parser, ASTNode * node) {
 JSONValue *  handle_number(JSONParser * parser, ASTNode * node) {
     ASTNode * child = node->children[0];
     switch (child->rule->id) {
-        case JSON_INTEGER: {
+        case INT_CONSTANT: {
             return handle_integer(parser, child);
         }
-        case JSON_DECIMAL: {
+        case DECIMAL_FLOAT_CONSTANT: {
             return handle_decimal(parser, child);
         }
         default: {
@@ -165,25 +168,25 @@ JSONValue * handle_keyword(JSONParser * parser, ASTNode * node) {
 }
 
 JSONValue * handle_array(JSONParser * parser, ASTNode * node) {
+    //printf("making array\n");
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
+    jval->value.array = (JSONArray){0};
     if (node->children[1]->nchildren) { // array has elements
         ASTNode * elements = node->children[1]->children[0];
         size_t nelements = (elements->nchildren + 1) >> 1;
-        jval->value.array.length = nelements;
-        jval->value.array.values = handle_value(parser, elements->children[0]);
+        STACK_INIT(pJSONValue)(&jval->value.array, nelements);
         // assign all subsequent JSONValues, but we don't need to assign them to value.array as it is guaranteed to be contiguous (so long as this is single-threaded)
-        for (size_t i = 2; i < nelements; i += 2) {
-            handle_value(parser, elements->children[i]);
+        for (size_t i = 0; i < elements->nchildren; i += 2) {
+            jval->value.array._class->push(&jval->value.array, handle_value(parser, elements->children[i]));
         }
-    } else {
-        jval->value.array = (JSONArray) {0};
     }
     jval->type = JSON_ARRAY;
     return jval;
 }
 
 void handle_object_key(JSONParser * parser, ASTNode * node, JSONValue * obj, JSONValue * jval) {
-    obj->value.object._class->set(&obj->value.object, JSONParser_get_next_JSONString(parser, node), jval);
+    JSONString key = JSONParser_get_next_JSONString(parser, node);
+    obj->value.object._class->set(&obj->value.object, key, jval);
 }
 
 void handle_member(JSONParser * parser, ASTNode * node, JSONValue * obj) {
@@ -193,6 +196,7 @@ void handle_member(JSONParser * parser, ASTNode * node, JSONValue * obj) {
 
 JSONValue * handle_object(JSONParser * parser, ASTNode * node) {
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
+    jval->value.object = (JSONObject) {0};
     if (node->children[1]->nchildren) { // object has key-value pairs
         ASTNode * members = node->children[1]->children[0];
         size_t nmembers = (members->nchildren + 1) >> 1;
@@ -201,7 +205,7 @@ JSONValue * handle_object(JSONParser * parser, ASTNode * node) {
             handle_member(parser, members->children[i], jval);
         }
     } else {
-        jval->value.object = (JSONObject) {0};
+        HASH_MAP_INIT(JSONString, pJSONValue)(&jval->value.object, 1);
     }
     jval->type = JSON_OBJECT;
     return jval;
@@ -216,7 +220,7 @@ JSONValue * handle_value(JSONParser * parser, ASTNode * node) {
         case ARRAY: {
             return handle_array(parser, child);
         }
-        case KEYWORD: {
+        case KEYWORDS: {
             return handle_keyword(parser, child);
         }
         case STRING: {
@@ -226,7 +230,7 @@ JSONValue * handle_value(JSONParser * parser, ASTNode * node) {
             return handle_number(parser, child);
         }
         default: {
-            /* TODO: error condition*/
+            printf("error in handle_value: %d %s\n", child->rule->id, child->rule->name);
         }
     }
     return NULL;
@@ -237,14 +241,9 @@ void JSONDoc_init(JSONDoc * json) {
     json->data.string_used = 0;
     json->data.strings = calloc(json->data.string_size + 1024, sizeof(char));
     json->data.values = calloc(json->data.nvalues, sizeof(JSONValue));
-    json->values = malloc(sizeof(JSONValue *) * json->nvalues);
 }
 
 void JSONDoc_dest(JSONDoc * json) {
-    if (json->values) {
-        free(json->values);
-        json->nvalues = 0;
-    }
     if (json->data.strings) {
         free(json->data.strings);
         json->data.strings = NULL;
@@ -255,6 +254,8 @@ void JSONDoc_dest(JSONDoc * json) {
         for (size_t i = 0; i < json->data.nvalues_used; i++) {
             if (json->data.values[i].type == JSON_OBJECT) {
                 json->data.values[i].value.object._class->dest(&json->data.values[i].value.object);
+            } else if (json->data.values[i].type == JSON_ARRAY) {
+                json->data.values[i].value.array._class->dest(&json->data.values[i].value.array);
             }
         }
         free(json->data.values);
@@ -266,9 +267,8 @@ void JSONDoc_dest(JSONDoc * json) {
 
 void JSONParser_init(JSONParser * parser, char * log_file, unsigned char log_level) {
     parser->json = (JSONDoc) {0};
-    Parser_init((Parser *)parser, NULL, 0, (Rule *)&json_token, (Rule *)&json_json, 
-        JSON_NRULES, 0, log_file, log_level);
-
+    Parser_init((Parser *)parser, (Rule *)&json_token, (Rule *)&json_json, JSON_NRULES, 0);
+    Parser_set_log_file((Parser *)parser, log_file, log_level);
 }
 
 void JSONParser_dest(JSONParser * parser) {
@@ -276,11 +276,9 @@ void JSONParser_dest(JSONParser * parser) {
 }
 
 JSONValue * JSONArray_get(JSONArray * array, size_t index) {
-    if (index >= array->length) {
-        /* TODO: error handling */
-        return NULL;
-    }
-    return array->values + index;
+    JSONValue * val = NULL;
+    array->_class->get(array, index, &val);
+    return val;
 }
 
 JSONValue * JSONObject_get(JSONObject * obj, JSONString jstr) {
@@ -303,12 +301,8 @@ JSONValue * JSONObject_get_byvalue(JSONObject * obj, JSONValue * jval) {
 ASTNode * handle_json(Production * prod, Parser * parser_, ASTNode * node) {
     // allocate the structures for JSONDoc
     JSONParser * parser = (JSONParser *) parser_;
-    parser->json.nvalues = node->nchildren;
     JSONDoc_init(&parser->json);
-    size_t i = 0;
-    for (size_t i = 0; i < node->nchildren; i++) {
-        parser->json.values[i] = handle_value(parser, node->children[i]);
-    }
+    parser->json.value = handle_value(parser, node);
     return node;
 }
 
@@ -389,15 +383,204 @@ JSONDoc * from_file(char * filename) {
     return json_data;
 }
 
+void JSON_print_bool(bool boolean) {
+    printf("%s", boolean ? "true" : "false");
+}
+
+void JSON_print_null(NULL_TYPE null) {
+    printf("null");
+}
+
+int JSON_print_object_item(void * data, JSONString key, JSONValue * val) {
+    printf("\t%.*s: ", (int)key.len, key.str);
+    JSON_print_value_(val);
+    printf("\n");
+    return 0;
+}
+
+void JSON_print_object(JSONObject * object) {
+    printf("object:\n");
+    object->_class->for_each(object, JSON_print_object_item, NULL);
+}
+
+void JSON_print_integer(llong integer) {
+    printf("%lld", integer);
+}
+
+void JSON_print_decimal(double decimal) {
+    printf("%f", decimal);
+}
+
+void JSON_print_string(JSONString string) {
+    printf("%.*s", (int)string.len, string.str);
+}
+
+void JSON_print_array(JSONArray * array) {
+    printf("array:\n");
+    for (size_t i = 0; i < array->fill; i++) {
+        printf("\t");
+        JSON_print_value_(JSONArray_get(array, i));
+        printf("\n");
+    }
+}
+
+void JSON_print_value_(JSONValue * val) {
+    switch (val->type) {
+        case JSON_NULL: {
+            JSON_print_null(val->value.null);
+            break;
+        }
+        case JSON_BOOL: {
+            JSON_print_bool(val->value.boolean);
+            break;
+        }
+        case JSON_STRING: {
+            JSON_print_string(val->value.string);
+            break;
+        }
+        case JSON_INTEGER: {
+            JSON_print_integer(val->value.integer);
+            break;
+        }
+        case JSON_DECIMAL: {
+            JSON_print_decimal(val->value.decimal);
+            break;
+        }
+        case JSON_ARRAY: {
+            JSON_print_array(&val->value.array);
+            break;
+        }
+        case JSON_OBJECT: {
+            JSON_print_object(&val->value.object);
+            break;
+        }
+        default: {
+            printf("%s: type not not understood: %d\n", __func__, val->type);
+            return;
+        }
+    }
+}
+
+void JSON_print_value(JSONDoc * json_data, JSONValue * value, char const * index) {
+    if (!value) {
+        value = json_data->value;
+        printf("index %s: ", index);
+    }
+    char const * slash = index;
+    if (index) {
+        slash = memchr(index, (int)'/', strlen(index));
+    }
+    
+    size_t length = 0;
+    if (!slash) {
+        length = strlen(index);
+    } else {
+        length = (size_t)(slash - index);
+    }
+    switch (value->type) {
+        case JSON_NULL: {
+            if (!length) {
+                JSON_print_null(value->value.null);
+            } else {
+                printf("error. found null but index remaining: %s\n", index);
+                return;
+            }
+            break;
+        }
+        case JSON_BOOL: {
+            if (!length) {
+                JSON_print_bool(value->value.boolean);
+            } else {
+                printf("error. found bool but index remaining: %s\n", index);
+                return;
+            }
+            break;
+        }
+        case JSON_STRING: {
+            if (!length) {
+                JSON_print_string(value->value.string);
+            } else {
+                printf("error. found string but index remaining: %s\n", index);
+                return;
+            }
+            break;
+        }
+        case JSON_INTEGER: {
+            if (!length) {
+                JSON_print_integer(value->value.integer);
+            } else {
+                printf("error. found integer but index remaining: %s\n", index);
+                return;
+            }
+            break;
+        }
+        case JSON_DECIMAL: {
+            if (!length) {
+                JSON_print_decimal(value->value.decimal);
+            } else {
+                printf("error. found decimal but index remaining: %s\n", index);
+                return;
+            }
+            break;
+        }
+        case JSON_ARRAY: {
+            if (!length) {
+                JSON_print_array(&value->value.array);
+            } else {
+                static char integer_buffer[MAX_LLONG_STR_LENGTH] = {'\0'};
+                memcpy(integer_buffer, index, length);
+                long long i = atoll(integer_buffer);
+                //printf("getting array value at index: %lld\n", i);
+                if (i < 0 || (size_t)i >= value->value.array.fill) {
+                    printf("error. index %lld is out of bounds, max: %zu\n", i, value->value.array.fill);
+                    return;
+                }
+                value = JSONArray_get(&value->value.array, (size_t)i);
+            }
+            break;
+        }
+        case JSON_OBJECT: {
+            if (!length) {
+                JSON_print_object(&value->value.object);
+            } else {
+                JSONString key = {.len = length, .str = (char *)index};
+                //printf("getting object value at key (%zu): %.*s\n", key.len, (int)key.len, key.str);
+                JSONValue * new_value = JSONObject_get(&value->value.object, key);
+                if (!new_value) {
+                    printf("%.*s not found in object", (int)length, index);
+                    JSON_print_object(&value->value.object);
+                    return;
+                } else {
+                    value = new_value;
+                }
+            }
+            break;
+        }
+        default: {
+            printf("value not understood: %s\n", index);
+            return;
+        }
+    }
+
+    if (length) {
+        JSON_print_value(json_data, value, index + length + (slash ? 1 : 0));
+    }
+    
+    printf("\n");
+}
+
 int main(int narg, char ** args) {
     //printf("built!\n");
     char * log_file = NULL;
     unsigned char log_level = LOG_LEVEL_INFO;
     int iarg = 1;
+    char const * index = NULL;
     while (iarg < narg) {
         printf("arg %d: %s\n", iarg, args[iarg]);
         if (!strcmp(args[iarg], "--timeit")) {
             timeit = true;
+        } else if (!strncmp(args[iarg], "-i=", 3)) {
+            index = args[iarg] + 3;
         } else if (!strncmp(args[iarg], "--log=", 6)) {
             log_file = args[iarg] + 6;
         } else if (!strncmp(args[iarg], "--log_level=", 12)) {
@@ -405,8 +588,9 @@ int main(int narg, char ** args) {
         } else {
             printf("processing file %s\n", args[iarg]);
             JSONDoc * json_data = from_file(args[iarg]);
-            //print_first_last_row(&csv_data);
-            /* insert any code you want to handle the csv here */
+            if (json_data && index) {
+                JSON_print_value(json_data, NULL, index);
+            }
             if (json_data != &empty_json) {
                 JSONParser_dest(&json);
                 JSONDoc_dest(json_data);

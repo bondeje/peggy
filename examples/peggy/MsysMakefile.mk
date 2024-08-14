@@ -29,10 +29,19 @@ $(BIN_DIR)/peggy.exe: $(GRAMMAR)
 	@$(BIN_DIR)/peggy.exe $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
 	@$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 
-test: $(BIN_DIR)/peggy.exe
+rebuild:
+	@cp $(SRCS) $(INCS) .
+	@(cd ../.. && bin/peggy.exe examples/peggy/$(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL) && mv peggy.* examples/peggy && \
+	rm -f bin/peggy.exe) || $(BIN_DIR)/peggy peggy.grmr $(GRAMMAR).log $(BLD_LOG_LEVEL) && rm -f $(BIN_DIR)/peggy
+	@(echo "\nbuilding peggy parser")
+	@(if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="-DNDEBUG"; fi ; \
+	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $(BIN_DIR)/peggy $(LFLAGS))
+
+
+test: rebuild
 	@mv peggy.c peggy_orig.c
 	@mv peggy.h peggy_orig.h
-	@$(BIN_DIR)/peggy.exe peggy.grmr
+	@$(BIN_DIR)/peggy.exe peggy.grmr $(GRAMMAR).log LOG_LEVEL_ERROR 
 	@(if [ -z "`comm -3 peggy_orig.h peggy.h`" ] && [ -z "`comm -3 peggy_orig.c peggy.c`" ] ; then echo "test peggy bootstrap...passed" ; else echo "test peggy bootstrap...failed" ; fi)
 
 # be carefule with this. will remove any version of peggy.exe that you have already built

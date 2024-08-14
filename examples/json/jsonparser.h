@@ -52,12 +52,17 @@ struct JSONString {
 
 typedef long long llong;
 
-typedef struct JSONArray {
-    JSONValue * values;
-    size_t length;
-} JSONArray;
-
 typedef JSONValue * pJSONValue;
+
+static int pJSONValue_comp(pJSONValue a, pJSONValue b) {
+    return 1;
+}
+
+#define ELEMENT_TYPE pJSONValue
+#define ELEMENT_COMP pJSONValue_comp
+#include <peggy/stack.h>
+
+typedef STACK(pJSONValue) JSONArray;
 
 #define KEY_TYPE JSONString
 #define VALUE_TYPE pJSONValue
@@ -91,8 +96,7 @@ typedef struct JSONData {
 
 typedef struct JSONDoc {
     JSONData data; // allocated structures holding all the data
-    JSONValue ** values; // top-level document structures (entry points)
-    size_t nvalues; // number of entry points
+    JSONValue * value; // top-level document structures (entry points)
 } JSONDoc;
 
 typedef struct JSONParser {

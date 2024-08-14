@@ -259,8 +259,7 @@ ASTNode * calc_add_sub(Production * prod, Parser * parser, ASTNode * node) {
         }
     }
     CalcNode * node_result = (CalcNode *)parser->_class->add_node(parser, (Rule *)prod, 
-        node->token_start, node->token_end, node->str_length, 0, 
-        NULL, sizeof(CalcNode));
+        node->token_start, node->token_end, node->str_length, 0, sizeof(CalcNode));
     node_result->node._class = &CalcNode_ASTNode_class;
     node_result->value = result;
     return (ASTNode *)node_result;
@@ -341,8 +340,7 @@ ASTNode * calc_mul_div_mod(Production * prod, Parser * parser, ASTNode * node) {
         }
     }
     CalcNode * node_result = (CalcNode *)parser->_class->add_node(parser, (Rule *)prod, 
-        node->token_start, node->token_end, node->str_length, 0, 
-        NULL, sizeof(CalcNode));
+        node->token_start, node->token_end, node->str_length, 0, sizeof(CalcNode));
     node_result->node._class = &CalcNode_ASTNode_class;
     node_result->value = result;
     return (ASTNode *)node_result;
@@ -385,8 +383,7 @@ ASTNode * calc_pow(Production * prod, Parser * parser, ASTNode * node) {
     }
 
     CalcNode * node_result = (CalcNode *)parser->_class->add_node(parser, (Rule *)prod, 
-        node->token_start, node->token_end, node->str_length, 0, 
-        NULL, sizeof(CalcNode));
+        node->token_start, node->token_end, node->str_length, 0, sizeof(CalcNode));
     node_result->node._class = &CalcNode_ASTNode_class;
     node_result->value = result;
     return (ASTNode *)node_result;
@@ -413,8 +410,7 @@ ASTNode * func_eval(Production * prod, Parser * parser, ASTNode * node) {
     
     REPLFunction func = math_repl_get_func(func_name->string, (unsigned char) func_name->length);
     CalcNode * result = (CalcNode *)parser->_class->add_node(parser, (Rule *)prod, 
-        node->token_start, node->token_end, node->str_length, 0, 
-        NULL, sizeof(*result));
+        node->token_start, node->token_end, node->str_length, 0, sizeof(*result));
     result->node._class = &CalcNode_ASTNode_class;
     result->value = func(vals);
     return (ASTNode *)result;
@@ -485,8 +481,7 @@ ASTNode * build_int(Production * prod, Parser * parser, ASTNode * node) {
         return NULL;
     }
     CalcNode * val = (CalcNode *)parser->_class->add_node(parser, (Rule *)prod, 
-        node->token_start, node->token_end, node->str_length, 0, 
-        NULL, sizeof(CalcNode));
+        node->token_start, node->token_end, node->str_length, 0, sizeof(CalcNode));
     val->node._class = &CalcNode_ASTNode_class;
     memcpy(integer_buffer, tok->string, length);
     integer_buffer[length] = '\0';
@@ -505,8 +500,7 @@ ASTNode * build_float(Production * prod, Parser * parser, ASTNode * node) {
         return NULL;
     }
     CalcNode * val = (CalcNode *)parser->_class->add_node(parser, (Rule *)prod, 
-        node->token_start, node->token_end, node->str_length, 0, 
-        NULL, sizeof(CalcNode));
+        node->token_start, node->token_end, node->str_length, 0, sizeof(CalcNode));
     val->node._class = &CalcNode_ASTNode_class;
     memcpy(float_buffer, tok->string, length);
     float_buffer[length] = '\0';
@@ -518,8 +512,7 @@ ASTNode * build_float(Production * prod, Parser * parser, ASTNode * node) {
 ASTNode * build_constants(Production * prod, Parser * parser, ASTNode * node) {
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG %s - constant found\n", __func__);
     CalcNode * val = (CalcNode *)parser->_class->add_node(parser, (Rule *)prod, 
-        node->token_start, node->token_end, node->str_length, 0, 
-        NULL, sizeof(CalcNode));
+        node->token_start, node->token_end, node->str_length, 0, sizeof(CalcNode));
     val->node._class = &CalcNode_ASTNode_class;
     val->value.type = CALC_FLOAT;
     switch (node->rule->id) {
@@ -562,8 +555,7 @@ ASTNode * build_array(Production * prod, Parser * parser, ASTNode * node) {
         arr[j++] = ((CalcNode *)child->children[i])->value;
     }
     CalcNode * val = (CalcNode *)parser->_class->add_node(parser, (Rule *)prod, 
-        node->token_start, node->token_end, node->str_length, 0, 
-        NULL, sizeof(CalcNode));
+        node->token_start, node->token_end, node->str_length, 0, sizeof(CalcNode));
     val->node._class = &CalcNode_ASTNode_class;
     val->value.value.arr.length = length;
     val->value.value.arr.values = arr;
@@ -656,7 +648,8 @@ int main(int narg, char ** args) {
         } else if (!strcmp("functions\n", buffer)) {
             print_functions();
         } else {
-            Parser_init((Parser *)&calc, NULL, 0, (Rule *)&calculator_token, (Rule *)&calculator_calculator, CALCULATOR_NRULES, 0, log_file, log_level);
+            Parser_init((Parser *)&calc, (Rule *)&calculator_token, (Rule *)&calculator_calculator, CALCULATOR_NRULES, 0);
+            Parser_set_log_file((Parser *)&calc, log_file, log_level);
             Parser_parse((Parser *)&calc, buffer, strlen(buffer));
             Parser_dest((Parser *)&calc);
         }

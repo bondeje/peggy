@@ -19,7 +19,7 @@
 #define PARSER_DEFAULT_NTOKENS 256
 #define PARSER_DEFAULT_NNODES 4096
 
-/* Parser definitions and declarations */
+/******************* Parser definitions and declarations *********************/
 
 #ifdef PACKRAT_HASH
 #define ELEMENT_TYPE pASTNode
@@ -38,70 +38,246 @@
 #define Parser_is_fail_node(pparser, node) (node == Parser_fail_node(pparser))
 
 struct Parser {
-    struct ParserType * _class;
-    PackratCache cache;
-    Logger logger;
-    MemPoolManager * node_mgr;
-    MemPoolManager * token_mgr;
-    MemPoolManager * childarr_mgr;
-    Token * token_head;
-    Token * token_cur;
-    size_t ntokens;
-    Token * token_tail;
-    Rule * token_rule;
-    Rule * root_rule;
-    char const * name; /* usually file name */
-    char const * log_file;
-    size_t name_length;
-    bool tokenizing;
-    ASTNode * ast;
-    ASTNode * fail_node;
-    ASTNode * lookahead_node;
-    unsigned int flags;
+    struct ParserType * _class; //!< the Parser vtable
+    PackratCache cache;         //!< the memoization cache for packrat parsing
+    Logger logger;              //!< a logger instance for tracking progress
+                                //!<    or debugging
+    MemPoolManager * node_mgr;      //!< a memory pool manager for the ASTNode
+                                    //!<    instances
+    MemPoolManager * token_mgr;     //!< a memory pool manager for the Token
+                                    //!<    instances
+    MemPoolManager * childarr_mgr;  //!< a memory pool manager for the ASTNode
+                                    //!<    child arrays.
+    Token * token_head;     //!< a dummy Token * instance to serve as head of 
+                            //!<    linked list of Tokens
+    Token * token_cur;      //!< the current token being tokenized/parsed
+    size_t ntokens;         //!< the number of tokens tokenized (serves as UID
+                            //!<    generator. DO NOT MODIFY unless you are 
+                            //!<    overriding "add_token" or "tokenize"
+    Token * token_tail;     //!< the sentinel final Token in the linked list.
+                            //!<    It is never a valid Token for parsing
+    Rule * token_rule;      //!< the "Rule *" applied iteratively to generate
+                            //!<    the token stream
+    Rule * root_rule;       //!< the "Rule *"" instance that initiates parsing
+    char const * log_file;  //!< a null-terimated string to locate the log file
+    bool tokenizing;        //!< a flag used during tokenization to control
+                            //!<    cache handling. DO NOT MODIFY unless you
+                            //!<    are overriding "tokenize"
+    ASTNode * ast;          //!< Where the resulting AST root node is stored
+                            //!<    It is NULL when parsing has not taken place
+                            //!<    Parser_is_fail_node(&parser, parser.ast)
+                            //!<        is true if parse failed without AST
+                            //!<    It is a valid node if any partial AST exists
+    ASTNode * fail_node;    //!< A pointer to a sentinel node used to indicate
+                            //!<    failure of a rule
+    unsigned int flags;     //!< Flags to control certain aspects of parsing.
+                            //!<    not currently in use.
 };
-
-typedef enum ParserFlags {
-    PARSER_NONE = 0,
-    PARSER_LAZY = 1,
-    PARSER_SPARSE_ALLOC = 2
-} ParserFlags;
 
 typedef struct ParserType ParserType;
 
+/**
+ * vtable for Parser. These are the function that I anticipate can be overridden
+ * by users
+ */
 extern struct ParserType {
-    char const * type_name;
+    // tokenizer interface
     err_type (*add_token)(Parser * parser, ASTNode * node);
-    ASTNode * (*add_node)(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode ** children, size_t size);
+    size_t (*tokenize)(Parser * self, char const * string, size_t string_length, 
+        Token ** start, Token ** end);
+    // parser interface
+    ASTNode * (*add_node)(Parser * self, Rule * rule, Token * start, 
+        Token * end, size_t str_length, size_t nchildren, size_t size);
     void (*parse)(Parser * parser, char const * string, size_t string_length);
-    size_t (*tokenize)(Parser * self, char const * string, size_t string_length, Token ** start, Token ** end);
+    
 } Parser_class;
 
-Parser * Parser_new(char const * name, size_t name_length, Rule * token_rule, 
-                    Rule * root_rule, size_t nrules, 
-                    unsigned int flags, char const * log_file, unsigned char log_level);
-err_type Parser_init(Parser * parser, char const * name, size_t name_length,
-                         Rule * token_rule, Rule * root_rule, size_t nrules, unsigned int flags, 
-                         char const * log_file, unsigned char log_level);
+/**
+ * @brief allocate a new Parser instance
+ * @param[in] token_rule the "Rule *" instance that is called to initiate the 
+ *      the tokenizer/lexer to split input string into tokens
+ * @param[in] root_rule the "Rule *" instance that initiates the parse upon
+ *      its success stores the final node in ast
+ * @param[in] flags to be used to control parsing
+ */
+Parser * Parser_new(Rule * token_rule, Rule * root_rule, size_t nrules, 
+    unsigned int flags);
+
+/**
+ * @brief initialize a Parser instance. Only call once per instance
+ * @param[in] token_rule the "Rule *" instance that is called to initiate the 
+ *      the tokenizer/lexer to split input string into tokens
+ * @param[in] root_rule the "Rule *" instance that initiates the parse upon
+ *      its success stores the final node in ast
+ * @param[in] flags to be used to control parsing
+ */
+err_type Parser_init(Parser * parser, Rule * token_rule, Rule * root_rule, 
+    size_t nrules, unsigned int flags);
+
+/**
+ * @brief set a logger file for the Parser. Defaults to disabled
+ * @param[in] self the Parser instance that is called to initiate the 
+ *      the tokenizer/lexer to split input string into tokens
+ * @param[in] log_file the file at which to place LOG_EVENT calls. If NULL
+ *      defaults to "stdout"
+ * @param[in] log_level the log level to use. If greater than 
+ *      MAX_LOGGING_LEVEL used at compile time, reduces to MAX_LOGGING_LEVEL 
+ *      LOG_EVENTS greater than this level are not set to log
+ */
+void Parser_set_log_file(Parser * self, char const * log_file, 
+    unsigned char log_level);
+
+/**
+ * @brief destroy and reclaim memory in parser. Use directly if initialized 
+ *      with Parser_inint
+ */
 void Parser_dest(Parser * parser);
+
+/**
+ * @brief destroy and delete a Parser created with Parser_new
+ */
 void Parser_del(Parser * parser);
+
+/**
+ * @brief run the tokenizer on the input string. A linked list starting from 
+ *      "start" to "end" (inclusive) is created
+ * @param[in] self Parser instance
+ * @param[in] string the input string to tokenize
+ * @param[in] string_length the length of the input string
+ * @param[out] start the resulting starting token
+ * @param[out] end the resulting ending token.
+ * @returns the number of tokens created
+ */
 size_t Parser_tokenize(Parser * self, char const * string, size_t string_length, Token ** start, Token ** end);
-void Parser_get_line_col_end(Parser * self, Token * tok, unsigned int * line_out, unsigned int * col_out);
-void Parser_generate_new_token(Parser * self, size_t token_length, Token * cur);
+
+/**
+ * @brief add a token for the given node. Only used during tokenization
+ * @param[in] self Parser instance
+ * @param[in] node node encapsulating the token to be added to the stream
+ * @returns non-zero on error, else 0
+ */
+err_type Parser_add_token(Parser * self, ASTNode * node);
+
+/**
+ * @brief wrapper to retrieve number of tokens in parser. This is a more 
+ *      accurate measure of the current state of the parser tokens than 
+ *      Parser.ntokens
+ */
 size_t Parser_get_ntokens(Parser * self);
-err_type Parser_skip_token(Parser * parser, ASTNode * node);
-err_type Parser_add_token(Parser * parser, ASTNode * node);
-ASTNode ** Parser_make_child_array(Parser * self, size_t nchildren);
-ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, ASTNode ** children, size_t size);
-void Parser_parse(Parser * parser, char const * string, size_t string_length);
-ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, Token * tok);
-void Parser_cache_check(Parser * self, rule_id_type rule_id, Token * tok, ASTNode * node);
-err_type Parser_traverse(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
+
+/**
+ * @brief prints the tokens after tokenization in the parser
+ */
 void Parser_print_tokens(Parser * self, FILE * stream);
-size_t Parser_get_ntokens(Parser * self);
+
+/**
+ * @brief initiate the parsing stage. wraps the tokenizing stage so a separate 
+ *      call to Parser_tokenize is not necessary
+ * @param[in] self Parser instance
+ * @param[in] string the input string to parser
+ * @param[in] string_length the length of the input string
+ */
+void Parser_parse(Parser * parser, char const * string, size_t string_length);
+
+/**
+ * @brief create a new node and add its chidlren to parse tree. For internal
+ *      use or overriding purposes only.
+ * @param[in] self Parser instance
+ * @param[in] rule Rule * instance to associate to node for its creation
+ * @param[in] start The start Token at which the Rule * or node succeeded
+ * @param[in] end The end Token at which the Rule completes.
+ *      For "nonempty" nodes that represent at least 1 Token, the end Token 
+ *          should be reachable traversing to the "right"/"next" from the 
+ *          start Token, but it can be equal to the start node
+ *      For nodes that do not consume tokens (Lookahead rules or RepeatRule 
+ *          with 0 minimum repeats), end should be equal to start->prev (so 
+ *          that the next rule starts at end->next == start)
+ * @param[in] str_length During tokenization, this represents how much of the
+ *      input string is captured by the node. Otherwise it is used as a flag
+ *      and may not have this meaning anymore. Best not to use it. If you 
+ *      need to estimate how much of a string to allocate, follow the Token
+ *      linked list through a node accountingfor the fact that 
+ *      ASTNode.token_end may be equal to ASTNode.token_start or in the case
+ *      of parsing, may actually be one before ASTNode.token_start
+ * @param[in] size This is used for the allocation size of the node. This 
+ *      allows for the creation and memory management of custom nodes. To
+ *      use the default ASTNode provided by peggy, this value may be 0 or
+ *      sizeof(ASTNode). For creating a custom node, the custom node MUST
+ *      have an ASTNode instance as its firts member and pass the value
+ *      sizeof(MyCustomASTNode). Any initializtion or overriding of variables
+ *      must be done after this function call
+ * @returns a new pointer to an ASTNode *.
+ */
+ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, size_t size);
+
+/**
+ * @brief check for a (Rule, Token) pair in the Parser's PackratCache
+ * @param[in] self the Parser
+ * @param[in] rule_id the integer ID of the Rule corresponding to the query
+ *      usually this is Rule.id
+ * @param[in] tok pointer to Token of the corresponding query
+ * @returns The ASTNode at the (Rule, Token) key. NULL if not present
+ */
+ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, Token * tok);
+
+/**
+ * @brief store a resulting ASTNode in the Parser's PackratCache
+ * @param[in] self the Parser
+ * @param[in] rule_id the integer ID of the Rule corresponding to the query
+ *      usually this is Rule.id
+ * @param[in] tok pointer to Token of the corresponding query
+ * @param[in] node the ASTNode pointer to be stored
+ */
+void Parser_cache_check(Parser * self, rule_id_type rule_id, Token * tok, ASTNode * node);
+
+/**
+ * @brief print the available Abstract Syntax Tree to stream
+ */
 err_type Parser_print_ast(Parser * parser, FILE * stream);
 
-// use in e.g. WHITESPACE or comments
+/**
+ * @brief get the status of a call to Parser_parse
+ * @returns PEGGY_TOKENIZE_FAILURE, PEGGY_PARSER_FAILURE on corresponding errors
+ *      or 0/PEGGY_SUCCESS on success
+ */
+err_type Parser_parse_status(Parser * parser);
+
+/**
+ * @brief get the status of a call to Parser_parse as well as print the AST and
+ *      any error information to stream
+ * @param[in] self the Parser
+ * @param[in] stream the stream to print output to
+ * @returns result of Parser_parse_status
+ */
+err_type Parser_print_parse_status(Parser * self, FILE * stream);
+
+// Not yet implemented
+err_type Parser_traverse(Parser * parser, void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt);
+
+/**
+ * @brief the build action to be use by Rule instances that result in skipping 
+ *      tokens during tokenization
+ * @param[in] production The pointer to the Production instance that is 
+ *      assigned skip_token build action
+ * @param[in] parser the pointer to the running Parser instance
+ * @param[in] node the resulting node of the production Rule's dependent rule
+ * @returns On failure of the production or dependent rule, returns a node for 
+ *      which Parser_is_fail_node(parser, return) evaluates to true or a node
+ *      for which is_skip_token(return) evaluates to true. It should never 
+ *      return NULL
+ */
 ASTNode * skip_token(Production * production, Parser * parser, ASTNode * node);
+
+/**
+ * @brief the build action to be used only by the special "token" Production
+ * @param[in] production The pointer to the Production instance that is 
+ *      assigned skip_token build action
+ * @param[in] parser the pointer to the running Parser instance
+ * @param[in] node the resulting node of the production Rule's dependent rule
+ * @returns On failure of the production or dependent rule, returns a node for 
+ *      which Parser_is_fail_node(parser, return) evaluates to true or a valid
+ *      node. It should never return NULL
+ */
 ASTNode * token_action(Production * production, Parser * parser, ASTNode * node);
 
 #endif // PEGGY_PARSER_H

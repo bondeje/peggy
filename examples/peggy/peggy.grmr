@@ -25,7 +25,7 @@ identifier:
     "[A-Za-z0-9_]+"
 
 token:
-    whitespace | string_literal | regex_literal | punctuator | keyword | identifier | digit_seq
+    whitespace | string_literal | regex_literal | punctuator | identifier | keyword | digit_seq
 
 nonws_printable:
     "[^ \t\r\n\v\f]+"

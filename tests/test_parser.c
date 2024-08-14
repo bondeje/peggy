@@ -112,7 +112,8 @@ int test_tokenizer_single_char(void) {
         "o","c","o","n","i","o","s","i","s", NULL};
 
     Parser parser;
-    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&letter_token, NULL, LETTER_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, (Rule *)&letter_token, NULL, LETTER_TOKEN+1, 0);
+    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, N, &cur, &end);
@@ -139,7 +140,8 @@ int test_tokenizer_alphanumeric(void) {
         "Y","Z", NULL};
 
     Parser parser;
-    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&alphanumeric_token, NULL, ALPHANUMERIC_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, (Rule *)&alphanumeric_token, NULL, ALPHANUMERIC_TOKEN+1, 0);
+    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, N, &cur, &end);
@@ -166,7 +168,8 @@ int test_tokenizer_hexadecimal(void) {
         "C1","d1","E1","f1", NULL};
 
     Parser parser;
-    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&hexadecimal_token, NULL, HEXADECIMAL_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, (Rule *)&hexadecimal_token, NULL, HEXADECIMAL_TOKEN+1, 0);
+    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, N, &cur, &end);
@@ -194,7 +197,8 @@ int test_tokenizer_test_parser_token(void) {
     size_t N = sizeof(result_tokens)/sizeof(result_tokens[0]) - 1;
 
     Parser parser;
-    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&test_parser_token, NULL, TEST_PARSER_TOKEN+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, (Rule *)&test_parser_token, NULL, TEST_PARSER_TOKEN+1, 0);
+    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, nstring, &cur, &end);
@@ -333,7 +337,8 @@ int test_parser_doc(void) {
     );
 
     Parser parser;
-    Parser_init(&parser, __func__, strlen(__func__), (Rule *)&test_parser_token, (Rule *)&doc, DOC+1, 0, test_log_file, LOG_LEVEL_ERROR);
+    Parser_init(&parser, (Rule *)&test_parser_token, (Rule *)&doc, DOC+1, 0);
+    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t string_length = strlen(string);
     parser._class->parse(&parser, string, string_length);

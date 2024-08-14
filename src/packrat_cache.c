@@ -15,12 +15,19 @@
 
 #define TOKEN_TO_UINTPTR_T(ptok) ((size_t)(void *)ptok)
 
-err_type PackratCache_init(PackratCache * cache, size_t nrules, size_t init_cap, unsigned int flags) {
+/**
+ * @brief initialize a packrat cache
+ * @param[in] cache pointer to the packrat cache
+ * @param[in] nrules the number of rules encompassed by the cache
+ * @param[in] init_cap initial capacity of the packrat cache. A default value 
+ *      is internally provided if set to 0
+ * @returns a non-zero value if the initialization fails else 0
+ */
+err_type PackratCache_init(PackratCache * cache, size_t nrules, size_t init_cap) {
     cache->nrules = nrules;
     if (!init_cap) {
         init_cap = PACKRAT_CACHE_INIT_CAP;
     }
-    //cache->_class = &PackratCache_class;
 #ifdef PACKRAT_HASH
     cache->map = malloc(sizeof(*cache->map) * nrules);
     if (!cache->map) {
@@ -74,6 +81,10 @@ err_type PackratCache_init(PackratCache * cache, size_t nrules, size_t init_cap,
     return PEGGY_SUCCESS;
 }
 
+/**
+ * @brief destroy packrat cache and reclaim memory
+ * @param[in] cache pointer to the packrat cache
+ */
 void PackratCache_dest(PackratCache * cache) {
     for (size_t i = 0; i < cache->nrules; i++) {
         
@@ -90,6 +101,15 @@ void PackratCache_dest(PackratCache * cache) {
     free(cache->map);
 }
 
+/**
+ * @brief attempt to retrieve a saved node for a probe rule-token pair
+ * @param[in] cache pointer to the packrat cache
+ * @param[in] rule_id the enum value corresponding to the rule being probed
+ * @param[in] tok pointer to a token being probed
+ * @returns NULL if rule-token pair has not been encountered before else a 
+ *      pointer to the ASTNode that resulted from applying rule at specified 
+ *      token
+ */
 ASTNode * PackratCache_get(PackratCache * cache, rule_id_type rule_id, Token * tok) {
     #ifdef PACKRAT_HASH
     ASTNode * node = NULL;
@@ -105,7 +125,15 @@ ASTNode * PackratCache_get(PackratCache * cache, rule_id_type rule_id, Token * t
 #endif
 }
 
-//err_type PackratCache_get_sparse(PackratCache * cache, rule_id_type rule_id, size_t token_key);
+/**
+ * @brief set a value for a rule-token pair in the packrat cache
+ * @param[in] cache pointer to the packrat cache
+ * @param[in] rule_id the enum value corresponding to the rule being assigned
+ * @param[in] tok pointer to a token being assigned
+ * @param[in] node pointer to ASTNode that is the result of applying rule at 
+ *      token
+ * @returns non-zero on error else 0
+ */
 err_type PackratCache_set(PackratCache * cache, Parser * parser, rule_id_type rule_id, Token * tok, ASTNode * node) {
 #ifdef PACKRAT_HASH
     HASH_MAP(size_t, pASTNode) * map = cache->map + rule_id;

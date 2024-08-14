@@ -5,52 +5,24 @@
 
 #include <peggy/utils.h>
 
-#define Token_DEFAULT_INIT {0/*._class = &Token_class*/, \
-                           }
-
 typedef struct Token Token, * pToken;
 
-/* not an object */
 typedef struct TokenCoords {
     unsigned int line;
     unsigned int col;
 } TokenCoords;
 
 struct Token {
-    struct TokenCoords coords;
-    //struct TokenType * _class;
-    char const * string; /* the string represented by the token*/
-    size_t length;
-    Token * prev;
-    Token * next;
+    struct TokenCoords coords;  //!< coordinates use to locate line/col
+    char const * string;    //!< string 
+    size_t length;          //!< string length. do not assume null terminated
+    Token * prev;           //!< previous node in linked list
+    Token * next;           //!< next node in linked list
     size_t id;
 };
 
-/*
-extern struct TokenType {
-    char const * type_name;
-    Token * (*new)(size_t id, char const * string, size_t length, unsigned int line, unsigned int col);
-    void (*init)(Token * self, size_t id, char const * string, size_t length, unsigned int line, unsigned int col);
-    void (*del)(Token * self);
-    size_t (*len)(Token * self);
-    struct TokenCoords (*coords)(Token * self);
-    int (*str)(Token * self, char * buffer, size_t buf_size);
-    err_type (*get)(Token * self, size_t key, char * chr); // retrieves just a single character so it acts like a string object
-    bool (*equal)(Token * self, Token * other);
-    bool (*equal_value)(Token * self, Token * other);
-} Token_class;
-Token * Token_new(size_t id, char const * string, size_t length, unsigned int line, unsigned int col);
-*/
-void Token_init(Token * self, size_t id, char const * string, size_t length, unsigned int line, unsigned int col);
-/*
-void Token_del(Token * self);
-size_t Token_len(Token * self);
-struct TokenCoords Token_coords(Token * self);
-int Token_str(Token * self, char * buffer, size_t buf_size);
-err_type Token_get(Token * self, size_t key, char * chr); // retrieves just a single character so it acts like a string object
-bool Token_equal(Token * self, Token * other);
-bool Token_equal_value(Token * self, Token * other);
-void Token_print(Token * self);
-*/
+void Token_init(Token * self, size_t id, char const * string, size_t length, 
+    unsigned int line, unsigned int col);
+
 #endif // PEGGY_TOKEN_H
 

@@ -4,17 +4,9 @@
 #include <stdio.h>
 #include <peggy/utils.h>
 
-#if CHAR_BIT == 8
-unsigned char const CHAR_BIT_DIV_SHIFT = 3;
-unsigned char const CHAR_BIT_MOD_MASK = 7;
-#elif CHAR_BIT == 4
-unsigned char const CHAR_BIT_MOD_SHIFT = 2;
-unsigned char const CHAR_BIT_MOD_MASK = 3;
-#elif CHAR_BIT == 16
-unsigned char const CHAR_BIT_MOD_SHIFT = 4;
-unsigned char const CHAR_BIT_MOD_MASK = 15;
-#endif
-
+/**
+ * @brief utility to get a string from the enum identifiers for RuleTypeID above
+ */
 char const * get_type_name(RuleTypeID type) {
     char const * rule_resolve = NULL;
     switch (type) {
@@ -57,7 +49,13 @@ char const * get_type_name(RuleTypeID type) {
     return rule_resolve;
 }
 
-// is here only due because of a potential use case for identifying parser types. Otherwise only used in rule.c
+/**
+ * @brief check if a rule instance given by RuleTypeID is within the types 
+ * supplied
+ * @param[in] type the type of the rule: RuleType.id
+ * @param[in] types the types to check against
+ * @returns true if type is in types else false
+ */
 bool isinstance(RuleTypeID const type, RuleTypeID const * types) {
     while (*types != PEGGY_NOTRULE) {
         if (*types == type) {
@@ -66,21 +64,5 @@ bool isinstance(RuleTypeID const type, RuleTypeID const * types) {
         types++;
     }
     return false;
-    /*
-    char buffer[256] = {'\0'}; // very much should not be static otherwise thread safety of the library is out the window
-    while (*types != NULL) {
-        unsigned char len = (unsigned char)(strchr(*types, '.') - *types);
-        if (!len) {
-            len = (unsigned char) strlen(*types);
-        }
-        memcpy((void *) buffer, *types, len);
-        buffer[len] = '\0';
-        if (strstr(type, buffer)) {
-            return true;
-        }
-        types++;
-    }
-    return false;
-    */
 }
 

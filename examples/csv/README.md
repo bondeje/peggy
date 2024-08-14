@@ -1,14 +1,19 @@
-# CSV example
+# Example use of <b>peggy</b> parser generater: a csv parser
 
 This will use the csv.grmr file as a walkthrough to explain the components of a typical grammar file
 
+## How to build
+1) build <b>peggy</b> at the top level of the repo
+2) in this directory, run one of the following
+    - `make` - will build `csv` binary in `/path/to/peggy/bin`
+
+## How to use
+
+- `/path/to/peggy/bin/csv -r=[row] -c=[col] /path/to/file.csv`
+
 ## The CSV grammar
 
-```
-// https://datatracker.ietf.org/doc/html/rfc4180
-```
-
-The csv.grmr file in this repository is mostly taken from the ABNF in RFC4180, but in a more ENBF format and to keep it a little simpler, I have not included the "headers" portion. Syntactically, they are identical to any other "record" that appears later in the grammar--just the very first record--so it creates an ambiguity that must be handled by the parser to separate out the headers. It can be as simple as a flag in the initializer from the user saying to specially separate the first record as the header.
+The csv.grmr file in this repository is mostly taken from the ABNF in [RFC4180](https://datatracker.ietf.org/doc/html/rfc4180), but in a more ENBF format and to keep it a little simpler, I have not included the "headers" portion. Syntactically, they are identical to any other "record" that appears later in the grammar--just the very first record--so it creates an ambiguity that must be handled by the parser to separate out the headers. It can be as simple as a flag in the initializer from the user saying to specially separate the first record as the header.
 
 ```
 export = csv
@@ -44,7 +49,7 @@ Build actions must have the following declaration in one of the imported modules
 ASTNode * [name of build action](Production *, Parser *, ASTNode *);
 ```
 
-The `Production` passed to the build_action is the production that triggered the build action. The `Parser` is the parser itself, and the `ASTNode` is the node representing the result of the definition of the production. If no build_action is specified, there is a "build_action_default" that will handle the node.
+The `Production` passed to the build_action is the production that triggered the build action. The `Parser` is the parser itself, and the `ASTNode` is the node representing the result of the definition of the production. If no build_action is specified, there is a `build_action_default` that will handle the node.
 
 The csv production itself is defined as a sequence (indicated by the higher priority ',' separator) of a list of 'record's delimited by 'crlf' denoted by the "crlf.record" subrule and finally any amount of 'crlf' or 'whitespace'; 'or' indicated by the choice operator '|'. In the case of csvs, the crlf sequence (later defined by the '\r\n' string literal) is explicitly not 'whitespace':
 
@@ -80,8 +85,8 @@ Some warnings about tokenizer productions:
 
 1) do not allow any tokens to be of zero length. i.e. "[]*" should not be a successful match in any of the regular expressions. This likely will cause the tokenizer to enter an infinite loop.
 2) The token production and its subrules should generally be the first productions defined. peggy traverses the productions like a tree and its dependencies like a tree, but has to stop at literals (literals do not have branches/leaves) If the literal is in a subrule but not previously defined, multiple declarations can be made or the production traversal can get stuck, especially if the punctuators or keywords have not appeared. One way around this is to do what was done with 'crlf' and wrap it in its special production. By doing this, production traversal will terminate at the name of the production, 'crlf', and just forward declare it.
-3) again, do no include any productions that require more than one token to find a match. This will deadlock the tokenizer (how would you make a token by requiring two tokens?).
-4) as with any other use of the choice operation, the order can matter. Especially with punctuation, you can have cases where one punctuator starts with a substring that is another punctuator, e.g. "+" and "+=", which mean very different things. In some cases, the tokenizer will just fail while in otherwise it will successfully complete an unambiguous parse that you did not mean. A simple way around it is to order the punctuators, keywords, and token subrules by what you think will be the longest first. This may make parses longer, but will ensure you tokenize and parse correctly.
+3) Do not have the `token` production depend on any productions that require more than one token to find a match. This will deadlock the tokenizer (how would you make a token by requiring two tokens?).
+4) as with any other PEG, the order of the rules in the Choice operator matters. Especially with punctuation, you can have cases where one punctuator starts with a substring that is another punctuator, e.g. "+" and "+=", which mean very different things. In some cases, the tokenizer will just fail while in otherwise it will successfully complete an unambiguous parse that you did not mean. A simple way around it is to order the punctuators, keywords, and token subrules by what you think will be the longest first. This may make parses longer, but will ensure you tokenize and parse correctly.
 
 The only other production that hasn't been mentioned yet is the record itself:
 
@@ -114,4 +119,4 @@ csv(handle_csv):
     '\r\n'.(','.(string | nonstring_field)), ('\r\n' | whitespace)*
 ```
 
-which will probably execute faster with about 1/3 less memory, but now we lost the ability to check the records on the fly to ensure compatibily to our target spec, we are limited on what we can do with fields, and the entry point rule is less readable. In the future, peggy might allow all LiteralRules to exist on their own, which could reduce this further, but then everything will just look like regex.
+which will probably execute faster with about 1/3 less memory, but now we lost the ability to check the records on the fly to ensure compatibily to our target spec, we are limited on what we can do with fields, and the entry point rule is less readable. In the future, peggy might allow all `LiteralRule`s to exist on their own, which could reduce this further.

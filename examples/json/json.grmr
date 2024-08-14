@@ -8,6 +8,9 @@ punctuator:
 keyword:
     'true' | 'false' | 'null'
 
+keywords:
+    'true' | 'false' | 'null'
+
 token:
     whitespace | keyword | string | number | punctuator
 
@@ -27,7 +30,7 @@ number:
     decimal_float_constant | int_constant
     
 value(build_value):
-    object | array | keyword | string | number
+    object | array | keywords | string | number
 
 object:
     '{', members?, '}'
@@ -45,4 +48,4 @@ elements:
     ','.value
 
 json(handle_json):
-    value+
+    value

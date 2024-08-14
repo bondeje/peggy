@@ -14,7 +14,7 @@
  *      WARNINGS:
  *          insertion order is NOT maintained
  *          key and value types must be single identifiers (structs, enums, 
- *              unions and base C types must be typedef'd)
+ *              unions, pointers and base C types must be typedef'd)
  *          to any handlers or setting values, data is copied by value so 
  *              anything larger than a pointer should probably just be a 
  *              pointer
@@ -105,6 +105,10 @@ typedef enum hash_map_err {
 #define HASH_PAIR CAT(HASH_COMBO, _pair)
 #define HASH_MAP_TYPE CAT(HASH_COMBO, _map)
 
+/**
+ * @brief default hash function. copies bytes into an automatic buffer and 
+ * applies a basic string hash
+ */
 #ifndef HASH_FUNC
 static size_t CAT(KEY_TYPE, _hash)(KEY_TYPE key, size_t bin_size) {
     char bytes[sizeof(KEY_TYPE)+1];
@@ -115,6 +119,10 @@ static size_t CAT(KEY_TYPE, _hash)(KEY_TYPE key, size_t bin_size) {
 #define HASH_FUNC HASH_FUNCTION(KEY_TYPE)
 #endif
 
+/**
+ * @brief default comparison function. copies bytes into automatic buffers
+ * and compares the bytes 
+ */
 #ifndef KEY_COMP
 static int CAT(KEY_TYPE, _comp)(KEY_TYPE key1, KEY_TYPE key2) {
     char bytes1[sizeof(KEY_TYPE)+1];
@@ -127,11 +135,15 @@ static int CAT(KEY_TYPE, _comp)(KEY_TYPE key1, KEY_TYPE key2) {
 #define KEY_COMP KEY_COMPARE(KEY_TYPE)
 #endif
 
+/**
+ * @brief key-value pair node storge in the hash map
+ */
 typedef struct HASH_PAIR {
     KEY_TYPE key;
     VALUE_TYPE value;
 } HASH_PAIR;
 
+// to allow calculation of alignment pre-C11
 #if __STDC_VERSION__ < 201112L && !defined(_Alignof)
 struct CAT(HASH_PAIR,_OFFSET) {
 	char a;
@@ -141,6 +153,9 @@ struct CAT(HASH_PAIR,_OFFSET) {
 
 typedef struct HASH_MAP_TYPE HASH_MAP_TYPE;
 
+/**
+ * @brief vtable struct for hash map
+ */
 typedef struct CAT(HASH_COMBO, _Type) {
     bool (*in)(HASH_MAP_TYPE * map, KEY_TYPE key);
     hash_map_err (*get)(HASH_MAP_TYPE * map, KEY_TYPE key, VALUE_TYPE * value);
@@ -151,14 +166,20 @@ typedef struct CAT(HASH_COMBO, _Type) {
     void (*for_each)(HASH_MAP_TYPE * map, int (*handle_item)(void * data, KEY_TYPE key, VALUE_TYPE value), void * data);
 } CAT(HASH_COMBO, _Type);
 
+/**
+ * @brief base struct for the hash map
+ */
 struct HASH_MAP_TYPE {
     CAT(HASH_COMBO, _Type) const * _class;
-    HASH_PAIR ** bins;
+    HASH_PAIR ** bins;  //!< store array of pointers to HASH_PAIR elements. Use
+                        //!<   pointers to ensure re-binning does not cost too 
+                        //!<   much memory for large structs
     size_t capacity;
     size_t fill;
-    MemPoolManager * pair_mgr;
+    MemPoolManager * pair_mgr;  // memory manager for the HASH_PAIRs
 };
 
+// Forward declarations
 static hash_map_err CAT(HASH_COMBO, _insert)(HASH_MAP_TYPE * map, HASH_PAIR * pair);
 static HASH_PAIR * CAT(HASH_COMBO, _get_pair)(HASH_MAP_TYPE * map, KEY_TYPE key, size_t * bin_num);
 static hash_map_err CAT(HASH_COMBO, _pop)(HASH_MAP_TYPE * map, KEY_TYPE key, VALUE_TYPE * value);
@@ -171,16 +192,28 @@ static void CAT(HASH_COMBO, _for_each)(HASH_MAP_TYPE * map, int (*handle_item)(v
 static hash_map_err CAT(HASH_COMBO, _resize)(HASH_MAP_TYPE * map, size_t new_capacity);
 static hash_map_err CAT(HASH_COMBO, _init)(HASH_MAP_TYPE * map, size_t init_capacity);
 
+/**
+ * @brief idefinition of the vtable
+ */
 static const CAT(HASH_COMBO, _Type) CAT(HASH_COMBO, _class) = {
-    .in = &(CAT(HASH_COMBO, _in)),
-    .dest = &(CAT(HASH_COMBO, _dest)),
-    .get = &(CAT(HASH_COMBO, _get)),
-    .set = &(CAT(HASH_COMBO, _set)),
-    .pop = &(CAT(HASH_COMBO, _pop)),
-    .remove = &(CAT(HASH_COMBO, _remove)),
-    .for_each = &(CAT(HASH_COMBO, _for_each)),
+    .in = &(CAT(HASH_COMBO, _in)),      //!< test for presence of key in hash map
+    .dest = &(CAT(HASH_COMBO, _dest)),  //!< destroy the hash map and reclaim 
+                                        //!<   internal memory
+    .get = &(CAT(HASH_COMBO, _get)),    //!< retrieve a value for a specified key
+    .set = &(CAT(HASH_COMBO, _set)),    //!< set a value for a specified key
+    .pop = &(CAT(HASH_COMBO, _pop)),    //!< retrieve and remove for a specified 
+                                        //!<   key
+    .remove = &(CAT(HASH_COMBO, _remove)),      //!< remove a specifid key
+    .for_each = &(CAT(HASH_COMBO, _for_each)),  //!< apply a function to each 
+                                                //!<   element in the hash map
 };
 
+/**
+ * @brief perform linear probe through hash map
+ * @param[in] bins the internal array of the hash map
+ * @param[in] start_index where to start the linear probe
+ * @param[in] capacity the current allocation size of the bins
+ */
 static HASH_PAIR ** CAT(HASH_COMBO, _linear_probe)(HASH_PAIR ** bins, size_t start_index, size_t capacity) {
     if (*(bins + start_index)) {
         HASH_PAIR ** bin_begin = bins + start_index;
@@ -205,7 +238,11 @@ static HASH_PAIR ** CAT(HASH_COMBO, _linear_probe)(HASH_PAIR ** bins, size_t sta
     return bins;
 }
 
-/* inserts a key-value pair into the hash map */
+/**
+ * @brief (internal function) inserts a key-value pair into the hash map
+ * @param[in] map the hash map to insert the pair into
+ * @param[in] pair pointer to the HASH_PAIR to be inserted
+ */
 static hash_map_err CAT(HASH_COMBO, _insert)(HASH_MAP_TYPE * map, HASH_PAIR * pair) {
     //printf("inserting pair into map of size %zu (%zu)\n", map->fill, map->capacity);
     hash_map_err status = HM_SUCCESS;
@@ -226,23 +263,18 @@ static hash_map_err CAT(HASH_COMBO, _insert)(HASH_MAP_TYPE * map, HASH_PAIR * pa
     } else {
         return HM_INSERTION_FAILURE;
     }
-    
-    /*
-    HASH_PAIR * p;
-    while ((p = bins[bin_start], p) && (p != HASH_PAIR_REMOVED)) {
-        if (++bin_start == map->capacity) {
-            bin_start = 0;
-        }
-    }
-    
-    //printf("inserting pair at %p\n", (void *)(map->bins + bin));
-    bins[bin_start] = pair;
-    */
     map->fill++;
     return status;
 }
 
 /* never returns a new pointer. returns NULL if not found. Should never return the sentinel */
+/**
+ * @brief (internal function) inserts a key-value pair into the hash map
+ * @param[in] map the hash map to insert the pair into
+ * @param[in] key the key value to find
+ * @param[out] bin_num pointer to the location in the internal bins where the key is found
+ * @returns a pointer to the key-value pair if found, else NULL
+ */
 static HASH_PAIR * CAT(HASH_COMBO, _get_pair)(HASH_MAP_TYPE * map, KEY_TYPE key, size_t * bin_num) {
     
     size_t bin_start = HASH_FUNC(key, map->capacity);
@@ -280,41 +312,16 @@ static HASH_PAIR * CAT(HASH_COMBO, _get_pair)(HASH_MAP_TYPE * map, KEY_TYPE key,
         }
     }
     return NULL;
-    
-    /*
-    //printf("getting pair\n");
-    size_t bin_start = HASH_FUNC(key, map->capacity);
-    //printf("starting search at %zu\n", bin_start);
-    HASH_PAIR * pair = map->bins[bin_start];
-    //printf("address at starting pointer %p\n", (void *) (map->bins + bin_start));
-    if (!(pair && ((pair == HASH_PAIR_REMOVED) || KEY_COMP(pair->key, key)))) {
-        if (bin_num) {
-            *bin_num = bin_start;
-        }
-        return pair;
-    }
-    size_t bin = bin_start + 1;
-    if (bin == map->capacity) {
-        bin = 0;
-    }
-    while ((bin != bin_start) && (pair = map->bins[bin], pair && ((pair == HASH_PAIR_REMOVED) || KEY_COMP(pair->key, key)))) {
-        if (++bin == map->capacity) {
-            bin = 0;
-        }
-    }
-    if (bin == bin_start) { // prevents returning the HASH_PAIR_REMOVED sentinel value
-        return NULL;
-    }
-    if (bin_num) {
-        *bin_num = bin;
-    }
-    
-    return pair;
-    */
 }
 
+/**
+ * @brief retrieve value and remove key from hash map
+ * @param[in] map the hash map from which to remove key-value pair
+ * @param[in] key the key to remove
+ * @param[out] value a pointer to the value of the key, if found, else no change
+ * @returns a non-zero value if key is not found, else 0
+ */
 static hash_map_err CAT(HASH_COMBO, _pop)(HASH_MAP_TYPE * map, KEY_TYPE key, VALUE_TYPE * value) {
-    //printf("popping key from hash_map\n");
     size_t bin_num;
     HASH_PAIR * pair = CAT(HASH_COMBO, _get_pair)(map, key, &bin_num); /* cannot return the HASH_PAIR_REMOVED sentinel */
     if (!pair) {
@@ -324,19 +331,29 @@ static hash_map_err CAT(HASH_COMBO, _pop)(HASH_MAP_TYPE * map, KEY_TYPE key, VAL
         memcpy(value, &(pair->value), sizeof(VALUE_TYPE));
     }
     free(map->bins[bin_num]);
-    //printf("setting bin to HASH_PAIR_REMOVED\n");
     map->bins[bin_num] = HASH_PAIR_REMOVED;
     map->fill--;
     return HM_SUCCESS;
 }
 
+/**
+ * @brief remove key from hash map
+ * @param[in] map the hash map from which to remove key
+ * @param[in] key the key to remove
+ * @returns a non-zero value if key is not found, else 0
+ */
 static hash_map_err CAT(HASH_COMBO, _remove)(HASH_MAP_TYPE * map, KEY_TYPE key) {
     return CAT(HASH_COMBO, _pop)(map, key, NULL);
 }
 
-/* a good reason for doing it by passing a pointer to VALUE_TYPE * value is that it acts as a default as well. If not found, the value is not changed */
+/**
+ * @brief retrieve the value of the given key
+ * @param[in] map the hash map from which to retrieve value
+ * @param[in] key the key corresponding to the value
+ * @param[out] value a pointer to store the resulting value if found, else no change
+ * @returns a non-zero value if key is not found, else 0
+ */
 static hash_map_err CAT(HASH_COMBO, _get)(HASH_MAP_TYPE * map, KEY_TYPE key, VALUE_TYPE * value) {
-    //printf("getting value from key\n");
     HASH_PAIR * pair = CAT(HASH_COMBO, _get_pair)(map, key, NULL);
     if (!pair) {
         return HM_KEY_NOT_FOUND;
@@ -347,23 +364,30 @@ static hash_map_err CAT(HASH_COMBO, _get)(HASH_MAP_TYPE * map, KEY_TYPE key, VAL
     return HM_SUCCESS;
 }
 
+/**
+ * @brief check if key is in the corresponding hash map
+ * @param[in] map the hash map to be search
+ * @param[in] key the key to search for
+ * @returns true if key is in map else false
+ */
 static bool CAT(HASH_COMBO, _in)(HASH_MAP_TYPE * map, KEY_TYPE key) {
     return CAT(HASH_COMBO, _get_pair)(map, key, NULL) != NULL;
 }
 
+/**
+ * @brief set a key-value pair in the hash map
+ * @param[in] map the hash map to insert the key-value pair into
+ * @param[in] key the key to be store
+ * @param[in] value the value to be stored
+ * @returns a non-zero value if key is not found, else 0
+ */
 static hash_map_err CAT(HASH_COMBO, _set)(HASH_MAP_TYPE * map, KEY_TYPE key, VALUE_TYPE value) {
-    //printf("setting key to value\n");
     HASH_PAIR * pair = CAT(HASH_COMBO, _get_pair)(map, key, NULL);
     if (pair) { /* key-value pair already exists, overwriting value */
-        //printf("overwriting existing value\n");
         memmove(&(pair->value), &value, sizeof(VALUE_TYPE));
         return HM_SUCCESS;
-    } else {
-        //printf("found open key-value pair\n");
     }
     pair = MemPoolManager_next(map->pair_mgr);
-    // above replaces:
-    // pair = malloc(sizeof(HASH_PAIR));
     if (!pair) {
         return HM_MALLOC_PAIR_FAILURE;
     }
@@ -372,19 +396,12 @@ static hash_map_err CAT(HASH_COMBO, _set)(HASH_MAP_TYPE * map, KEY_TYPE key, VAL
     return CAT(HASH_COMBO, _insert)(map, pair);
 }
 
-/* probably encapsulate this is some iteration, but save that for cexpress */
+/**
+ * @brief destroy the hash map and reclaim memory
+ * @param[in] map the hash map
+ */
 static void CAT(HASH_COMBO, _dest)(HASH_MAP_TYPE * map) {
-    //printf("clearing map\n");
     if (map->bins) {
-        /*
-        for (size_t i = 0; i < map->capacity; i++) {
-            HASH_PAIR * p = map->bins[i];
-            if (p && (p != HASH_PAIR_REMOVED)) {
-                free(p);
-            }
-            map->bins[i] = NULL;
-        }
-        */
         free(map->bins);
         map->bins = NULL;
     }
@@ -396,28 +413,41 @@ static void CAT(HASH_COMBO, _dest)(HASH_MAP_TYPE * map) {
     map->capacity = 0;
 }
 
+/**
+ * @brief apply a function for each element in the hash map iteratively
+ * @param[in] map the hash map over which to iterate
+ * @param[in] handle_item 
+ *      @brief the function to apply to each element
+ *      @param[inout] data a context pointer for each element
+ *      @param[in] key the key in the key-value pair
+ *      @param[in] value the value in the key-value pair
+ *      @returns 0 to continue iteration, non-zero to abort
+ * @param[inout] data the context pointer for the handle_item function
+ */
 static void CAT(HASH_COMBO, _for_each)(HASH_MAP_TYPE * map, int (*handle_item)(void * data, KEY_TYPE key, VALUE_TYPE value), void * data) {
-    //printf("executing for_each for hash with capacity %zu...", map->capacity);
     int status = 0;
     size_t i = 0;
     for (i = 0; i < map->capacity; i++) {
         HASH_PAIR * p = map->bins[i];
-        //printf("handling item with address %p\n", (void*) p);
         if (p && (p != HASH_PAIR_REMOVED)) {
-            
             if ((status = handle_item(data, p->key, p->value))) {
                 break;
             }
         }
     }
-    //printf("%zu cleared\n", i);
 }
 
+/**
+ * @brief initialize the hash map
+ * @param[in] map the hash map
+ * @param[in] init_capacity the initial capacity to assign to the hash map. 
+ *      HASH_DEFAULT_SIZE is provided if set to 0
+ * @returns an error if initialization fails else 0
+ */
 static hash_map_err CAT(HASH_COMBO, _init)(HASH_MAP_TYPE * map, size_t init_capacity) {
     if (!init_capacity) {
         init_capacity = HASH_DEFAULT_SIZE;
     }
-    //printf("initializing map to %zu\n", init_capacity);
     map->bins = NULL;
     map->capacity = 0;
     map->fill = 0;
@@ -430,8 +460,13 @@ static hash_map_err CAT(HASH_COMBO, _init)(HASH_MAP_TYPE * map, size_t init_capa
     return CAT(HASH_COMBO, _resize)(map, init_capacity);
 }
 
+/**
+ * @brief (internal function) resize the underlying storage array
+ * @param[in] map the hash map
+ * @param[in] new_capacity the new capacity for storage. Note that 0 destroys the map
+ * @returns an error if reallocation or reinsertion fails else 0
+ */
 static hash_map_err CAT(HASH_COMBO, _resize)(HASH_MAP_TYPE * map, size_t new_capacity) {
-    //printf("resizing map from %zu to %zu\n", map->capacity, new_capacity);
     if (!new_capacity) {
         CAT(DELAY(HASH_COMBO), _dest)(map);
         return HM_SUCCESS;
@@ -444,7 +479,6 @@ static hash_map_err CAT(HASH_COMBO, _resize)(HASH_MAP_TYPE * map, size_t new_cap
     if (!map->bins) {
         return HM_MALLOC_MAP_FAILURE;
     }
-    //printf("hash_map bins starting from %p to %p\n", (void *)map->bins, (void *)(map->bins + new_capacity));
     hash_map_err status = HM_SUCCESS;
     for (size_t i = 0; i < old_capacity; i++) {
         HASH_PAIR * bin = old_bins[i];
@@ -454,10 +488,11 @@ static hash_map_err CAT(HASH_COMBO, _resize)(HASH_MAP_TYPE * map, size_t new_cap
             }
         }
     }
-    free(old_bins); // need to free old bins. OK if old_bins is also NULL
+    free(old_bins);
     return HM_SUCCESS;
 }
 
+// undef all the input macros so that the header can be re-included
 #undef HASH_COMBO
 #undef HASH_PAIR
 #undef HASH_MAP_TYPE

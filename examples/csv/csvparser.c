@@ -33,15 +33,15 @@ typedef struct CSVParser {
     CSVData csv;
 } CSVParser;
 
-err_type CSVParser_init(CSVParser * parser, char const * name, size_t name_length,
-                        char const * string, size_t string_length, char * log_file, unsigned char log_level) {
+err_type CSVParser_init(CSVParser * parser, char const * string, size_t string_length, char * log_file, unsigned char log_level) {
     parser->csv.data = string;
     parser->csv.offsets = NULL;
     parser->csv.ncols = 0;
     parser->csv.nrows = 0;
     parser->csv.noffsets = 0;
     parser->csv.nbytes = string_length;
-    Parser_init((Parser *)parser, name, name_length, (Rule *)&csv_token, (Rule *)&csv_csv, CSV_NRULES, 0, log_file, log_level);
+    Parser_init((Parser *)parser, (Rule *)&csv_token, (Rule *)&csv_csv, CSV_NRULES, 0);
+    Parser_set_log_file((Parser *)parser, log_file, log_level);
     Parser_parse((Parser *)parser, string, string_length);
     return 0;
 }
@@ -121,7 +121,7 @@ bool timeit = false;
 CSVData from_string(char * string, size_t string_length) {
     err_type status = PEGGY_SUCCESS;
     if (!timeit) {
-        if ((status = CSVParser_init(&csv, NULL, 0, string, string_length, NULL, LOG_LEVEL_DISABLE))) {
+        if ((status = CSVParser_init(&csv, string, string_length, NULL, LOG_LEVEL_DISABLE))) {
             return empty_csv;
         }
         return csv.csv;
@@ -137,7 +137,7 @@ CSVData from_string(char * string, size_t string_length) {
     clockid_t clk = CLOCK_MONOTONIC;
     //double clock_conversion = 1.0e-6;
     clock_gettime(clk, &t0);
-    status = CSVParser_init(&csv, NULL, 0, string, string_length, NULL, LOG_LEVEL_DISABLE);
+    status = CSVParser_init(&csv, string, string_length, NULL, LOG_LEVEL_DISABLE);
     clock_gettime(clk, &t1);
 
     if (t1.tv_nsec < t0.tv_nsec) {
@@ -182,13 +182,24 @@ CSVData from_file(char * filename) {
     return csv_data;
 }
 
-void print_first_last_row(CSVData * data) {
-    size_t index = 0;
-    printf("first row: %.*s", (int)(data->offsets[index + data->noffsets] - data->offsets[index]), data->data + data->offsets[index]);
+void print_row(CSVData * data, size_t row) {
+    size_t index = row * data->ncols;
+    printf("row %zu: = \"%.*s\"", row, (int)(data->offsets[index + data->noffsets] - data->offsets[index]), data->data + data->offsets[index]);
     for (size_t i = 1; i < data->ncols; i++) {
         index++;
-        printf(", %.*s", (int)(data->offsets[index + data->noffsets] - data->offsets[index]), data->data + data->offsets[index]);
+        printf(", \"%.*s\"", (int)(data->offsets[index + data->noffsets] - data->offsets[index]), data->data + data->offsets[index]);
     }
+    printf("\n");
+}
+
+void print_row_col(CSVData * data, size_t row, size_t col) {
+    size_t index = row * data->ncols + col;
+    printf("row, col: %zu, %zu = \"%.*s\"\n", row, col, (int)(data->offsets[index + data->noffsets] - data->offsets[index]), data->data + data->offsets[index]);
+}
+
+void print_first_last_row(CSVData * data) {
+    size_t index = 0;
+    
     index = (data->nrows - 1) * data->ncols;
     printf("\nlast row: %.*s", (int)(data->offsets[index + data->noffsets] - data->offsets[index]), data->data + data->offsets[index]);
     for (size_t i = 1; i < data->ncols; i++) {
@@ -202,11 +213,17 @@ void print_first_last_row(CSVData * data) {
 int main(int narg, char ** args) {
     char * log_file = NULL;
     unsigned char log_level = LOG_LEVEL_INFO;
+    long long int row = -1;
+    long long int col = -1;
     int iarg = 1;
     while (iarg < narg) {
-        printf("arg %d: %s\n", iarg, args[iarg]);
+        //printf("arg %d: %s\n", iarg, args[iarg]);
         if (!strcmp(args[iarg], "--timeit")) {
             timeit = true;
+        } else if (!strncmp(args[iarg], "-r=", 3)) {
+            row = atoll(args[iarg] + 3);
+        } else if (!strncmp(args[iarg], "-c=", 3)) {
+            col = atoll(args[iarg] + 3);
         } else if (!strncmp(args[iarg], "--log=", 6)) {
             log_file = args[iarg] + 6;
         } else if (!strncmp(args[iarg], "--log_level=", 12)) {
@@ -215,8 +232,23 @@ int main(int narg, char ** args) {
             csv.csv.isalloc = false;
             printf("processing file %s\n", args[iarg]);
             CSVData csv_data = from_file(args[iarg]);
-            //print_first_last_row(&csv_data);
-            /* insert any code you want to handle the csv here */
+            if (row >= 0) {
+                if ((size_t)row >= csv_data.nrows) {
+                    printf("row out of bounds. max = %zu\n", csv_data.nrows-1);
+                } else {
+                    if (col >= 0) {
+                        if ((size_t)col < csv_data.ncols) {
+                            print_row_col(&csv_data, (size_t)row, (size_t)col);
+                        } else {
+                            printf("col out of bounds. max = %zu\n", csv_data.ncols-1);
+                        }
+                        
+                    } else {
+                        print_row(&csv_data, (size_t)row);
+                    }
+                }
+                
+            }
             CSVParser_dest(&csv);
             CSVData_dest(&csv_data);
         }

@@ -1,4 +1,36 @@
-# JSON example
+# Example use of <b>peggy</b> parser generater: a JSON parser
+
+This is a very basic JSON parser (deserialization only, no serialization unfortunately)
+
+## How to build
+1) build <b>peggy</b> at the top level of the repo
+2) in this directory, run one of the following
+    - `make` - will build `jsv` binary in `/path/to/peggy/bin`
+
+## How to use
+
+- `/path/to/peggy/bin/csv -i=[/-separated indices] /path/to/file.csv`
+
+For example, for a json (sample_files/basic.json):
+```
+[{
+    "value": 0
+    },
+1,
+3.14,
+["string", null],
+false]
+```
+
+The indice passed to `-i` for the following values are:
+- 0: `0/value`
+- 1: `1`
+- 3.14: `2`
+- "string": `3/0`
+- null: `3/1`
+- false: `4`
+
+## Implementation details
 
 initialize a parser for the JSON
 ```

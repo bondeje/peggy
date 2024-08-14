@@ -58,28 +58,28 @@ typedef enum peggyrule {
 	CHOICE_4_49,
 	SEQ_5_50,
 	REP_0_1_51,
+	REP_0_1_52,
 	SEQUENCE,
-	LIST_2_53,
-	CHOICE,
 	LIST_2_54,
+	CHOICE,
+	LIST_2_55,
 	SPECIAL_PRODUCTION,
-	CHOICE_2_56,
-	SEQ_3_57,
+	CHOICE_2_57,
 	SEQ_3_58,
-	CHOICE_2_59,
-	LIST_2_60,
+	SEQ_3_59,
+	CHOICE_2_60,
+	LIST_2_61,
 	TRANSFORM_FUNCTIONS,
-	LIST_2_62,
+	LIST_2_63,
 	PRODUCTION,
-	SEQ_4_64,
-	REP_0_1_65,
-	SEQ_3_66,
+	SEQ_4_65,
+	REP_0_1_66,
+	SEQ_3_67,
 	CONFIG,
-	SEQ_3_68,
+	SEQ_3_69,
 	PEGGY,
-	REP_1_0_70,
-	CHOICE_3_71,
-	REP_0_1_72,
+	REP_1_0_71,
+	CHOICE_3_72,
 	PEGGY_NRULES
 } peggyrule;
 
@@ -89,4 +89,3 @@ extern Production peggy_peggy;
 void peggy_dest(void);
 
 #endif //PEGGY_H
-

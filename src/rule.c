@@ -1,4 +1,6 @@
+// This must occur before any inclusion of the standard libraries headers
 #ifdef __linux__
+// this is needed for the regex of glibc
 #define _GNU_SOURCE
 #endif
 
@@ -9,13 +11,13 @@
 #include <assert.h>
 
 /* POSIX includes */
-#ifdef __linux__
+#ifdef _GNU_SOURCE
 #include <regex.h>
 #endif
 
 /* lib includes */
 #include <logger.h>
-#ifndef __linux__
+#ifndef _GNU_SOURCE
 // basically anywhere that does not have _GNU_SOURCE, which is apparently everywhere other than non-Android Linux
 // regex alternative
 #ifndef PCRE2_CODE_UNIT_WIDTH
@@ -42,85 +44,138 @@ struct RuleType Rule_class = {
     .dest = &Rule_dest, 
     .del = &Rule_del,
     .check_rule_ = &Rule_check_rule_,
-    .check = &Rule_check
 };
 
-/* id = -1 means none provided */
-/* strictly speaking, unneeded */
-Rule * Rule_new(int id) {
+/**
+ * @brief allocate a new Rule
+ * @param[in] id integer id for the instance of the Rule
+ * @param[in] name a convenient name for printing the instance of the Rule
+ * @returns pointer to the new Rule instance
+ */
+Rule * Rule_new(rule_id_type id, char const * name) {
     Rule * ret = malloc(sizeof(Rule));
     if (!ret) {
         return NULL;
     }
-    if (Rule_init(ret, id)) {
+    if (Rule_init(ret, id, name)) {
         free(ret);
         return NULL;
     }
     return ret;
 }
 
-/* id = -1 means none provided */
-/* likely unneeded */
-err_type Rule_init(Rule * self, int id) {
+/**
+ * @brief initialize a Rule
+ * @param[in] self pointer to Rule
+ * @param[in] id integer id for the instance of the Rule
+ * @param[in] name a convenient name for printing the instance of the Rule
+ * @returns non-zero on error, else 0
+ */
+err_type Rule_init(Rule * self, rule_id_type id, char const * name) {
     self->_class = &Rule_class;
     self->id = id;
+    self->name = name;
     return PEGGY_SUCCESS;
 }
 
+/**
+ * @brief destroy and reclaim memory of the Rule instance
+ */
 void Rule_dest(Rule * self) {
     /* no-op */
 }
 
+/**
+ * @brief destroy and delete the Rule instance
+ */
 void Rule_del(Rule * self) {
     Rule_dest(self);
     free(self);
 }
 
-/* TODO: probably should change this so that Rule_check_rule_ output node is in arguments and ASTNode_fail becomes an error code */
+/**
+ * @brief dummy function. do not implement
+ */
 ASTNode * Rule_check_rule_(Rule * self, Parser * parser) {
-    LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - abstract method called.\n", __func__);
+    LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - abstract method "
+        "called.\n", __func__);
     return NULL;
 }
 
+/**
+ * @brief The master function that evaluates any Rule *
+ * @param[in] self the Rule to be evaluated
+ * @param[in] parser the Parser being executed
+ * @returns On failure returns a node where Parser_is_fail_node(parser, return)
+ *      evaluates to true else a valid ASTNode
+ */
 ASTNode * Rule_check(Rule * self, Parser * parser) {
+    // save reference to current position in Token linked list
     Token * tok = Parser_tell(parser);
+    // check for a bad Token
     if (!tok) {
         return Parser_fail_node(parser);
     }
-    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d (type: %d) line: %hu, col: %hu\n", __func__, self->id, self->_class->type, tok->coords.line, tok->coords.col);
+    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %s "
+        "line: %hu, col: %hu\n", __func__, self->name, tok->coords.line, 
+        tok->coords.col);
     ASTNode * res = NULL;
+
+    // if lexer is active disable cache checking...it will always fail
     if (!parser->tokenizing) {
         res = Parser_check_cache(parser, self->id, tok);
     }
+
+    // if check cache succeeds
     if (res) {
+        // if node is not a failure
         if (!Parser_is_fail_node(parser, res)) {
+            // seek ahead to the next unparsed Token
             Parser_seek(parser, res->token_end->next);
         }
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d with length %zu retrieved from cache, now at line: %u, col: %u!\n", __func__, self->id, res->str_length, Parser_tell(parser)->coords.line, Parser_tell(parser)->coords.col);
+        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %s "
+            "with length %zu retrieved from cache, now at line: %u, col: %u!\n", 
+            __func__, self->name, res->str_length, 
+            Parser_tell(parser)->coords.line, Parser_tell(parser)->coords.col);
         return res;
     }
 
-    // check the rule and generate a node
+    // evaluate the current rule
     res = self->_class->check_rule_(self, parser);
+
     // cache the result
     if (!res) {
         // TODO: change to LOG_EVENT
-        printf("storing a null from rule id %d!!!\n", self->id);
+        LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - storing a null"
+            " from rule id %s! Should not happen", self->name);
     }
 
+    // if rule failed..
     if (Parser_is_fail_node(parser, res)) {
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d failed!\n", __func__, self->id);
+        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %s "
+            "failed!\n", __func__, self->name);
+        
+        // ensure we reset to the Token at the start of the evaluation
         Parser_seek(parser, tok);
+
+        // log a failure to the parser
         Parser_fail(parser, self);
     } else {
+
+        // log success. If MAX_LOGGING_LEVEL < LOG_LEVEL_TRACE, this should be 
+        // no-op
         Token * tok = Parser_tell(parser);
         if (tok) {
-            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d succeeded! Now at line: %hu, col: %hu\n", __func__, self->id, tok->coords.line, tok->coords.col);
+            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %s"
+                " succeeded! Now at line: %hu, col: %hu\n", __func__, self->name, 
+                tok->coords.line, tok->coords.col);
         } else {
-            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %d succeeded! Done!\n", __func__, self->id);
+            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %s"
+                " succeeded! Done!\n", __func__, self->name);
         }
     }
 
+    // record the result in the cache
     Parser_cache_check(parser, self->id, tok, res);
 
     return res;
@@ -138,7 +193,6 @@ struct ChainRuleType ChainRule_class = {
         .dest = &Rule_dest,
         .del = &ChainRule_as_Rule_del,
         .check_rule_ = &Rule_check_rule_,
-        .check = &Rule_check
     },
     .new = &ChainRule_new,
     .init = &ChainRule_init,
@@ -146,40 +200,72 @@ struct ChainRuleType ChainRule_class = {
     .del = &ChainRule_del
 };
 
-ChainRule * ChainRule_new(rule_id_type id, size_t deps_size, Rule ** deps) {
+
+/**
+ * @brief allocate a new ChainRule
+ * @param[in] id integer id for the instance of the ChainRule
+ * @param[in] name a convenient name for printing the instance of the ChainRule
+ * @param[in] deps_size the number of subrule dependencies of the ChainRule
+ * @param[in] deps array of Rule * of length "deps_size"
+ * @returns pointer to the new ChainRule instance
+ */
+ChainRule * ChainRule_new(rule_id_type id, char const * name, size_t deps_size, 
+    Rule ** deps) {
+
     ChainRule * ret = malloc(sizeof(ChainRule));
     if (!ret) {
         return NULL;
     }
-    if (ChainRule_init(ret, id, deps_size, deps)) {
+    if (ChainRule_init(ret, id, name, deps_size, deps)) {
         free(ret);
         return NULL;
     }
     return ret;
 }
-err_type ChainRule_init(ChainRule * self, rule_id_type id, size_t deps_size, Rule ** deps) {
-    Rule_init((Rule *)self, id);
+
+/**
+ * @brief initialize a new ChainRule
+ * @param[in] self the ChainRule to initialize
+ * @param[in] id integer id for the instance of the ChainRule
+ * @param[in] name a convenient name for printing the instance of the ChainRule
+ * @param[in] deps_size the number of subrule dependencies of the ChainRule
+ * @param[in] deps array of Rule * of length "deps_size"
+ * @returns non-zero on failure else 0
+ */
+err_type ChainRule_init(ChainRule * self, rule_id_type id, char const * name, 
+    size_t deps_size, Rule ** deps) {
+
+    Rule_init((Rule *)self, id, name);
     ((Rule *)self)->_class = (RuleType *)&ChainRule_class;
     self->_class = &ChainRule_class;
     self->deps_size = deps_size;
     self->deps = deps;
     return PEGGY_SUCCESS;
 }
+
+/**
+ * @brief destroy and reclaim memory of the ChainRule instance
+ */
 void ChainRule_dest(ChainRule * self) {
     Rule_dest(&(self->Rule));
 }
 
+/**
+ * @brief destroy and delete the ChainRule instance
+ */
 void ChainRule_del(ChainRule * self) {
     ChainRule_dest(self);
     free(self);
 }
 
+/**
+ * @brief destroy and delete the ChainRule instance passed as Rule *
+ */
 void ChainRule_as_Rule_del(Rule * chain_rule) {
     ChainRule_del((ChainRule *)chain_rule);
 }
 
 /* SequenceRule implementations */
-/* NOTE: was "And" in the python version */
 
 #define SequenceRule_NAME "SequenceRule.ChainRule.Rule"
 
@@ -192,7 +278,6 @@ struct SequenceRuleType SequenceRule_class = {
             .dest = &Rule_dest,
             .del = &SequenceRule_as_Rule_del,
             .check_rule_ = &SequenceRule_check_rule_,
-            .check = &Rule_check
         },
         .new = &ChainRule_new,
         .init = &ChainRule_init,
@@ -204,66 +289,103 @@ struct SequenceRuleType SequenceRule_class = {
     .del = &SequenceRule_del
 };
 
-SequenceRule * SequenceRule_new(rule_id_type id, size_t deps_size, Rule ** deps) {
+/**
+ * @brief allocate a new SequenceRule
+ * @param[in] id integer id for the instance of the SequenceRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      SequenceRule
+ * @param[in] deps_size the number of subrule dependencies of the SequenceRule
+ * @param[in] deps array of Rule * of length "deps_size"
+ * @returns pointer to the new SequenceRule instance
+ */
+SequenceRule * SequenceRule_new(rule_id_type id, char const * name, 
+    size_t deps_size, Rule ** deps) {
+
     SequenceRule * ret = malloc(sizeof(SequenceRule));
     if (!ret) {
         return NULL;
     }
-    if (SequenceRule_init(ret, id, deps_size, deps)) {
+    if (SequenceRule_init(ret, id, name, deps_size, deps)) {
         free(ret);
         return NULL;
     }
     return ret;
 }
 
-err_type SequenceRule_init(SequenceRule * self, rule_id_type id, size_t deps_size, Rule ** deps) {
-    ChainRule_init((ChainRule *)self, id, deps_size, deps);
+/**
+ * @brief initialize a new SequenceRule
+ * @param[in] self the SequenceRule to initialize
+ * @param[in] id integer id for the instance of the SequenceRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      SequenceRule
+ * @param[in] deps_size the number of subrule dependencies of the SequenceRule
+ * @param[in] deps array of Rule * of length "deps_size"
+ * @returns non-zero on failure else 0
+ */
+err_type SequenceRule_init(SequenceRule * self, rule_id_type id, 
+    char const * name, size_t deps_size, Rule ** deps) {
+
+    ChainRule_init((ChainRule *)self, id, name, deps_size, deps);
     ((Rule *)self)->_class = (RuleType *)&SequenceRule_class;
     self->_class = &SequenceRule_class;
     return PEGGY_SUCCESS;
 }
 
+/**
+ * @brief destroy and reclaim memory of the SequenceRule instance
+ */
 void SequenceRule_dest(SequenceRule * self) {
     ChainRule_dest(&(self->ChainRule));
 }
 
+/**
+ * @brief destroy and delete the SequenceRule instance
+ */
 void SequenceRule_del(SequenceRule * self) {
     SequenceRule_dest(self);
     free(self);
 }
 
+/**
+ * @brief destroy and delete the SequenceRule instance passed as ChainRule
+ */
 void SequenceRule_as_ChainRule_del(ChainRule * sequence_rule) {
     SequenceRule_del((SequenceRule *)sequence_rule);
 }
 
+/**
+ * @brief destroy and delete the SequenceRule instance passed as Rule
+ */
 void SequenceRule_as_Rule_del(Rule * sequence_rule) {
     SequenceRule_del((SequenceRule *)sequence_rule);
 }
 
+/**
+ * @brief evaluates the specified SequenceRule
+ */
 ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser) {
+    // mark starting Token in case we have to seek back
     Token * start = Parser_tell(parser);
     if (!start->length) {
         return Parser_fail_node(parser);
     }
     SequenceRule * self = (SequenceRule *)sequence_rule;
+
+    // iterate through the dependent subrules
     size_t i = 0;
     for (; i < self->ChainRule.deps_size; i++) {
-        ASTNode * child_res = self->ChainRule.deps[i]->_class->check(self->ChainRule.deps[i], parser);
+        ASTNode * child_res = Rule_check(self->ChainRule.deps[i], parser);
+        // if any subrules fail, return the fail node
         if (Parser_is_fail_node(parser, child_res)) {
             return child_res;
         }
     }
+
     Token * end = Parser_tell(parser);
-    /*
-    ASTNode ** children = MemPoolManager_malloc(parser->childarr_mgr, i * sizeof(*children));
-    Token * tok = start;
-    for (size_t j = 0; j < i; j++) {
-        children[j] = Parser_check_cache(parser, self->ChainRule.deps[j]->id, tok);
-        tok = children[j]->token_end->next;
-    }
-    return parser->_class->add_node(parser, sequence_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), i, children, 0);
-    */
-    return parser->_class->add_node(parser, sequence_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), i, NULL, 0);
+
+    // create a successful new node
+    return parser->_class->add_node(parser, sequence_rule, start, end->prev, 
+        (size_t)((char *)end->string - (char *)start->string), i, 0);
 }
 
 /* ChoiceRule implementations */
@@ -279,7 +401,6 @@ struct ChoiceRuleType ChoiceRule_class = {
             .dest = &Rule_dest,
             .del = &ChoiceRule_as_Rule_del,
             .check_rule_ = &ChoiceRule_check_rule_,
-            .check = &Rule_check
         },
         .new = &ChainRule_new,
         .init = &ChainRule_init,
@@ -292,49 +413,87 @@ struct ChoiceRuleType ChoiceRule_class = {
     .del = &ChoiceRule_del
 };
 
-ChoiceRule * ChoiceRule_new(rule_id_type id, size_t deps_size, Rule ** deps) {
+/**
+ * @brief allocate a new ChoiceRule
+ * @param[in] id integer id for the instance of the ChoiceRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      ChoiceRule
+ * @param[in] deps_size the number of subrule dependencies of the ChoiceRule
+ * @param[in] deps array of Rule * of length "deps_size"
+ * @returns pointer to the new ChoiceRule instance
+ */
+ChoiceRule * ChoiceRule_new(rule_id_type id, char const * name, 
+    size_t deps_size, Rule ** deps) {
+
     ChoiceRule * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
-    if (ChoiceRule_init(ret, id, deps_size, deps)) {
+    if (ChoiceRule_init(ret, id, name, deps_size, deps)) {
         free(ret);
         return NULL;
     }
     return ret;
 }
 
-err_type ChoiceRule_init(ChoiceRule * self, rule_id_type id, size_t deps_size, Rule ** deps) {
-    ChainRule_init((ChainRule *)self, id, deps_size, deps);
+/**
+ * @brief initialize a new ChoiceRule
+ * @param[in] self the ChoiceRule to initialize
+ * @param[in] id integer id for the instance of the ChoiceRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      ChoiceRule
+ * @param[in] deps_size the number of subrule dependencies of the ChoiceRule
+ * @param[in] deps array of Rule * of length "deps_size"
+ * @returns non-zero on failure else 0
+ */
+err_type ChoiceRule_init(ChoiceRule * self, rule_id_type id, char const * name, 
+    size_t deps_size, Rule ** deps) {
+
+    ChainRule_init((ChainRule *)self, id, name, deps_size, deps);
     ((Rule *)self)->_class = (RuleType *)&ChoiceRule_class;
     self->_class = &ChoiceRule_class;
     return PEGGY_SUCCESS;
 }
 
+/**
+ * @brief destroy and reclaim memory of the ChoiceRule instance
+ */
 void ChoiceRule_dest(ChoiceRule * self) {
     ChainRule_dest(&(self->ChainRule));
 }
 
+/**
+ * @brief destroy and delete the ChoiceRule instance
+ */
 void ChoiceRule_del(ChoiceRule * self) {
     ChoiceRule_dest(self);
     free(self);
 }
 
+/**
+ * @brief destroy and delete the ChoiceRule instance passed as ChainRule
+ */
 void ChoiceRule_as_ChainRule_del(ChainRule * choice_rule) {
     ChoiceRule_del((ChoiceRule *)choice_rule);
 }
 
+/**
+ * @brief destroy and delete the ChoiceRule instance passed as Rule
+ */
 void ChoiceRule_as_Rule_del(Rule * choice_rule) {
     ChoiceRule_del((ChoiceRule *)choice_rule);
 }
 
+/**
+ * @brief evaluates the specified ChoiceRule
+ */
 ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser) {
     if (!Parser_tell(parser)->length) {
         return Parser_fail_node(parser);
     }
     ChoiceRule * self = (ChoiceRule *)choice_rule;
     for (size_t i = 0; i < self->ChainRule.deps_size; i++) {
-        ASTNode * child_res = self->ChainRule.deps[i]->_class->check(self->ChainRule.deps[i], parser);
+        ASTNode * child_res = Rule_check(self->ChainRule.deps[i], parser);
         if (!Parser_is_fail_node(parser, child_res)) {
             return child_res;
         }
@@ -354,7 +513,6 @@ struct LiteralRuleType LiteralRule_class = {
         .dest = &LiteralRule_as_Rule_dest,
         .del = &LiteralRule_as_Rule_del,
         .check_rule_ = &LiteralRule_check_rule_,
-        .check = &Rule_check
     },
     .new = &LiteralRule_new,
     .init = &LiteralRule_init,
@@ -363,54 +521,84 @@ struct LiteralRuleType LiteralRule_class = {
     .compile = &LiteralRule_compile_regex
 };
 
-LiteralRule * LiteralRule_new(rule_id_type id, char const * regex_s) {
+/**
+ * @brief allocate a new LiteralRule
+ * @param[in] id integer id for the instance of the LiteralRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      LiteralRule
+ * @param[in] regex_s the regex string to be applied
+ * @returns pointer to the new LiteralRule instance
+ */
+LiteralRule * LiteralRule_new(rule_id_type id, char const * name, 
+    char const * regex_s) {
+
     LiteralRule * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
-    if (LiteralRule_init(ret, id, regex_s)) {
+    if (LiteralRule_init(ret, id, name, regex_s)) {
         free(ret);
         ret = NULL;
     }
     return ret;
 }
 
-#ifndef __linux__
+#ifndef _GNU_SOURCE
 PCRE2_SIZE pcre2_err_offset;
 int pcre2_err_code;
 #endif
 
+/**
+ * @brief compile the underlying regex for the LiteralRule
+ */
 err_type LiteralRule_compile_regex(LiteralRule * self) {
-#ifdef __linux__
+#ifdef _GNU_SOURCE
     re_set_syntax(DEFAULT_RE_SYNTAX);
-    char const * err_message = re_compile_pattern(self->regex_s, strlen(self->regex_s), 
-                    &self->regex);
+    char const * err_message = re_compile_pattern(self->regex_s, 
+        strlen(self->regex_s), &self->regex);
     if (err_message) {
-        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - regex compile error message for pattern %s: %s\n", __func__, self->regex_s, err_message);
+        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - regex compile error "
+            "message for pattern %s: %s\n", __func__, self->regex_s, 
+            err_message);
         return PEGGY_REGEX_FAILURE;
     }
 #else 
     self->regex = pcre2_compile(self->regex_s, 
         PCRE2_ZERO_TERMINATED,
-        PCRE2_ANCHORED /* must search only at start of string */ | PCRE2_DOTALL /* .* matches newlines */,
+        PCRE2_ANCHORED /* must search only at start of string */ 
+            | PCRE2_DOTALL /* .* matches newlines */,
         &pcre2_err_code,    /* for error number */
         &pcre2_err_offset,  /* for error offset */
         NULL);              /* use default compile context */
     if (!self->regex) {
-        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - pcre2 regex compile error code for pattern %s: %d\n", __func__, (char *)self->regex_s, pcre2_err_code);
+        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - pcre2 regex compile "
+            "error code for pattern %s: %d\n", __func__, (char *)self->regex_s, 
+            pcre2_err_code);
         return PEGGY_REGEX_FAILURE;
     }
-    self->match = pcre2_match_data_create(1, NULL); // only include the first match
+    // only include the first match
+    self->match = pcre2_match_data_create(1, NULL); 
 #endif    
     self->compiled = true;
     return PEGGY_SUCCESS;
 }
 
-err_type LiteralRule_init(LiteralRule * self, rule_id_type id, char const * regex_s) {
-    Rule_init((Rule *)self, id);
+/**
+ * @brief initialize a LiteralRule
+ * @param[in] self pointer to LiteralRule
+ * @param[in] id integer id for the instance of the LiteralRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      LiteralRule
+ * @param[in] regex_s the regex string to be applied
+ * @returns non-zero on error, else 0
+ */
+err_type LiteralRule_init(LiteralRule * self, rule_id_type id, 
+    char const * name, char const * regex_s) {
+
+    Rule_init((Rule *)self, id, name);
     ((Rule *)self)->_class = (RuleType *)&LiteralRule_class;
     self->_class = &LiteralRule_class;
-#ifndef __linux__
+#ifndef _GNU_SOURCE
     self->regex_s = (PCRE2_SPTR)regex_s;
 #else
     self->regex_s = regex_s;
@@ -422,8 +610,11 @@ err_type LiteralRule_init(LiteralRule * self, rule_id_type id, char const * rege
     return PEGGY_SUCCESS;
 }
 
+/**
+ * @brief destroy and reclaim memory of the LiteralRule instance
+ */
 void LiteralRule_dest(LiteralRule * self) {
-#ifdef __linux__
+#ifdef _GNU_SOURCE
     regfree(&(self->regex));
 #else
     pcre2_code_free(self->regex);
@@ -433,11 +624,17 @@ void LiteralRule_dest(LiteralRule * self) {
     Rule_dest(&(self->Rule));
 }
 
+/**
+ * @brief destroy and delete the LiteralRule instance
+ */
 void LiteralRule_del(LiteralRule * self) {
     LiteralRule_dest(self);
     free(self);
 }
 
+/**
+ * @brief destroy and delete the LiteralRule instance passed as Rule *
+ */
 void LiteralRule_as_Rule_del(Rule * literal_rule) {
     LiteralRule_del((LiteralRule *)literal_rule);
 }
@@ -446,54 +643,68 @@ void LiteralRule_as_Rule_dest(Rule * literal_rule) {
     LiteralRule_dest((LiteralRule *)literal_rule);
 }
 
+/**
+ * @brief evaluates the specified LiteralRule
+ */
 ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser) {
+    // mark the Token at the current position in case reset is needed
     Token * tok = Parser_tell(parser);
+
+    // don't even bother if length is 0
     if (!tok->length) {
         return Parser_fail_node(parser);
     }
     LiteralRule * self = (LiteralRule *)literal_rule;
     
-    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - checking literal rule. id: %d, %s, cur: %.*s\n", __func__, literal_rule->id, self->regex_s, (int)tok->length > 10 ? 10 : (int)tok->length, tok->string);
+    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - checking literal "
+        "rule. id: %s, %s, cur: %.*s\n", __func__, literal_rule->name, 
+        self->regex_s, (int)tok->length > 10 ? 10 : (int)tok->length, 
+        tok->string);
     err_type status = PEGGY_SUCCESS;
+
+    // compile the LiteralRule if it is not yet
     if (!self->compiled) {
-        
         if ((status = LiteralRule_compile_regex(self))) {
-            return Parser_fail_node(parser); // failed to compile the regular expression
+            // failed to compile the regular expression
+            return Parser_fail_node(parser); 
         }
     }
     
-    
-    if (!tok) {
-        LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to get token_key from parser\n", __func__);
-        return NULL;
-    }
-    if (tok->length == 0) { // token retrieved is empty
-        return Parser_fail_node(parser);
-    }
     int length = -1;
-#ifdef __linux__
+#ifdef _GNU_SOURCE
     length = re_match(&self->regex,
           tok->string, tok->length, 
           0, NULL);
 #else 
     int rc = pcre2_match(
-        self->regex,                   /* the compiled pattern */
-        (PCRE2_SPTR)tok->string,              /* the subject string */
-        (PCRE2_SIZE)tok->length,       /* the length of the subject */
+        self->regex,                /* the compiled pattern */
+        (PCRE2_SPTR)tok->string,    /* the subject string */
+        (PCRE2_SIZE)tok->length,    /* the length of the subject */
         0,                    /* start at offset 0 in the subject */
-        0,                    /* default options. Don't need to enforce PCRE2_ANCHORED when pattern was compiled as such */
-        self->match,           /* block for storing the result */
+        0,                    /* default options. Don't need to enforce 
+                                 PCRE2_ANCHORED when pattern was compiled as 
+                                 such */
+        self->match,          /* block for storing the result */
         NULL                  /* use default match context */
         );
-    if (rc >= 0) { // I think this means successful return. The official documentation does not say anything along the lines of "returns X on success, Y on failure", but pcre2demo handles errors when rc < 0
+    /*
+    I think this means successful return. The official documentation does not
+    say anything along the lines of "returns X on success, Y on failure", but 
+    pcre2demo handles errors when rc < 0
+    */
+    if (rc >= 0) { 
         PCRE2_SIZE * result = pcre2_get_ovector_pointer(self->match);
         length = (result[1] - result[0]);
     }
 #endif
     if (length > 0 && (parser->tokenizing || (size_t)length == tok->length)) {
         Parser_seek(parser, tok->next);
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - literal rule (id %d) regex %s matched with length %d! - %.*s\n", __func__, literal_rule->id, (char *)self->regex_s, length, (int)length, tok->string);
-        return parser->_class->add_node(parser, literal_rule, tok, tok, length, 0, NULL, 0);
+        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - literal rule "
+            "(id %s) regex %s matched with length %d! - %.*s\n", __func__, 
+            literal_rule->name, (char *)self->regex_s, length, (int)length, 
+            tok->string);
+        return parser->_class->add_node(parser, literal_rule, tok, tok, length, 
+            0, 0);
     }
     return Parser_fail_node(parser);
 }
@@ -510,7 +721,6 @@ struct DerivedRuleType DerivedRule_class = {
         .dest = &Rule_dest,
         .del = &DerivedRule_as_Rule_del,
         .check_rule_ = &Rule_check_rule_,
-        .check = &Rule_check
     },
     .new = &DerivedRule_new,
     .init = &DerivedRule_init,
@@ -518,35 +728,61 @@ struct DerivedRuleType DerivedRule_class = {
     .del = &DerivedRule_del
 };
 
-DerivedRule * DerivedRule_new(rule_id_type id, Rule * rule) {
+/**
+ * @brief allocate a new DerivedRule
+ * @param[in] id integer id for the instance of the DerivedRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      DerivedRule
+ * @param[in] rule the subrule dependency
+ * @returns pointer to the new DerivedRule instance
+ */
+DerivedRule * DerivedRule_new(rule_id_type id, char const * name, Rule * rule) {
     DerivedRule * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
-    if (DerivedRule_init(ret, id, rule)) {
+    if (DerivedRule_init(ret, id, name, rule)) {
         free(ret);
         ret = NULL;
     }
     return ret;
 }
 
-err_type DerivedRule_init(DerivedRule * self, rule_id_type id, Rule * rule) {
-    Rule_init((Rule *)self, id);
+/**
+ * @brief initialize a new DerivedRule
+ * @param[in] self the DerivedRule to initialize
+ * @param[in] id integer id for the instance of the DerivedRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      DerivedRule
+ * @param[in] rule the subrule dependency
+ * @returns non-zero on failure else 0
+ */
+err_type DerivedRule_init(DerivedRule * self, rule_id_type id, char const * name, Rule * rule) {
+    Rule_init((Rule *)self, id, name);
     ((Rule *)self)->_class = (RuleType *)&ListRule_class;
     self->_class = &DerivedRule_class;
     self->rule = rule;
     return PEGGY_SUCCESS;
 }
 
+/**
+ * @brief destroy and reclaim memory of the DerivedRule instance
+ */
 void DerivedRule_dest(DerivedRule * self) {
     Rule_dest((Rule *)self);
 }
 
+/**
+ * @brief destroy and delete the DerivedRule instance
+ */
 void DerivedRule_del(DerivedRule * self) {
     DerivedRule_dest(self);
     free(self);
 }
 
+/**
+ * @brief destroy and delete the DerivedRule instance passed as Rule *
+ */
 void DerivedRule_as_Rule_del(Rule * derived_rule) {
     DerivedRule_del((DerivedRule *)derived_rule);
 }
@@ -564,7 +800,6 @@ struct ListRuleType ListRule_class = {
             .dest = &Rule_dest,
             .del = &ListRule_as_Rule_del,
             .check_rule_ = &ListRule_check_rule_,
-            .check = &Rule_check
             },
         .new = &DerivedRule_new,
         .init = &DerivedRule_init,
@@ -577,84 +812,131 @@ struct ListRuleType ListRule_class = {
     .del = &ListRule_del
 };
 
-ListRule * ListRule_new(rule_id_type id, Rule * rule, Rule * delim) {
+/**
+ * @brief allocate a new ListRule
+ * @param[in] id integer id for the instance of the ListRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      ListRule
+ * @param[in] rule the base rule which must succeed at least once for a ListRule
+ * @param[in] delim the rule separating each successful evaluation of rule
+ * @returns pointer to the new ListRule instance
+ */
+ListRule * ListRule_new(rule_id_type id, char const * name, Rule * rule, Rule * delim) {
     ListRule * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
-    if (ListRule_init(ret, id, rule, delim)) {
+    if (ListRule_init(ret, id, name, rule, delim)) {
         free(ret);
         ret = NULL;
     }
     return ret;
 }
-err_type ListRule_init(ListRule * self, rule_id_type id, Rule * rule, Rule * delim) {
-    DerivedRule_init((DerivedRule *)self, id, rule);
+
+/**
+ * @brief allocate a new ListRule
+ * @param[in] self ListRule pointer
+ * @param[in] id integer id for the instance of the ListRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      ListRule
+ * @param[in] rule the base rule which must succeed at least once for a 
+ *      ListRule
+ * @param[in] delim the rule separating each successful evaluation of rule
+ * @returns non-zero on failure else 0
+ */
+err_type ListRule_init(ListRule * self, rule_id_type id, char const * name, 
+    Rule * rule, Rule * delim) {
+        
+    DerivedRule_init((DerivedRule *)self, id, name, rule);
     ((Rule *)self)->_class = (RuleType *)&ListRule_class;
     ((DerivedRule *)self)->_class = (DerivedRuleType *)&ListRule_class;
     self->_class = &ListRule_class;
     self->delim = delim;
     return PEGGY_SUCCESS;
 }
+
+/**
+ * @brief destroy and reclaim memory of the ListRule instance
+ */
 void ListRule_dest(ListRule * self) {
     DerivedRule_dest(&(self->DerivedRule));
 }
+
+/**
+ * @brief destroy and delete the ListRule instance
+ */
 void ListRule_del(ListRule * self) {
     ListRule_dest(self);
     free(self);
 }
+
+/**
+ * @brief destroy and delete the ListRule instance passed as DerivedRule
+ */
 void ListRule_as_DerivedRule_del(DerivedRule * list_rule) {
     ListRule_del((ListRule *)list_rule);
 }
+
+/**
+ * @brief destroy and delete the ListRule instance passed as Rule
+ */
 void ListRule_as_Rule_del(Rule * list_rule) {
     ListRule_del((ListRule *)list_rule);
 }
 
+/**
+ * @brief evaluates the specified ListRule
+ */
 ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser) {
+
+    // mark the current Token of the parser in case we have to reset
     Token * start = Parser_tell(parser);
     if (!start->length) {
         return Parser_fail_node(parser);
     }
     ListRule * self = (ListRule *) list_rule;
 
-    // call alternating checks for the delimiter and base rule to count the number of children
+    // call alternating checks for the delimiter and base rule to count the 
+    // number of children
     size_t nchildren = 0;
     Rule * derived_rule = ((DerivedRule *)self)->rule;
-    ASTNode * (*derived_rule_check)(Rule *, Parser *) = derived_rule->_class->check;
     Rule * delim_rule = self->delim;
-    ASTNode * (*delim_rule_check)(Rule *, Parser *) = delim_rule->_class->check;
     
-    ASTNode * node = derived_rule_check(derived_rule, parser);
+    // check first derived_rule first
+    ASTNode * node = Rule_check(derived_rule, parser);
     ASTNode * delim = Parser_fail_node(parser);
+
+    // while node does not fail
     while (!Parser_is_fail_node(parser, node)) {
+        // increment the number of children being track
         nchildren++;
-        delim = delim_rule_check(delim_rule, parser);
+
+        // check for delimiter
+        delim = Rule_check(delim_rule, parser);
         if (Parser_is_fail_node(parser, delim)) {
+            // if delimiter failed set node so that it exits loop
             node = Parser_fail_node(parser);
         } else {
+            // if delimiter succeeded, increment number of children and check 
+            // next node
             nchildren++;
-            node = derived_rule_check(derived_rule, parser);
+            node = Rule_check(derived_rule, parser);
         }
     }
+    // ListRule only fails if no children (initial node evaluation failed)
     if (!nchildren) {
         return Parser_fail_node(parser);
     }
     if (!Parser_is_fail_node(parser, delim)) {
+        // if last delimiter check succeeded (but node failed so loop exited)
+        // back out the delimiter token and decrement the number of children
         Parser_seek(parser, delim->token_start);
-        nchildren--; // don't include the successful delim the preceeded the failed node
+        nchildren--; 
     }
 
     Token * end = Parser_tell(parser);
-    /*
-    Token * tok = start;
-    ASTNode ** children = MemPoolManager_malloc(parser->childarr_mgr, nchildren * sizeof(*children));
-    for (size_t i = 0; i < nchildren; i++) {
-        children[i] = Parser_check_cache(parser, i & 1 ? delim_rule->id : derived_rule->id, tok);
-        tok = children[i]->token_end->next;
-    }
-    return parser->_class->add_node(parser, list_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), nchildren, children, 0);
-    */
-    return parser->_class->add_node(parser, list_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), nchildren, NULL, 0);
+    return parser->_class->add_node(parser, list_rule, start, end->prev, 
+        (size_t)((char *)end->string - (char *)start->string), nchildren, 0);
 }
 
 /* RepeatRule implementations */
@@ -670,7 +952,6 @@ struct RepeatRuleType RepeatRule_class = {
             .dest = &Rule_dest,
             .del = &RepeatRule_as_Rule_del,
             .check_rule_ = &RepeatRule_check_rule_,
-            .check = &Rule_check
         },
         .new = &DerivedRule_new,
         .init = &DerivedRule_init,
@@ -683,19 +964,44 @@ struct RepeatRuleType RepeatRule_class = {
     .del = &RepeatRule_del
 };
 
-RepeatRule * RepeatRule_new(rule_id_type id, Rule * rule, size_t min_rep, size_t max_rep) {
+/**
+ * @brief allocate a new RepeatRule
+ * @param[in] id integer id for the instance of the RepeatRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      RepeatRule
+ * @param[in] rule the base rule to be repeated
+ * @param[in] min_rep the minimum number of repetitions required for success
+ * @param[in] max_rep the maximum or infinite(0) number of repetions to capture
+ * @returns pointer to the new RepeatRule instance
+ */
+RepeatRule * RepeatRule_new(rule_id_type id, char const * name, Rule * rule, 
+    size_t min_rep, size_t max_rep) {
+
     RepeatRule * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
-    if (RepeatRule_init(ret, id, rule, min_rep, max_rep)) {
+    if (RepeatRule_init(ret, id, name, rule, min_rep, max_rep)) {
         free(ret);
         ret = NULL;
     }
     return ret;
 }
-err_type RepeatRule_init(RepeatRule * self, rule_id_type id, Rule * rule, size_t min_rep, size_t max_rep) {
-    DerivedRule_init((DerivedRule *)self, id, rule);
+
+/**
+ * @brief allocate a new RepeatRule
+ * @param[in] id integer id for the instance of the RepeatRule
+ * @param[in] name a convenient name for printing the instance of the 
+ *      RepeatRule
+ * @param[in] rule the base rule to be repeated
+ * @param[in] min_rep the minimum number of repetitions required for success
+ * @param[in] max_rep the maximum or infinite(0) number of repetions to capture
+ * @returns non-zero on failure else 0
+ */
+err_type RepeatRule_init(RepeatRule * self, rule_id_type id, char const * name, 
+    Rule * rule, size_t min_rep, size_t max_rep) {
+
+    DerivedRule_init((DerivedRule *)self, id, name, rule);
     ((Rule *)self)->_class = (RuleType *)&RepeatRule_class;
     ((DerivedRule *)self)->_class = (DerivedRuleType *)&RepeatRule_class;
     self->_class = &RepeatRule_class;
@@ -703,59 +1009,83 @@ err_type RepeatRule_init(RepeatRule * self, rule_id_type id, Rule * rule, size_t
     self->max_rep = max_rep;
     return PEGGY_SUCCESS;
 }
+
+/**
+ * @brief destroy and reclaim memory of the RepeatRule instance
+ */
 void RepeatRule_dest(RepeatRule * self) {
     DerivedRule_dest(&(self->DerivedRule));
 }
+
+/**
+ * @brief destroy and delete the RepeatRule instance
+ */
 void RepeatRule_del(RepeatRule * self) {
     RepeatRule_dest(self);
     free(self);
 }
+
+/**
+ * @brief destroy and delete the RepeatRule instance passed as DerivedRule
+ */
 void RepeatRule_as_DerivedRule_del(DerivedRule * repeat_rule) {
     RepeatRule_del((RepeatRule *)repeat_rule);
 }
+
+/**
+ * @brief destroy and delete the RepeatRule instance passed as Rule
+ */
 void RepeatRule_as_Rule_del(Rule * repeat_rule) {
     RepeatRule_del((RepeatRule *)repeat_rule);
 }
 
-// MAJOR TODO: get rid of realloc. Follow ListRule_check_rule_ implementation
+/**
+ * @brief evaluates the specified RepeatRule
+ */
 ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser) {
+    // mark first token in case we have to reset
     Token * start = Parser_tell(parser);
     RepeatRule * self = (RepeatRule *)repeat_rule;
+
+    // short-circuit if current Token is empty
     if (!start->length) {
+        // if min_rep == 0, make a new node even if token is empty
         if (self->min_rep) {
             return Parser_fail_node(parser);
         } else {
-            return parser->_class->add_node(parser, repeat_rule, start, start->prev, 0, 0, NULL, 0);
+            return parser->_class->add_node(parser, repeat_rule, start, 
+                start->prev, 0, 0, 0);
         }
     }
 
     size_t nchildren = 0;
     Rule * derived_rule = ((DerivedRule *)self)->rule;
-    ASTNode * (*derived_rule_check)(Rule *, Parser *) = derived_rule->_class->check;
 
-    ASTNode * node = derived_rule_check(derived_rule, parser);
+    // check first repetition
+    ASTNode * node = Rule_check(derived_rule, parser);
+
+    // while node is not a failure
     while (!Parser_is_fail_node(parser, node)) {
         nchildren++;
+
+        // if we reach the max repetitions just exit (consumes them successfully)
         if (self->max_rep && nchildren == self->max_rep) {
             break;
         }
-        node = derived_rule_check(derived_rule, parser);
+        node = Rule_check(derived_rule, parser);
     }
-    if (nchildren < self->min_rep || (self->max_rep && nchildren > self->max_rep)) {
+
+    // if outside of range [min_rep, max_rep] and max_rep is not infinite, fail
+    if (nchildren < self->min_rep 
+        || (self->max_rep && nchildren > self->max_rep)) {
+
         return Parser_fail_node(parser);
     }
 
     Token * end = Parser_tell(parser);
-    /*
-    Token * tok = start;
-    ASTNode ** children = MemPoolManager_malloc(parser->childarr_mgr, nchildren * sizeof(*children));
-    for (size_t i = 0; i < nchildren; i++) {
-        children[i] = Parser_check_cache(parser, derived_rule->id, tok);
-        tok = children[i]->token_end->next;
-    }
-    return parser->_class->add_node(parser, repeat_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), nchildren, children, 0);
-    */
-    return parser->_class->add_node(parser, repeat_rule, start, end->prev, (size_t)((char *)end->string - (char *)start->string), nchildren, NULL, 0);
+    // Success! create a new node
+    return parser->_class->add_node(parser, repeat_rule, start, end->prev, 
+        (size_t)((char *)end->string - (char *)start->string), nchildren, 0);
 }
 
 /* NegativeLookahead implementations */
@@ -771,7 +1101,6 @@ struct NegativeLookaheadType NegativeLookahead_class = {
             .dest = &Rule_dest,
             .del = &NegativeLookahead_as_Rule_del,
             .check_rule_ = &NegativeLookahead_check_rule_,
-            .check = &Rule_check
         },
         .new = &DerivedRule_new,
         .init = &DerivedRule_init,
@@ -784,49 +1113,102 @@ struct NegativeLookaheadType NegativeLookahead_class = {
     .del = &NegativeLookahead_del
 };
 
-NegativeLookahead * NegativeLookahead_new(rule_id_type id, Rule * rule) {
+/**
+ * @brief allocate a new NegativeLookahead
+ * @param[in] id integer id for the instance of the NegativeLookahead
+ * @param[in] name a convenient name for printing the instance of the 
+ *      NegativeLookahead
+ * @param[in] rule the base rule to look ahead for
+ * @returns pointer to the new NegativeLookahead instance
+ */
+NegativeLookahead * NegativeLookahead_new(rule_id_type id, char const * name, 
+    Rule * rule) {
+
     NegativeLookahead * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
-    if (NegativeLookahead_init(ret, id, rule)) {
+    if (NegativeLookahead_init(ret, id, name, rule)) {
         free(ret);
         ret = NULL;
     }
     return ret;
 }
-err_type NegativeLookahead_init(NegativeLookahead * self, rule_id_type id, Rule * rule) {
-    DerivedRule_init((DerivedRule *)self, id, rule);
+
+/**
+ * @brief allocate a new NegativeLookahead
+ * @param[in] self the NegativeLookahead rule
+ * @param[in] id integer id for the instance of the NegativeLookahead
+ * @param[in] name a convenient name for printing the instance of the 
+ *      NegativeLookahead
+ * @param[in] rule the base rule to look ahead for
+ * @returns non-zero on failure, else 0
+ */
+err_type NegativeLookahead_init(NegativeLookahead * self, rule_id_type id, 
+    char const * name, Rule * rule) {
+
+    DerivedRule_init((DerivedRule *)self, id, name, rule);
     ((Rule *)self)->_class = (RuleType *)&NegativeLookahead_class;
     ((DerivedRule *)self)->_class = (DerivedRuleType *)&NegativeLookahead_class;
     self->_class = &NegativeLookahead_class;
     return PEGGY_SUCCESS;
 }
+
+/**
+ * @brief destroy and reclaim memory of the NegativeLookahead instance
+ */
 void NegativeLookahead_dest(NegativeLookahead * self) {
     DerivedRule_dest(&(self->DerivedRule));
 }
+
+/**
+ * @brief destroy and delete the NegativeLookahead instance
+ */
 void NegativeLookahead_del(NegativeLookahead * self) {
     NegativeLookahead_dest(self);
     free(self);
 }
+
+/**
+ * @brief destroy and delete the NegativeLookahead instance passed as DerivedRule
+ */
 void NegativeLookahead_as_DerivedRule_del(DerivedRule * negative_lookahead) {
     NegativeLookahead_del((NegativeLookahead *)negative_lookahead);
 }
+
+/**
+ * @brief destroy and delete the NegativeLookahead instance passed as Rule
+ */
 void NegativeLookahead_as_Rule_del(Rule * negative_lookahead) {
     NegativeLookahead_del((NegativeLookahead *)negative_lookahead);
 }
 
-ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, Parser * parser) {
+/**
+ * @brief evaluates the specified NegativeLookahead
+ */
+ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead, 
+    Parser * parser) {
+
+    // mark first Token in case we have to reset
     Token * tok = Parser_tell(parser);
     NegativeLookahead * self = (NegativeLookahead *)negative_lookahead;
+    
+    // if no string in Token, succeed
     if (!tok->length) {
-        return Parser_add_node(parser, negative_lookahead, tok, tok->prev, 0, 0, NULL, 0);
+        return Parser_add_node(parser, negative_lookahead, tok, tok->prev, 0, 
+            0, 0);
     }
-    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
+    
+    ASTNode * node = Rule_check(self->DerivedRule.rule, parser);
+    // if node fails, reset and create new node
     if (Parser_is_fail_node(parser, node)) {
         Parser_seek(parser, tok);
-        return Parser_add_node(parser, negative_lookahead, tok, tok->prev, 0, 0, NULL, 0);
+        return Parser_add_node(parser, negative_lookahead, tok, tok->prev, 0, 
+            0, 0);
     }
+
+    // if node is not failure, return a failed node. Don't have to reset 
+    // because the failure from Rule_check will have reset already
     return Parser_fail_node(parser);
 }
 /* PositiveLookahead implementations */
@@ -842,7 +1224,6 @@ struct PositiveLookaheadType PositiveLookahead_class = {
             .dest = &Rule_dest,
             .del = &PositiveLookahead_as_Rule_del,
             .check_rule_ = &PositiveLookahead_check_rule_,
-            .check = &Rule_check
         },
         .new = &DerivedRule_new,
         .init = &DerivedRule_init,
@@ -855,49 +1236,93 @@ struct PositiveLookaheadType PositiveLookahead_class = {
     .del = &PositiveLookahead_del
 };
 
-PositiveLookahead * PositiveLookahead_new(rule_id_type id, Rule * rule) {
+/**
+ * @brief allocate a new PositiveLookahead
+ * @param[in] id integer id for the instance of the PositiveLookahead
+ * @param[in] name a convenient name for printing the instance of the 
+ *      PositiveLookahead
+ * @param[in] rule the base rule to look ahead for
+ * @returns pointer to the new PositiveLookahead instance
+ */
+PositiveLookahead * PositiveLookahead_new(rule_id_type id, char const * name, 
+    Rule * rule) {
+
     PositiveLookahead * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
-    if (PositiveLookahead_init(ret, id, rule)) {
+    if (PositiveLookahead_init(ret, id, name, rule)) {
         free(ret);
         ret = NULL;
     }
     return ret;
 }
-err_type PositiveLookahead_init(PositiveLookahead * self, rule_id_type id, Rule * rule) {
-    DerivedRule_init((DerivedRule *)self, id, rule);
+
+/**
+ * @brief allocate a new PositiveLookahead
+ * @param[in] self the PositiveLookahead rule
+ * @param[in] id integer id for the instance of the PositiveLookahead
+ * @param[in] name a convenient name for printing the instance of the 
+ *      PositiveLookahead
+ * @param[in] rule the base rule to look ahead for
+ * @returns non-zero on failure, else 0
+ */
+err_type PositiveLookahead_init(PositiveLookahead * self, rule_id_type id, 
+    char const * name, Rule * rule) {
+
+    DerivedRule_init((DerivedRule *)self, id, name, rule);
     ((Rule *)self)->_class = (RuleType *)&PositiveLookahead_class;
     ((DerivedRule *)self)->_class = (DerivedRuleType *)&PositiveLookahead_class;
     self->_class = &PositiveLookahead_class;
     return PEGGY_SUCCESS;
 }
+
+/**
+ * @brief destroy and reclaim memory of the PositiveLookahead instance
+ */
 void PositiveLookahead_dest(PositiveLookahead * self) {
     DerivedRule_dest(&(self->DerivedRule));
 }
+
+/**
+ * @brief destroy and delete the PositiveLookahead instance
+ */
 void PositiveLookahead_del(PositiveLookahead * self) {
     PositiveLookahead_dest(self);
     free(self);
 }
+
+/**
+ * @brief destroy and delete the PositiveLookahead instance passed as DerivedRule
+ */
 void PositiveLookahead_as_DerivedRule_del(DerivedRule * positive_lookahead) {
     PositiveLookahead_del((PositiveLookahead *)positive_lookahead);
 }
+
+/**
+ * @brief destroy and delete the PositiveLookahead instance passed as Rule
+ */
 void PositiveLookahead_as_Rule_del(Rule * positive_lookahead) {
     PositiveLookahead_del((PositiveLookahead *)positive_lookahead);
 }
 
-ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, Parser * parser) {
+/**
+ * @brief evaluates the specified PositiveLookahead
+ */
+ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead, 
+    Parser * parser) {
+
+    // mark the current token for reset
     Token * tok = Parser_tell(parser);
     PositiveLookahead * self = (PositiveLookahead *)positive_lookahead;
-    /* // should be handled in the DerivedRule check
-    if (!tok->length) {
-        return Parser_fail_node(parser);
-    }*/
-    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
+
+    // check DerivedRule.rule
+    ASTNode * node = Rule_check(self->DerivedRule.rule, parser);
     if (!Parser_is_fail_node(parser, node)) {
+        // if node is success, reset the parser to tok and create a node
         Parser_seek(parser, tok);
-        return Parser_add_node(parser, positive_lookahead, tok->prev, tok->prev, 0, 0, NULL, 0);
+        return Parser_add_node(parser, positive_lookahead, tok->prev, tok->prev, 
+            0, 0, 0);
     }
     return node;
 }
@@ -912,20 +1337,36 @@ RuleTypeID const PRODUCTION_UNESCAPED_RULES[3] = {
     PEGGY_NOTRULE
 };
 
-ASTNode * build_action_default(Production * production, Parser * parser, ASTNode * node) {
+ASTNode * build_action_default(Production * production, Parser * parser, 
+    ASTNode * node) {
+
+    // check for skip node (do nothing)
     if (!is_skip_node(node)) {
+         
         if (!isinstance(node->rule->_class->type, PRODUCTION_UNESCAPED_RULES)) {
-            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - re-initializing node rule from id %d to id %d; no node generated\n", __func__, node->rule->id, ((Rule *)production)->id);
+            /*
+            if node is not a Production or LiteralRule, reclassify node as the 
+            production. This saves on ASTNode memory somewhat but ensures the 
+            children of the production are accessible as you one might expect
+            from reading the grammar
+            */
+            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - "
+                "re-initializing node rule from id %s to id %s; no node "
+                "generated\n", __func__, node->rule->name, 
+                ((Rule *)production)->name);
             node->rule = (Rule *)production;
         } else {
-            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - creating new rule from production %d to id %d\n", __func__, node->rule->id, ((Rule *)production)->id);
             /*
-            ASTNode ** children = MemPoolManager_malloc(parser->childarr_mgr, sizeof(*children));
-            children[0] = node;
-            node = parser->_class->add_node(parser, (Rule *)production, node->token_start, node->token_end, node->str_length, 1, children, 0);
+            Production and LiteralRules are conserved. generate a new node copy
+            and return
             */
+            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - creating "
+                "new rule from production %s to id %s\n", __func__, 
+                node->rule->name, ((Rule *)production)->name);
+            
             ASTNode * child = node;
-            node = parser->_class->add_node(parser, (Rule *)production, node->token_start, node->token_end, node->str_length, 1, NULL, 0);
+            node = parser->_class->add_node(parser, (Rule *)production, node->token_start, node->token_end, node->str_length, 1, 0);
+            // assign original node as child. This should be unnecessary and might be a bug
             node->children[0] = child;
         }
     }
@@ -941,7 +1382,6 @@ struct ProductionType Production_class = {
             .dest = &Rule_dest,
             .del = &Production_as_Rule_del,
             .check_rule_ = &Production_check_rule_,
-            .check = &Rule_check
             },
         .new = &DerivedRule_new,
         .init = &DerivedRule_init,
@@ -954,48 +1394,105 @@ struct ProductionType Production_class = {
     .del = &Production_del
 };
 
-Production * Production_new(rule_id_type id, Rule * rule, build_action_ftype build_action) {
+/**
+ * @brief allocate a new Production
+ * @param[in] id integer id for the instance of the Production
+ * @param[in] name a convenient name for printing the instance of the 
+ *      Production
+ * @param[in] rule the base rule to look ahead for
+ * @param[in] build_action the build action function for the production
+ *      @brief the default build action function for productions
+ *      @param production the Production rule whose node is being built
+ *      @param parser the executing parser
+ *      @param node the dependent node of the production node being built
+ *      @returns the newly built ASTNode
+ * @returns pointer to the new Production instance
+ */
+Production * Production_new(rule_id_type id, char const * name, Rule * rule, build_action_ftype build_action) {
     Production * ret = malloc(sizeof(*ret));
     if (!ret) {
         return NULL;
     }
-    if (Production_init(ret, id, rule, build_action)) {
+    if (Production_init(ret, id, name, rule, build_action)) {
         free(ret);
         ret = NULL;
     }
     return ret;
 }
-err_type Production_init(Production * self, rule_id_type id, Rule * rule, build_action_ftype build_action) {
-    DerivedRule_init((DerivedRule *)self, id, rule);
+
+/**
+ * @brief intialize a new Production
+ * @param[in] self the Production rule
+ * @param[in] id integer id for the instance of the Production
+ * @param[in] name a convenient name for printing the instance of the 
+ *      Production
+ * @param[in] rule the base rule to look ahead for
+ * @param[in] build_action the build action function for the production
+ *      @brief the default build action function for productions
+ *      @param production the Production rule whose node is being built
+ *      @param parser the executing parser
+ *      @param node the dependent node of the production node being built
+ *      @returns the newly built ASTNode
+ * @returns non-zero on failure else 0
+ */
+err_type Production_init(Production * self, rule_id_type id, char const * name, Rule * rule, build_action_ftype build_action) {
+    DerivedRule_init((DerivedRule *)self, id, name, rule);
     ((Rule *)self)->_class = (RuleType *)&Production_class;
     ((DerivedRule *)self)->_class = (DerivedRuleType *)&Production_class;
     self->_class = &Production_class;
     self->build_action = build_action;
     return PEGGY_SUCCESS;
 }
+
+/**
+ * @brief destroy and reclaim memory of the Production instance
+ */
 void Production_dest(Production * self) {
     DerivedRule_dest((DerivedRule *)self);
 }
+
+/**
+ * @brief destroy and delete the Production instance
+ */
 void Production_del(Production * self) {
     Production_dest(self);
     free(self);
 }
+
+/**
+ * @brief destroy and delete the Production instance passed as DerivedRule
+ */
 void Production_as_DerivedRule_del(DerivedRule * production) {
     Production_del((Production *)production);
 }
+
+/**
+ * @brief destroy and delete the Production instance passed as Rule
+ */
 void Production_as_Rule_del(Rule * production) {
     Production_del((Production *)production);
 }
 
+/**
+ * @brief evaluates the specified Production. Does not advance parser any more
+ *      than the subrule does
+ */
 ASTNode * Production_check_rule_(Rule * production, Parser * parser) {
-    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - checking production rule. id: %d\n", __func__, production->id);
+    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - checking production rule. id: %s\n", __func__, production->name);
     Production * self = (Production *)production;
     
-    ASTNode * node = self->DerivedRule.rule->_class->check(self->DerivedRule.rule, parser);
+    // check subrule
+    ASTNode * node = Rule_check(self->DerivedRule.rule, parser);
     if (node == NULL) {
-        LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - found NULL in call to Rule_check for production id %d\n", __func__, production->id);
+        LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - found NULL in call to Rule_check for production id %s\n", __func__, production->name);
     }
+
     if (!Parser_is_fail_node(parser, node)) {
+        /*
+        only execute build_action if non-failure
+        a build action can take a successful node and cause failure but not the
+        other way around
+        */
         return self->build_action(self, parser, node);
     }
     return node;

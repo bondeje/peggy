@@ -44,8 +44,7 @@ ASTNode * check_ipv4(Production * octet, Parser * parser, ASTNode * node) {
 int main(int narg, char ** args) {
     if (narg > 1) {
         Parser parser = {._class = &Parser_class};
-        Parser_init(&parser, "ipv4", strlen("ipv4"), (Rule *)&ipv4_token, 
-            (Rule *)&ipv4_ipv4, IPV4_NRULES, 0, NULL, 0);
+        Parser_init(&parser, (Rule *)&ipv4_token, (Rule *)&ipv4_ipv4, IPV4_NRULES, 0);
         while (--narg > 0) {
             // will print
             Parser_parse(&parser, args[narg], strlen(args[narg]));
