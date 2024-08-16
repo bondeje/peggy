@@ -4,13 +4,14 @@ import = peggytransform
 
 whitespace(skip_token):
     "([ \t\r\n\v\f]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+" // includes C-style comments as whitespace
+    //"[ \t\r\n\v\f]+"
     
 
 string_literal:
-    "'((\\\\)\'|[^\'])*'"
+    "'([^'\\\\]|(\\\\.))*'" // need to add hex escape support
     
 regex_literal:
-    "\"((\\\\\")|[^\"])*\""
+    "\"([^\"\\\\]|(\\\\.))*\"" // need to add hex escape support
 
 punctuator:
     '!' | '|' | ',' | '?' | '.' | '&' | ':' | '+' | '*' | '(' | ')' | '{' | '}' | '='

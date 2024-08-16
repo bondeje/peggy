@@ -75,8 +75,6 @@ SequenceRule peggy_seq_3_69; // SEQ_3_69
 Production peggy_peggy; // PEGGY
 RepeatRule peggy_rep_1_0_71; // REP_1_0_71
 ChoiceRule peggy_choice_3_72; // CHOICE_3_72
-LITERALRULE(peggy_string_literal_re,STRING_LITERAL_RE,
-	"'((\\\\)\'|[^\'])*'");
 LITERALRULE(vbar,VBAR,
 	"\\|");
 PRODUCTION(peggy_token,TOKEN,
@@ -153,6 +151,8 @@ LITERALRULE(exclaim,EXCLAIM,
 	"!");
 LITERALRULE(punctuator_kw,PUNCTUATOR_KW,
 	"punctuator");
+LITERALRULE(peggy_string_literal_re,STRING_LITERAL_RE,
+	"'([^'\\\\]|(\\\\.))*'");
 SEQUENCERULE(peggy_seq_2_47,SEQ_2_47,
 	(Rule *)&peggy_list_rule,
 	(Rule *)&peggy_rep_0_1_48);
@@ -196,8 +196,6 @@ PRODUCTION(peggy_nonterminal,NONTERMINAL,
 PRODUCTION(peggy_list_rule,LIST_RULE,
 	(Rule *)&peggy_list_2_45,
 	simplify_rule);
-LITERALRULE(peggy_regex_literal_re,REGEX_LITERAL_RE,
-	"\"((\\\\\")|[^\"])*\"");
 PRODUCTION(peggy_terminal,TERMINAL,
 	(Rule *)&peggy_choice_2_35);
 PRODUCTION(peggy_transform_functions,TRANSFORM_FUNCTIONS,
@@ -218,6 +216,8 @@ CHOICERULE(peggy_choice_3_72,CHOICE_3_72,
 	(Rule *)&peggy_config,
 	(Rule *)&peggy_special_production,
 	(Rule *)&peggy_production);
+LITERALRULE(peggy_regex_literal_re,REGEX_LITERAL_RE,
+	"\"([^\"\\\\]|(\\\\.))*\"");
 LITERALRULE(peggy_keyword,KEYWORD,
 	"punctuator|keyword|token");
 SEQUENCERULE(peggy_seq_5_50,SEQ_5_50,
@@ -284,7 +284,6 @@ LITERALRULE(period,PERIOD,
 
 
 Rule * peggyrules[PEGGY_NRULES + 1] = {
-	(Rule *)&peggy_string_literal_re,
 	(Rule *)&vbar,
 	(Rule *)&peggy_token,
 	(Rule *)&peggy_choice_2_57,
@@ -310,6 +309,7 @@ Rule * peggyrules[PEGGY_NRULES + 1] = {
 	(Rule *)&peggy_choice_2_35,
 	(Rule *)&exclaim,
 	(Rule *)&punctuator_kw,
+	(Rule *)&peggy_string_literal_re,
 	(Rule *)&peggy_seq_2_47,
 	(Rule *)&rparen,
 	(Rule *)&peggy_repeated_rule,
@@ -325,7 +325,6 @@ Rule * peggyrules[PEGGY_NRULES + 1] = {
 	(Rule *)&colon,
 	(Rule *)&peggy_nonterminal,
 	(Rule *)&peggy_list_rule,
-	(Rule *)&peggy_regex_literal_re,
 	(Rule *)&peggy_terminal,
 	(Rule *)&peggy_transform_functions,
 	(Rule *)&plus,
@@ -334,6 +333,7 @@ Rule * peggyrules[PEGGY_NRULES + 1] = {
 	(Rule *)&peggy_base_rule,
 	(Rule *)&peggy_production,
 	(Rule *)&peggy_choice_3_72,
+	(Rule *)&peggy_regex_literal_re,
 	(Rule *)&peggy_keyword,
 	(Rule *)&peggy_seq_5_50,
 	(Rule *)&peggy_choice,
