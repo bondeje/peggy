@@ -2,7 +2,8 @@
 #define RENFA_H
 
 #include <stddef.h>
-#include "mempool.h"
+#include "reutils.h"
+#include "peggy/mempool.h"
 
 typedef struct NFATransition NFATransition;
 
@@ -24,55 +25,37 @@ struct NFATransition {
     NFATransition * next_out; // next in linked list of transition out of a 
 };
 
+BUILD_ALIGNMENT_STRUCT(NFATransition)
+
 // should never actually be allocated. more of an interface/abstract base class
 struct reSymbol {
     int (*match)(reSymbol * sym, char const c);
     char const * sym;
+    size_t sym_len;
     reSymbol * next; // next in linked list of symbols
 };
 
-// returns positive value on success, 0 on failure
-int reChar_match(reSymbol * sym, char const c) {
-    return *sym->sym == c;
-}
+BUILD_ALIGNMENT_STRUCT(reSymbol)
+BUILD_ALIGNMENT_STRUCT(reChar)
 
-int reChar_empty_match(reSymbol * sym, char const c) {
-    return 1;
-}
+// returns positive value on success, 0 on failure
+int reChar_match(reSymbol * sym, char const c);
+int reChar_empty_match(reSymbol * sym, char const c);
 
 // file level
 extern struct reSymbol empty_symbol;
 
 // internal to char class
-static inline int reRange_match(char const lower, char const upper, char const c) {
-    return c <= upper && c >= lower;
-}
-
+static inline int reRange_match(char const lower, char const upper, char const c);
 // returns positive value on success, 0 on failure
-int reCharClass_match(reSymbol * sym, char const c) { 
-    reCharClass * class = (reCharClass *)sym;
-    char const * start = sym->sym;
-    char const * end = sym->sym + class->sym_length;
-    int status = 0;
-    while (start != end) {
-        if (start + 1 != end && *(start + 1) == '-') {
-            status = reRange_match(*start, *(start + 2), c);
-        } else {
-            status = (*start == c);
-        }
-        if (status) {
-            return ~class->inv;
-        }
-        start++;
-    }
-    return class->inv;
-}
+int reCharClass_match(reSymbol * sym, char const c);
 
 struct reCharClass {
     reSymbol sym;
     _Bool inv;
-    size_t sym_length; // char const * sym is interpreted as string between []
 };
+
+BUILD_ALIGNMENT_STRUCT(reCharClass)
 
 struct NFAState {
     NFATransition * out; // linked list of transitions out of the state
@@ -81,9 +64,13 @@ struct NFAState {
     size_t n_in;
 };
 
+BUILD_ALIGNMENT_STRUCT(NFAState)
+
 struct reNFA {
     MemPoolManager * pool;
     reSymbol * symbols; // linked list of symbols
+    char const * regex_s;
+    size_t regex_len;
     size_t nsymbols;
     size_t nstates;
     NFAState * start; // the initial state
@@ -91,31 +78,11 @@ struct reNFA {
     unsigned int flags;
 };
 
+BUILD_ALIGNMENT_STRUCT(reNFA)
+
 void reNFA_init(reNFA * nfa);
 
 void reNFA_dest(reNFA * nfa);
-
-#ifdef __STDC_VERSION__ < 201112L
-struct NFATransition_ALIGNMENT {
-    char a;
-    NFATransition b;
-};
-
-struct reChar_ALIGNMENT {
-    char a;
-    reChar b;
-};
-
-struct reCharClass_ALIGNMENT {
-    char a;
-    reCharClass b;
-};
-
-struct NFAState_ALIGNMENT {
-    char a;
-    NFAState b;
-};
-#endif
 
 #endif
 

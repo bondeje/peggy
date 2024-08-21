@@ -2,42 +2,59 @@ export = re
 import = reparser
 
 punctuator:
-    '*' | '\' | '|' | '+' | '.' | '^' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '-' | ','
+    '*' | '|' | '+' | '.' | '^' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '-' | ','
 
+// characters are any unescaped normal printing characters. cannot be "." else sequence will capture everything
 character:
-    '.'
+    "[^\\\\^$.\\[|()*?]" // don't need to escape { and + because they are handled in preprocess
+    // "[^\\\\^$.\\[|()*+?{]"
+
+any_character:
+    "."
+
+re_escape:
+    "\\\\"
 
 token:
-    punctuator | character
+    punctuator | character | re_escape | any_character // any_character just to capture anything else. Note for multibyte, this must change
 
-single_char:
-    '\', character | character
+// characters that must be escaped: \^$.[|()*+?{
+nonclass_escape:
+    "[\\\\^$.\\[|()*?]" // don't need to escape { and + because they are handled in preprocess
+    // "[\\\\^$.\\[|()*+?{]"
 
 // build symbol should just pass the char_class or build character from single_car, which may be recursive
 symbol(re_build_symbol):
-    char_class | single_char
+    char_class | re_escape, nonclass_escape | character
 
 element(re_pass):
     '(', choice, ')' | symbol
 
+// characters that must be escaped: \%-[]
+character_class:
+    "[^\\\\\\%\\-\\[\\]]"
+
+class_escape:
+    "[\\\\\\%\\-\\[\\]]"
+    
 char_class:
-    '[', '^'?, (range | single_char)+, ']'
+    '[', '^'?, (range | re_escape, class_escape | character_class)+, ']'
 
 range:
-    character, '-', character
+    // need to change this to (re_escape, class_escape | character_class), '-', (re_escape, class_escape | character_class)
+    character_class, '-', character_class
 
-choice(re_build_choice_states):
+choice(re_build_choice):
     '|'.sequence
 
-digit_seq:
-    "[0-9]+"
+sequence(re_build_sequence):
+    (kleene | optional | element)+
 
-sequence(re_build_sequence_states):
-    repeated_rule+
+optional(re_build_optional):
+    element, '?'
 
-repeated_rule(re_build_repeat_states):
-    // one of the three internal digit_seq?, ','?, digit_seq? must be presnt
-    element, ('+' | '*' | '?' | '{', digit_seq?, ','?, digit_seq?, '}')? 
+kleene(re_build_kleene):
+    element, '*'
 
-re:
+re(re_build_nfa):
     choice

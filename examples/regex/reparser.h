@@ -1,25 +1,42 @@
 #ifndef REPARSER_H
 #define REPARSER_H
 
-#include "re.h"
-#include "reNFA.h"
+#include <string.h>
 
-ASTNode * re_pass(Production * prod, Parser * parser, ASTNode * node);
-ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node);
-ASTNode * re_build_char_class(Production * prod, Parser * parser, ASTNode * node);
-ASTNode * re_build_choice_states(Production * prod, Parser * parser, ASTNode * node);
-ASTNode * re_build_repeat_states(Production * prod, Parser * parser, ASTNode * node);
-ASTNode * re_build_sequence_states(Production * prod, Parser * parser, ASTNode * node);
+#include "re.h"
+#include "reutils.h"
+#include "reNFA.h"
 
 typedef struct RegexBuilder {
     Parser parser;
-    reNFA nfa; // nfa is built while parser
+    reNFA * nfa; // nfa is built while parser
 } RegexBuilder;
 
-void RegexBuilder_init(RegexBuilder * reb);
+typedef struct NFANode {
+    ASTNode node;
+    NFAState * start;   // the initial state of the subNFA
+    NFAState * final;     // the final state of the subNFA
+} NFANode;
 
-void RegexBuilder_build(RegexBuilder * reb, char * regex_s, size_t regex_len);
+BUILD_ALIGNMENT_STRUCT(NFANode)
 
+ASTNode * re_pass(Production * prod, Parser * parser, ASTNode * node);
+ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node);
+NFATransition * re_build_empty_transition(RegexBuilder * reb, NFAState * start, NFAState * final);
+ASTNode * re_build_choice(Production * prod, Parser * parser, ASTNode * node);
+ASTNode * re_build_optional(Production * prod, Parser * parser, ASTNode * node);
+ASTNode * re_build_kleene(Production * prod, Parser * parser, ASTNode * node);
+void re_merge_states(NFAState * start, NFAState * final);
+ASTNode * re_build_sequence(Production * prod, Parser * parser, ASTNode * node);
+ASTNode * re_build_nfa(Production * prod, Parser * parser, ASTNode * node);
+
+char * RegexBuilder_realloc_buffer(RegexBuilder * reb, char * buf, size_t * buf_len, size_t new_size);
+char * RegexBuilder_preprocess_repeatopt(RegexBuilder * reb, char * buf, size_t * buf_len, char const * base, size_t base_length, size_t nrepeats, size_t * loc);
+char * RegexBuilder_preprocess_repeat(RegexBuilder * reb, char * buf, size_t * buf_len, char const * base, size_t base_length, size_t nrepeats, size_t * loc);
+void RegexBuilder_preprocess(RegexBuilder * reb, char const * regex_s, size_t regex_len);
+
+void RegexBuilder_init(RegexBuilder * reb, reNFA * nfa);
+reNFA * RegexBuilder_build(RegexBuilder * reb, char const * regex_s, size_t regex_len);
 void RegexBuilder_dest(RegexBuilder * reb);
 
 #endif
