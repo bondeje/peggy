@@ -1,7 +1,8 @@
 #include <string.h>
 
 #include "reparser.h"
-#include "reNFA.h"
+
+#include "thompson.h"
 
 ASTNode * re_pass(Production * prod, Parser * parser, ASTNode * node) {
     if (node->children[0]->rule->id == LPAREN) { // of form '(', choice, ')'
@@ -18,56 +19,38 @@ ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
     static char const reESCAPED_CHARS[] = "'\"?\\abfnrtv";
     static char const ESCAPED_CHARS[] = "\'\"\?\\\a\b\f\n\r\t\v";
     RegexBuilder * reb = (RegexBuilder *)parser;
-    reSymbol * new_sym;
     // build a new symbol
+    Symbol * new_sym;
     if (node->rule->id == CHAR_CLASS) {
-        reCharClass * class = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(*class), _Alignof(reCharClass));
-        class->sym.match = reCharClass_match;
-        class->sym.next = reb->nfa->symbols;
-        class->inv = node->children[1]->nchildren > 0;
-        if (class->inv) {
-            class->sym.sym = node->children[1]->token_start->string;
+        char const * sym = node->children[2]->token_start->string;
+        unsigned char len = (unsigned char)(node->children[3]->token_start->string - sym);
+        new_sym = NFA_get_symbol(reb->nfa, sym, len);
+        if (node->children[1]->nchildren) {
+            new_sym->match = reCharClass_inv_match;
         } else {
-            class->sym.sym = node->children[2]->token_start->string;
+            new_sym->match = reCharClass_match;
         }
-        class->sym.sym_len = (size_t)(node->children[3]->token_start->string - class->sym.sym); 
-        reb->nfa->symbols = (reSymbol *)class;
-        new_sym = (reSymbol *)class;
     } else if (node->rule->id == CHARACTER) { // single_char
-        reChar * ch = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(*ch), _Alignof(reChar));
-        ch->match = reChar_match;
-        ch->next = reb->nfa->symbols;
-        reb->nfa->symbols = (reSymbol *)ch;
-        ch->sym = node->token_start->string;
-        ch->sym_len = 1; // TODO: to add multibyte characters. Need to change this
-        new_sym = (reSymbol *)ch;
-    } else {
-        reChar * ch = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(*ch), _Alignof(reChar));
-        ch->match = reChar_match;
-        ch->next = reb->nfa->symbols;
-        reb->nfa->symbols = (reSymbol *)ch;
-        ch->sym = node->children[1]->token_start->string;
-        ch->sym_len = 1; // TODO: to add multibyte characters. Need to change this
-        new_sym = (reSymbol *)ch;
+        new_sym = NFA_get_symbol(reb->nfa, node->token_start->string, 1);
+        new_sym->match = reChar_match;
+    } else { // escaped char
+        new_sym = NFA_get_symbol(reb->nfa, node->children[1]->token_start->string, 1);
+        new_sym->match = reChar_match;
     }
-    // record signal in nfa
-    reb->nfa->symbols = new_sym;
-    reb->nfa->nsymbols++;
 
-    NFATransition * trans = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(NFATransition), _Alignof(NFATransition));
+    NFATransition * trans = NFA_new_transition(reb->nfa);
     
     // build and initialize start and final state for a transition using the symbol
-    NFAState * final = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(NFAState), _Alignof(NFAState));
-    NFAState * start = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(NFAState), _Alignof(NFAState));
-    *start = (NFAState) {.n_out = 1, .n_in = 0, .out = trans};
-    *final = (NFAState) {.n_out = 0, .n_in = 1, .in = trans};
-    reb->nfa->nstates += 2;
+    NFAState * final = NFA_new_state(reb->nfa);
+    NFAState * start = NFA_new_state(reb->nfa);
+    *start = (NFAState) {.n_out = 1, .n_in = 0, .out = trans, .id = start->id};
+    *final = (NFAState) {.n_out = 0, .n_in = 1, .in = trans, .id = final->id};
 
     // initialize transition for start to final state
     *trans = (NFATransition) {.final = final, .next_in = NULL, .next_out = NULL, .start = start, .symbol = new_sym};
 
-    // memory allocation with Mempool...entire node follows reNFA output rather than parser
-    //NFANode * subnfa = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(NFANode), _Alignof(NFANode));
+    // memory allocation with Mempool...entire node follows NFA output rather than parser
+    //NFANode * subnfa = MemPoolManager_aligned_alloc(reb->nfa->nfa_pool, sizeof(NFANode), _Alignof(NFANode));
     // memory allocation with Parser...node is released with parser
     NFANode * subnfa = (NFANode *)Parser_add_node(parser, (Rule *)prod, node->token_start, node->token_end, 0, 0, sizeof(NFANode));
     *subnfa = (NFANode) {.node = *node, .start = start, .final = final};
@@ -76,7 +59,7 @@ ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
 }
 
 NFATransition * re_build_empty_transition(RegexBuilder * reb, NFAState * start, NFAState * final) {
-    NFATransition * trans = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(NFATransition), _Alignof(NFATransition));
+    NFATransition * trans = MemPoolManager_aligned_alloc(reb->nfa->nfa_pool, sizeof(NFATransition), _Alignof(NFATransition));
     *trans = (NFATransition) {.final = final, .start = start, .next_in = final->in, .next_out = start->out, .symbol= &empty_symbol};
     final->in = trans;
     final->n_in++;
@@ -91,10 +74,10 @@ ASTNode * re_build_choice(Production * prod, Parser * parser, ASTNode * node) {
     }
 
     RegexBuilder * reb = (RegexBuilder *)parser;
-    NFAState * final = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(NFAState), _Alignof(NFAState));
-    NFAState * start = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(NFAState), _Alignof(NFAState));
-    *start = (NFAState) {0};
-    *final = (NFAState) {0};
+    NFAState * final = NFA_new_state(reb->nfa);
+    NFAState * start = NFA_new_state(reb->nfa);
+    *start = (NFAState) {.id = start->id};
+    *final = (NFAState) {.id = final->id};
 
     size_t i = node->nchildren;
     //NFATransition * cur_trans = NULL;
@@ -141,10 +124,10 @@ ASTNode * re_build_sequence(Production * prod, Parser * parser, ASTNode * node) 
 
 ASTNode * re_build_optional(Production * prod, Parser * parser, ASTNode * node) {
     RegexBuilder * reb = (RegexBuilder *)parser;
-    NFAState * final = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(NFAState), _Alignof(NFAState));
-    NFAState * start = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(NFAState), _Alignof(NFAState));
-    *final = (NFAState){0};
-    *start = (NFAState){0};
+    NFAState * final = NFA_new_state(reb->nfa);
+    NFAState * start = NFA_new_state(reb->nfa);
+    *start = (NFAState) {.id = start->id};
+    *final = (NFAState) {.id = final->id};
     NFANode * subnfa = (NFANode *)node->children[0];
     re_build_empty_transition(reb, start, final);
     re_build_empty_transition(reb, start, subnfa->start);
@@ -158,10 +141,10 @@ ASTNode * re_build_optional(Production * prod, Parser * parser, ASTNode * node) 
 
 ASTNode * re_build_kleene(Production * prod, Parser * parser, ASTNode * node) {
     RegexBuilder * reb = (RegexBuilder *)parser;
-    NFAState * final = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(NFAState), _Alignof(NFAState));
-    NFAState * start = MemPoolManager_aligned_alloc(reb->nfa->pool, sizeof(NFAState), _Alignof(NFAState));
-    *final = (NFAState){0};
-    *start = (NFAState){0};
+    NFAState * final = NFA_new_state(reb->nfa);
+    NFAState * start = NFA_new_state(reb->nfa);
+    *start = (NFAState) {.id = start->id};
+    *final = (NFAState) {.id = final->id};
     NFANode * subnfa = (NFANode *)node->children[0];
     re_build_empty_transition(reb, start, final);
     re_build_empty_transition(reb, start, subnfa->start);
@@ -241,7 +224,7 @@ char * RegexBuilder_realloc_buffer(RegexBuilder * reb, char * buf, size_t * buf_
     if (new_size <= *buf_len) {
         return buf;
     }
-    char * new_buf = MemPoolManager_malloc(reb->nfa->pool, new_size * sizeof(*buf));
+    char * new_buf = MemPoolManager_malloc(reb->nfa->nfa_pool, new_size * sizeof(*buf));
     if (!new_buf) {
         return buf;
     }
@@ -278,8 +261,10 @@ char * RegexBuilder_preprocess_repeat(RegexBuilder * reb, char * buf, size_t * b
 }
 
 void RegexBuilder_preprocess(RegexBuilder * reb, char const * regex_s, size_t regex_len) {
+    reb->nfa->regex_s = regex_s;
+    reb->nfa->regex_len = regex_len;
     size_t buf_len = regex_len * 2; // allocate 2x times the size
-    char * buf = MemPoolManager_malloc(reb->nfa->pool, buf_len * sizeof(*buf));
+    char * buf = MemPoolManager_malloc(reb->nfa->nfa_pool, buf_len * sizeof(*buf));
     size_t i = 0, j = 0;
     while (i < regex_len) {
         size_t write = i;
@@ -365,22 +350,34 @@ void RegexBuilder_preprocess(RegexBuilder * reb, char const * regex_s, size_t re
             j += snprintf(buf + j, buf_len - j, "%.*s*", (int)(regex_s - start + i), start);
         }
     }
-    reb->nfa->regex_s = buf;
-    reb->nfa->regex_len = j;
+    reb->nfa->regex_s_pp = buf;
+    reb->nfa->regex_len_pp = j;
 }
 
-void RegexBuilder_init(RegexBuilder * reb, reNFA * nfa) {
+void RegexBuilder_init(RegexBuilder * reb, NFA * nfa) {
     // build and initialize an empy symbol transition
     Parser_init(&reb->parser, (Rule *)&re_token, (Rule *)&re_re, RE_NRULES, 0);
     Parser_set_log_file((Parser *)reb, "re.log", LOG_LEVEL_DEBUG);
     reb->nfa = nfa;
 }
 
-reNFA * RegexBuilder_build(RegexBuilder * reb, char const * regex_in, size_t regex_in_len) {
+NFA * RegexBuilder_build_NFA(RegexBuilder * reb, char const * regex_in, size_t regex_in_len) {
     RegexBuilder_preprocess(reb, regex_in, regex_in_len);
-    Parser_parse(&reb->parser, reb->nfa->regex_s, reb->nfa->regex_len);
+    Parser_parse(&reb->parser, reb->nfa->regex_s_pp, reb->nfa->regex_len_pp);
     //Parser_print_ast((Parser *)reb, stdout); infinite loop somewhere. need to reset children somehow
     return reb->nfa;
+}
+
+int RegexBuilder_build(RegexBuilder * reb, char const * regex_s, size_t regex_len, DFA * dfa) {
+    NFA * nfa_old = reb->nfa;
+    NFA nfa;
+    NFA_init(&nfa);
+    reb->nfa = &nfa;
+    RegexBuilder_build_NFA(reb, regex_s, regex_len);
+    int status = NFA_to_DFA(&nfa, dfa);
+    reb->nfa = nfa_old;
+    NFA_dest(&nfa);
+    return status;
 }
 
 // the nfa remains!

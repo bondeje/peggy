@@ -4,7 +4,7 @@
 #include "test_utils.h"
 #include "test_re_utils.h"
 
-int check_Symbol(reSymbol * sym, char const * str, size_t len) {
+int check_Symbol(Symbol * sym, char const * str, size_t len) {
     int nerrors = 0;
     nerrors += CHECK(sym->sym_len == len, "symbol length mismatch. expected: %zu, found: %zu\n", sym->sym_len, len);
     nerrors += CHECK(!strncmp(sym->sym, str, len), "symbol mismatch. expected: %.*s, found: %.*s\n", (int)len, str, (int)sym->sym_len, sym->sym);
@@ -29,7 +29,7 @@ int check_State(NFAState * state, TestState ** ref_states, size_t ref_cur) {
 
 
 #define MAX_STATES 1024
-int check_NFA(reNFA * nfa, TestState ** ref_states) {
+int check_NFA(NFA * nfa, TestState ** ref_states) {
     int nerrors = 0;
     size_t ref_cur = 0;
     size_t ref_stack[MAX_STATES] = {0};

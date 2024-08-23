@@ -144,10 +144,10 @@ typedef struct HASH_PAIR {
 } HASH_PAIR;
 
 // to allow calculation of alignment pre-C11
-#if __STDC_VERSION__ < 201112L && !defined(_Alignof)
-struct CAT(HASH_PAIR,_OFFSET) {
+#if __STDC_VERSION__ < 201112L
+struct CAT(HASH_PAIR,_ALIGNMENT) {
 	char a;
-	HASH_PAIR b;
+	HASH_PAIR HASH_PAIR;
 };
 #endif
 
@@ -452,7 +452,7 @@ static hash_map_err CAT(HASH_COMBO, _init)(HASH_MAP_TYPE * map, size_t init_capa
     map->capacity = 0;
     map->fill = 0;
 #if __STDC_VERSION__ < 201112L && !defined(_Alignof)
-	map->pair_mgr = MemPoolManager_new(HASH_PAIR_POOL_COUNT, sizeof(HASH_PAIR), offsetof(struct  CAT(HASH_PAIR,_OFFSET), b));
+	map->pair_mgr = MemPoolManager_new(HASH_PAIR_POOL_COUNT, sizeof(HASH_PAIR), offsetof(struct  CAT(HASH_PAIR,_ALIGNMENT), HASH_PAIR));
 #else
     map->pair_mgr = MemPoolManager_new(HASH_PAIR_POOL_COUNT, sizeof(HASH_PAIR), _Alignof(HASH_PAIR));
 #endif

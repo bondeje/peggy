@@ -5,11 +5,12 @@
 
 #include "re.h"
 #include "reutils.h"
-#include "reNFA.h"
+#include "nfa.h"
+#include "dfa.h"
 
 typedef struct RegexBuilder {
     Parser parser;
-    reNFA * nfa; // nfa is built while parser
+    NFA * nfa; // nfa is built while parser
 } RegexBuilder;
 
 typedef struct NFANode {
@@ -35,8 +36,9 @@ char * RegexBuilder_preprocess_repeatopt(RegexBuilder * reb, char * buf, size_t 
 char * RegexBuilder_preprocess_repeat(RegexBuilder * reb, char * buf, size_t * buf_len, char const * base, size_t base_length, size_t nrepeats, size_t * loc);
 void RegexBuilder_preprocess(RegexBuilder * reb, char const * regex_s, size_t regex_len);
 
-void RegexBuilder_init(RegexBuilder * reb, reNFA * nfa);
-reNFA * RegexBuilder_build(RegexBuilder * reb, char const * regex_s, size_t regex_len);
+void RegexBuilder_init(RegexBuilder * reb, NFA * nfa);
+NFA * RegexBuilder_build_NFA(RegexBuilder * reb, char const * regex_s, size_t regex_len);
+int RegexBuilder_build(RegexBuilder * reb, char const * regex_s, size_t regex_len, DFA * dfa);
 void RegexBuilder_dest(RegexBuilder * reb);
 
 #endif

@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#include "reNFA.h"
+#include "NFA.h"
 
 typedef struct TestTransition {
     char const * symbol;
@@ -31,4 +31,4 @@ int check_Transition(NFATransition * trans, TestTransition * ref_trans, size_t r
 
 int check_State(NFAState * state, TestState ** ref_states, size_t ref_cur);
 
-int check_NFA(reNFA * nfa, TestState ** ref_states);
+int check_NFA(NFA * nfa, TestState ** ref_states);

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "reNFA.h"
+#include "nfa.h"
 #include "reparser.h"
 #include "peggy/mempool.h"
 #include "test_utils.h"
@@ -257,7 +257,7 @@ struct TestState ** TEST_REGEX_NFA[] = {
     &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("abc", 3, 1)), 
                             &TEST_STATE(1, 0, NULL)}[0],
     //"[^abc]"
-    &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("^abc", 4, 1)), 
+    &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("abc", 3, 1)), 
                             &TEST_STATE(1, 0, NULL)}[0],
     //"[a-c]"
     &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("a-c", 3, 1)), 
@@ -281,8 +281,8 @@ struct TestState ** TEST_REGEX_NFA[] = {
 int test_preprocess(void) {
     int nerrors = 0;
 
-    reNFA nfa;
-    reNFA_init(&nfa);
+    NFA nfa;
+    NFA_init(&nfa);
     RegexBuilder reb;
     RegexBuilder_init(&reb, &nfa);
 
@@ -291,14 +291,14 @@ int test_preprocess(void) {
         size_t len = strlen(TEST_REGEX[i]);
         RegexBuilder_preprocess(&reb, TEST_REGEX[i], len);
         size_t res_len = strlen(TEST_REGEX_PP[i]);
-        int nerrors_i = CHECK(res_len == nfa.regex_len, "preprocessed regex does not match length %.*s. expected: %zu, found: %zu\n", (int)res_len, TEST_REGEX_PP[i], res_len, nfa.regex_len);
+        int nerrors_i = CHECK(res_len == nfa.regex_len_pp, "preprocessed regex does not match length %.*s. expected: %zu, found: %zu\n", (int)res_len, TEST_REGEX_PP[i], res_len, nfa.regex_len_pp);
         //if (!nerrors_i) {
-            nerrors += nerrors_i + CHECK(!strncmp(nfa.regex_s, TEST_REGEX_PP[i], len), "preprocessed regex does not match. expected: (%zu)%.*s, found: (%zu)%.*s\n", res_len, (int)res_len, TEST_REGEX_PP[i], (int)nfa.regex_len, (int)nfa.regex_len, nfa.regex_s);
+            nerrors += nerrors_i + CHECK(!strncmp(nfa.regex_s_pp, TEST_REGEX_PP[i], len), "preprocessed regex does not match. expected: (%zu)%.*s, found: (%zu)%.*s\n", res_len, (int)res_len, TEST_REGEX_PP[i], (int)nfa.regex_len_pp, (int)nfa.regex_len_pp, nfa.regex_s_pp);
         //}
         i++;
     }
 
-    reNFA_dest(&nfa);
+    NFA_dest(&nfa);
     RegexBuilder_dest(&reb);
     if (verbose) {
         printf("%s...%s with %d errors!\n", __func__, nerrors ? "failed" : "passed", nerrors);
@@ -309,21 +309,21 @@ int test_preprocess(void) {
 int test_NFA(void) {
     int nerrors = 0;
 
-    reNFA nfa;
+    NFA nfa;
     RegexBuilder reb;
     size_t j = 0;
     size_t i = 0;
     while (TEST_REGEX_NFA[i]) {
         RegexBuilder_init(&reb, &nfa);
-        reNFA_init(&nfa);
+        NFA_init(&nfa);
         if (!strncmp(TEST_REGEX[i], "(a|b)*abb", strlen(TEST_REGEX[i]))) {
             j = 1;
         }
         size_t regex_len = strlen(TEST_REGEX[i]);
-        RegexBuilder_build(&reb, TEST_REGEX[i], regex_len);
+        RegexBuilder_build_NFA(&reb, TEST_REGEX[i], regex_len);
         nerrors += check_NFA(&nfa, TEST_REGEX_NFA[i]);
         i++;
-        reNFA_dest(&nfa);
+        NFA_dest(&nfa);
         RegexBuilder_dest(&reb);
     }
 
