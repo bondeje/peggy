@@ -1,7 +1,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#include "NFA.h"
+#include "nfa.h"
+#include "dfa.h"
+#include "avram.h"
 
 typedef struct TestTransition {
     char const * symbol;
@@ -14,6 +16,12 @@ typedef struct TestState {
     size_t n_out;
     struct TestTransition ** t_out;
 } TestState;
+
+typedef struct TestString {
+    struct MatchString match;
+    char const * cstr;
+    unsigned int flags;
+} TestString;
 
 #define TEST_TRANSITION(symbol_, symbol_len_, state_end_) (struct TestTransition){ \
     .symbol = symbol_, \
@@ -32,3 +40,5 @@ int check_Transition(NFATransition * trans, TestTransition * ref_trans, size_t r
 int check_State(NFAState * state, TestState ** ref_states, size_t ref_cur);
 
 int check_NFA(NFA * nfa, TestState ** ref_states);
+
+int check_regex(DFA * dfa, TestString * test);

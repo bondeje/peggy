@@ -1,7 +1,23 @@
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "peggy/hash_utils.h"
 #include "thompson.h"
+
+#define STATE_BUF_TYPE unsigned char
+#define STATE_BUF_TYPE_LOG2 3
+typedef struct StateSet {
+    STATE_BUF_TYPE * states;
+    size_t states_size;             // this is the size of the array states, not the number of states
+} StateSet;
+
+#define StateSet_set(pStateSet, id) \
+    ((pStateSet)->states[id >> STATE_BUF_TYPE_LOG2] |= (1 << (id % sizeof(STATE_BUF_TYPE))))
+
+#define StateSet_is_set(pStateSet, id) \
+    (((pStateSet)->states[id >> STATE_BUF_TYPE_LOG2] & (1 << (id % sizeof(STATE_BUF_TYPE)))) != 0)
+
 
 void StateSet_clear(StateSet * set) {
     for (size_t i = 0; i < set->states_size; i++) {
@@ -191,7 +207,6 @@ int NFA_to_DFA(NFA * nfa, DFA * dfa) {
 
     // initialize dfa and regex reference
     *dfa = (DFA) {
-        .flags = nfa->flags,
         .pool = MemPoolManager_new(nfa->nstates >> 1, sizeof(DFAState), _Alignof(DFAState)),
         .regex_len = nfa->regex_len,
         .regex_s = nfa->regex_s
@@ -230,7 +245,7 @@ int NFA_to_DFA(NFA * nfa, DFA * dfa) {
     while (dfa_index < dfa_states.fill /* there is another state to process in dfa */) {
         DFAState_map * dfa_state_item = dfa_states.bins + dfa_index;
         // increment processing state
-        for (size_t i = 0; i < dfa->nsymbols; i++) {
+        for (int i = 0; i < dfa->nsymbols; i++) {
             // U = e-closure(move(T, a))
             StateSet a_trans;
             StateSet_init(&a_trans, nfa->nstates);

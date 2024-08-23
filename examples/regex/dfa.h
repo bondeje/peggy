@@ -26,22 +26,24 @@ BUILD_ALIGNMENT_STRUCT(DFATransition)
 
 // regex structures would be a copy of the singleton constructed from this
 struct DFA {
-    Symbol * symbols;       // list of symbols in DFA language. owned by DFA if pool is non-null
-    size_t nsymbols;        // number of symbols, also capacity
-    DFAState * states;      // list of states in DFA. owned by DFA if pool is non-null
-    size_t nstates;         // number of states, also capacity. NOTE: regex has to keep track of current one
-    char const * regex_s;   // this is just for convenience. owned by DFA if pool is non-null
-    size_t regex_len;       // this is just for convenience.
     MemPoolManager * pool;  // pool for all allocated data in dfa. if null, symbols and states are not owned by DFA
-
-    // these should be for regex struct, not DFA
-    char * buffer;          // buffer of characters passed to DFA
-    size_t ibuffer;         // location of cursor in buffer
-    size_t buffer_size;     // size of buffer
-    size_t start;           // start of match
-    size_t end;             // end of match (one past)
-    unsigned int flags;     // flags for operation of the DFA. flags should account for the properties of the buffer (user provided)
+    Symbol * symbols;       // list of symbols in DFA language. owned by DFA if pool is non-null
+    DFAState * states;      // list of states in DFA. owned by DFA if pool is non-null
+    char const * regex_s;   // this is just for convenience. owned by DFA if pool is non-null
+    int regex_len;          // this is just for convenience.
+    int nstates;            // number of states, also capacity. NOTE: regex has to keep track of current one    
+    int nsymbols;           // number of symbols, also capacity
 };
+
+// takes DFA and index and returns a const pointer to a state
+#define DFA_get_state(pDFA, index) ((DFAState const *)((pDFA)->states + (index)))
+
+// an out-of bounds is an accepting state that is an internal error
+#define DFA_is_accepting(pDFA, index) ((pDFA)->states + index)->accepting
+
+// returns 0 on success, else error
+int DFA_check(DFAState const * cur_state, char const * str, int const len, int * final);
+void DFA_dest(DFA * dfa);
 
 #endif
 

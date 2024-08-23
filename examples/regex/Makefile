@@ -16,7 +16,7 @@ IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/inc
 LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
 LFLAGS_TEST = '-Wl,-rpath,$$ORIGIN/../../bin' -L$(BIN_DIR) -lpeggy
 
-EXE_SRCS = re.c reparser.c nfa.c ../../lib/TypeMemPools/src/mempool.c thompson.c
+EXE_SRCS = re.c reparser.c nfa.c ../../lib/TypeMemPools/src/mempool.c thompson.c dfa.c avram.c
 TEST_SRCS = test.c test_utils.c test_re_utils.c
 
 all: $(BIN_DIR)/regex

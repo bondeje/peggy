@@ -70,3 +70,22 @@ int check_NFA(NFA * nfa, TestState ** ref_states) {
     return nerrors;
 }
 
+// eventually switch this to fully testing the regex from an element of TEST_REGEX[]
+int check_regex(DFA * dfa, TestString * test) {
+    int nerrors = 0;
+    static char buffer[1024] = {'\0'};
+    struct avramT3 av = {.buffer = buffer, .buffer_size = 1024, .dfa = *dfa, .flags = test->flags, .end = -1};
+    int status = are_match(&av, test->cstr, strlen(test->cstr), 0);
+    if (test->match.str) {
+        nerrors += CHECK(!(status < test->match.len || status > test->match.len), "does not match expected length for input %s. expected: %d, found %d\n", test->cstr, test->match.len, status);
+        if (!nerrors) {
+            struct MatchString match;
+            are_get_match(&av, &match, NULL);
+            nerrors += CHECK(!strncmp(match.str, test->match.str, test->match.len), "unexpected match value for input %s. expected: %.*s, found: %.*s\n", test->cstr, test->match.len, test->match.str, match.len, match.str);
+        }
+    } else {
+        nerrors += CHECK(status == -REGEX_FAIL, "unexpected status of failure test. expected: %d, found %d\n", -REGEX_FAIL, status);
+    }
+    return nerrors;
+}
+

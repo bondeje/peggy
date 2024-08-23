@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "nfa.h"
+#include "dfa.h"
+#include "avram.h"
 #include "reparser.h"
 #include "peggy/mempool.h"
 #include "test_utils.h"
@@ -76,12 +78,16 @@ char const * TEST_REGEX_PP[] = {
 
 struct TestState ** TEST_REGEX_NFA[] = {
     //"a"
-    &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("a", 1, 1)), 
-                            &TEST_STATE(1, 0, NULL)}[0],
+    &(struct TestState *[]){
+        &TEST_STATE(0, 1, &TEST_TRANSITION("a", 1, 1)), 
+        &TEST_STATE(1, 0, NULL)
+    }[0],
     //"ab"
-    &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("a", 1, 1)), 
-                            &TEST_STATE(1, 1, &TEST_TRANSITION("b", 1, 2)), 
-                            &TEST_STATE(1, 0, NULL)}[0],
+    &(struct TestState *[]){
+        &TEST_STATE(0, 1, &TEST_TRANSITION("a", 1, 1)), 
+        &TEST_STATE(1, 1, &TEST_TRANSITION("b", 1, 2)), 
+        &TEST_STATE(1, 0, NULL)
+    }[0],
     //"a|b"
     &(struct TestState *[]){&TEST_STATE(0, 2, &TEST_TRANSITION("", 0, 1), &TEST_TRANSITION("", 0, 2)), 
                             &TEST_STATE(1, 1, &TEST_TRANSITION("a", 1, 3)), 
@@ -245,14 +251,16 @@ struct TestState ** TEST_REGEX_NFA[] = {
                             &TEST_STATE(1, 1, &TEST_TRANSITION("+", 1, 4)), 
                             &TEST_STATE(1, 0, NULL)}[0],
     //"a(bc)+"
-    &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("a", 1, 1)),
-                            &TEST_STATE(1, 1, &TEST_TRANSITION("b", 1, 2)), 
-                            &TEST_STATE(1, 1, &TEST_TRANSITION("c", 1, 3)), 
-                            &TEST_STATE(1, 2, &TEST_TRANSITION("", 0, 4), &TEST_TRANSITION("", 0, 7)), 
-                            &TEST_STATE(2, 1, &TEST_TRANSITION("b", 1, 5)), 
-                            &TEST_STATE(1, 1, &TEST_TRANSITION("c", 1, 6)), 
-                            &TEST_STATE(1, 2, &TEST_TRANSITION("", 0, 4), &TEST_TRANSITION("", 0, 7)), 
-                            &TEST_STATE(2, 0, NULL)}[0],
+    &(struct TestState *[]){
+        &TEST_STATE(0, 1, &TEST_TRANSITION("a", 1, 1)),
+        &TEST_STATE(1, 1, &TEST_TRANSITION("b", 1, 2)), 
+        &TEST_STATE(1, 1, &TEST_TRANSITION("c", 1, 3)), 
+        &TEST_STATE(1, 2, &TEST_TRANSITION("", 0, 4), &TEST_TRANSITION("", 0, 7)), 
+        &TEST_STATE(2, 1, &TEST_TRANSITION("b", 1, 5)), 
+        &TEST_STATE(1, 1, &TEST_TRANSITION("c", 1, 6)), 
+        &TEST_STATE(1, 2, &TEST_TRANSITION("", 0, 4), &TEST_TRANSITION("", 0, 7)), 
+        &TEST_STATE(2, 0, NULL)
+    }[0],
     //"[abc]"
     &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("abc", 3, 1)), 
                             &TEST_STATE(1, 0, NULL)}[0],
@@ -276,6 +284,124 @@ struct TestState ** TEST_REGEX_NFA[] = {
                             &TEST_STATE(1, 1, &TEST_TRANSITION("b", 1, 10)),
                             &TEST_STATE(1, 0, NULL)}[0],
     NULL
+};
+
+// don't actually need to fill out the symbols
+DFA * TEST_REGEX_DFA[] = {
+    // "a"
+    &(DFA){.nstates = 2, .nsymbols = 1, .regex_s = "a", .regex_len = 1,
+        .states = &(DFAState[]){
+            {
+                .trans = &(DFATransition) {
+                    .final_state = 1, 
+                    .next = NULL, 
+                    .sym = &(Symbol){
+                        .sym = "a", 
+                        .sym_len = 1, 
+                        .match = reChar_match
+                    }
+                }
+            },
+            {
+                .trans = NULL,
+                .accepting = true
+            }
+        }[0]
+    },
+    // "ab"
+    &(DFA){.nstates = 3, .nsymbols = 2, .regex_s = "ab", .regex_len = 2,
+        .states = &(DFAState[]){
+            {
+                .trans = &(DFATransition) {
+                    .final_state = 1, 
+                    .next = NULL, 
+                    .sym = &(Symbol){
+                        .sym = "a", 
+                        .sym_len = 1, 
+                        .match = reChar_match
+                    }
+                }
+            },
+            {
+                .trans = &(DFATransition) {
+                    .final_state = 2, 
+                    .next = NULL, 
+                    .sym = &(Symbol){
+                        .sym = "b", 
+                        .sym_len = 1, 
+                        .match = reChar_match
+                    }
+                }
+            },
+            {
+                .trans = NULL,
+                .accepting = true
+            }
+        }[0]
+    },
+    // "a|b"
+    &(DFA){.nstates = 3, .nsymbols = 2, .regex_s = "ab", .regex_len = 2,
+        .states = &(DFAState[]){
+            {
+                .trans = &(DFATransition) {
+                    .final_state = 1, 
+                    .next = &(DFATransition) {
+                        .final_state = 2, 
+                        .next = NULL, 
+                        .sym = &(Symbol){
+                            .sym = "b", 
+                            .sym_len = 1, 
+                            .match = reChar_match
+                        }
+                    }, 
+                    .sym = &(Symbol){
+                        .sym = "a", 
+                        .sym_len = 1, 
+                        .match = reChar_match
+                    }
+                }
+            },
+            {
+                .trans = NULL,
+                .accepting = true
+            },
+            {
+                .trans = NULL,
+                .accepting = true
+            }
+        }[0]
+    },
+    NULL
+};
+
+TestString * TEST_REGEX_STRINGS[] = {
+    // "a"
+    &(TestString[]){
+        {.cstr = "a", .match = {.len = 1, .str = "a"}},
+        {.cstr = "ab", .match = {.len = 1, .str = "a"}},
+        {.cstr = "ba", .match = {.len = 0, .str = NULL}},
+        {.cstr = "a", .match = {.len = 1, .str = "a"}},
+        {.cstr = NULL},
+    }[0],
+    // "b"
+    &(TestString[]){
+        {.cstr = "a", .match = {.len = 0, .str = NULL}},
+        {.cstr = "ab", .match = {.len = 2, .str = "ab"}},
+        {.cstr = "ba", .match = {.len = 0, .str = NULL}},
+        {.cstr = "aba", .match = {.len = 2, .str = "ab"}},
+        {.cstr = "abab", .match = {.len = 2, .str = "ab"}},
+        {.cstr = NULL},
+    }[0],
+    // "a|b"
+    &(TestString[]){
+        {.cstr = "a", .match = {.len = 1, .str = "a"}},
+        {.cstr = "b", .match = {.len = 1, .str = "b"}},
+        {.cstr = "c", .match = {.len = 0, .str = NULL}},
+        {.cstr = "ab", .match = {.len = 1, .str = "a"}},
+        {.cstr = "ba", .match = {.len = 1, .str = "b"}},
+        {.cstr = NULL},
+    }[0],
+    (TestString *)NULL
 };
 
 int test_preprocess(void) {
@@ -333,6 +459,25 @@ int test_NFA(void) {
     return nerrors;
 }
 
+int test_regex(void) {
+    int nerrors = 0;
+
+    size_t i = 0;
+    while (TEST_REGEX_DFA[i] && TEST_REGEX_STRINGS[i]) {
+        size_t j = 0;
+        while (TEST_REGEX_STRINGS[i][j].cstr) {
+            nerrors += check_regex(TEST_REGEX_DFA[i], TEST_REGEX_STRINGS[i] + j);
+            j++;
+        }
+        i++;
+    }
+
+    if (verbose) {
+        printf("%s...%s with %d errors!\n", __func__, nerrors ? "failed" : "passed", nerrors);
+    }
+    return nerrors;
+}
+
 int main(int narg, char ** args) {
 
     if (narg > 1) {
@@ -343,6 +488,7 @@ int main(int narg, char ** args) {
 
     test_preprocess();
     test_NFA();
+    test_regex();
 
     return 0;
 }
