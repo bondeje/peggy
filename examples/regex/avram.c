@@ -44,13 +44,15 @@ int are_match(struct avramT3 * av, const char * string, const int size,
     int status = REGEX_WAIT;
     while (cur < size && (status = are_update(av, string + cur++, 1)) >= REGEX_WAIT) {
     }
-    if (status >= REGEX_WAIT) {
+    if (status == REGEX_WAIT) { // match never found but did not fail
         return -REGEX_FAIL;
+    } else if (status == REGEX_WAIT_MATCH || status <= 0) { // match is successful but not necessarily on last input
+        struct MatchString match;
+        are_get_match(av, &match, NULL);
+        return match.len;
     }
-    if (status > 0) {
-        return -status;
-    }
-    return cur + status - start;
+    // error or fail found
+    return -status;
 }
 
 static inline int av_push_buffer(struct avramT3 * av, const char * string, const int size) {
@@ -85,9 +87,13 @@ int are_update(struct avramT3 * av, const char * string, const int size) {
     }
     if (DFA_is_accepting((DFA *)av, av->cur_state)) {
         av->end = av->ibuffer;
-        if (!(av->flags & REGEX_GREEDY)) {
+        if (!DFA_get_state((DFA *)av, av->cur_state)->trans || (av->flags & REGEX_NO_GREEDY)) { // NOTE: not sure this is really correct for "REGEX_NO_GREEDY"
             return REGEX_MATCH;
+        } else {
+            return REGEX_WAIT_MATCH;
         }
+    } else if (0 <= av->end) {
+        return REGEX_WAIT_MATCH;
     }
     return REGEX_WAIT;
 }
