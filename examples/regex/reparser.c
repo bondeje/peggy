@@ -21,21 +21,39 @@ ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
     RegexBuilder * reb = (RegexBuilder *)parser;
     // build a new symbol
     Symbol * new_sym;
-    if (node->rule->id == CHAR_CLASS) {
-        char const * sym = node->children[2]->token_start->string;
-        unsigned char len = (unsigned char)(node->children[3]->token_start->string - sym);
-        new_sym = NFA_get_symbol(reb->nfa, sym, len);
-        if (node->children[1]->nchildren) {
-            new_sym->match = reCharClass_inv_match;
-        } else {
-            new_sym->match = reCharClass_match;
+    switch (node->rule->id) {
+        case CHAR_CLASS: {
+            char const * sym = node->children[2]->token_start->string;
+            unsigned char len = (unsigned char)(node->children[3]->token_start->string - sym);
+            new_sym = NFA_get_symbol(reb->nfa, sym, len);
+            if (node->children[1]->nchildren) {
+                new_sym->match = reCharClass_inv_match;
+            } else {
+                new_sym->match = reCharClass_match;
+            }
+            break;
         }
-    } else if (node->rule->id == CHARACTER) { // single_char
-        new_sym = NFA_get_symbol(reb->nfa, node->token_start->string, 1);
-        new_sym->match = reChar_match;
-    } else { // escaped char
-        new_sym = NFA_get_symbol(reb->nfa, node->children[1]->token_start->string, 1);
-        new_sym->match = reChar_match;
+        case PERIOD: {
+            if (reb->nfa->flags | REGEX_DOT_NEWLINE) {
+                new_sym = &sym_any;
+            } else {
+                new_sym = &sym_any_nonl;
+            }
+            break;
+        }
+        case DOLLAR: {
+            new_sym = &sym_eos;
+            break;
+        }
+        case CHARACTER: {
+            new_sym = NFA_get_symbol(reb->nfa, node->token_start->string, 1);
+            new_sym->match = reChar_match;
+            break;
+        }
+        default: {
+            new_sym = NFA_get_symbol(reb->nfa, node->children[1]->token_start->string, 1);
+            new_sym->match = reChar_match;
+        }
     }
 
     NFATransition * trans = NFA_new_transition(reb->nfa);
@@ -60,7 +78,7 @@ ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
 
 NFATransition * re_build_empty_transition(RegexBuilder * reb, NFAState * start, NFAState * final) {
     NFATransition * trans = MemPoolManager_aligned_alloc(reb->nfa->nfa_pool, sizeof(NFATransition), _Alignof(NFATransition));
-    *trans = (NFATransition) {.final = final, .start = start, .next_in = final->in, .next_out = start->out, .symbol= &empty_symbol};
+    *trans = (NFATransition) {.final = final, .start = start, .next_in = final->in, .next_out = start->out, .symbol= &sym_empty};
     final->in = trans;
     final->n_in++;
     start->out = trans;

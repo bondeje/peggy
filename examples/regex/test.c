@@ -362,13 +362,13 @@ DFA * TEST_REGEX_DFA[] = {
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
-                    .final_state = 1, 
+                    .final_state = 2, 
                     .next = &(DFATransition) {
-                        .final_state = 2, 
+                        .final_state = 1, 
                         .next = NULL, 
-                        .sym = &sym_b
+                        .sym = &sym_a
                     }, 
-                    .sym = &sym_a
+                    .sym = &sym_b
                 }
             },
             {
@@ -818,7 +818,7 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc){0,0}" // NOTE: this DFA is reducible. The [2] DFAState is essentially identical to [1]. When I am able to reduce states, this should be fixed
-    &(DFA){.nstates = 4, .nsymbols = 2, .regex_s = "a(bc){0,0}", .regex_len = 10,
+    &(DFA){.nstates = 4, .nsymbols = 3, .regex_s = "a(bc){0,0}", .regex_len = 10,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -1268,55 +1268,55 @@ DFA * TEST_REGEX_DFA[] = {
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
-                    .final_state = 1, 
-                    .sym = &sym_a,
+                    .final_state = 2, 
+                    .sym = &sym_b,
                     .next = &(DFATransition) {
-                            .final_state = 2, 
-                            .sym = &sym_b,
+                            .final_state = 1, 
+                            .sym = &sym_a,
                             .next = NULL, 
                         }, 
                 }
             },
             {
                 .trans = &(DFATransition) {
-                    .final_state = 1, 
-                    .sym = &sym_a,
+                    .final_state = 3, 
+                    .sym = &sym_b,
                     .next = &(DFATransition) {
-                            .final_state = 3, 
-                            .sym = &sym_b,
+                            .final_state = 1, 
+                            .sym = &sym_a,
                             .next = NULL, 
                         }, 
                 }
             },
             {
                 .trans = &(DFATransition) {
-                    .final_state = 1, 
-                    .sym = &sym_a,
+                    .final_state = 2, 
+                    .sym = &sym_b,
                     .next = &(DFATransition) {
-                            .final_state = 2, 
-                            .sym = &sym_b,
+                            .final_state = 1, 
+                            .sym = &sym_a,
                             .next = NULL, 
                         }, 
                 }
             },
             {
                 .trans = &(DFATransition) {
-                    .final_state = 1, 
-                    .sym = &sym_a,
+                    .final_state = 4, 
+                    .sym = &sym_b,
                     .next = &(DFATransition) {
-                            .final_state = 4, 
-                            .sym = &sym_b,
+                            .final_state = 1, 
+                            .sym = &sym_a,
                             .next = NULL, 
                         }, 
                 }
             },
             {
                 .trans = &(DFATransition) {
-                    .final_state = 1, 
-                    .sym = &sym_a,
+                    .final_state = 2, 
+                    .sym = &sym_b,
                     .next = &(DFATransition) {
-                            .final_state = 2, 
-                            .sym = &sym_b,
+                            .final_state = 1, 
+                            .sym = &sym_a,
                             .next = NULL, 
                         }, 
                 },
@@ -1350,11 +1350,11 @@ DFA * TEST_REGEX_DFA[] = {
             },
             {
                 .trans = &(DFATransition) {
-                    .final_state = 4, 
-                    .sym = &sym_a,
+                    .final_state = 5, 
+                    .sym = &sym_b,
                     .next = &(DFATransition) {
-                            .final_state = 5, 
-                            .sym = &sym_b,
+                            .final_state = 4, 
+                            .sym = &sym_a,
                             .next = NULL, 
                         }, 
                 },
@@ -1362,11 +1362,11 @@ DFA * TEST_REGEX_DFA[] = {
             },
             {
                 .trans = &(DFATransition) {
-                    .final_state = 4, 
-                    .sym = &sym_a,
+                    .final_state = 5, 
+                    .sym = &sym_b,
                     .next = &(DFATransition) {
-                            .final_state = 5, 
-                            .sym = &sym_b,
+                            .final_state = 4, 
+                            .sym = &sym_a,
                             .next = NULL, 
                         }, 
                 },
@@ -1374,11 +1374,11 @@ DFA * TEST_REGEX_DFA[] = {
             },
             {
                 .trans = &(DFATransition) {
-                    .final_state = 4, 
-                    .sym = &sym_a,
+                    .final_state = 5, 
+                    .sym = &sym_b,
                     .next = &(DFATransition) {
-                            .final_state = 5, 
-                            .sym = &sym_b,
+                            .final_state = 4, 
+                            .sym = &sym_a,
                             .next = NULL, 
                         }, 
                 },
@@ -1794,16 +1794,48 @@ int test_NFA(void) {
     return nerrors;
 }
 
+int test_DFA(void) {
+    int nerrors = 0;
+
+    DFA dfa;
+    RegexBuilder reb;
+    size_t i = 0;
+    while (TEST_REGEX[i]) {
+        NFA nfa; // dummy, not used. Need to fix API for RegexBuilder_build. probably just replace with a DFA_init
+        RegexBuilder_init(&reb, &nfa);
+        RegexBuilder_build(&reb, TEST_REGEX[i], strlen(TEST_REGEX[i]), &dfa);
+        if (check_DFA(&dfa, TEST_REGEX_DFA[i])) {
+            printf("errors on DFA with regex: %s\n", TEST_REGEX[i]);
+            nerrors++;
+        }
+        RegexBuilder_dest(&reb);
+        DFA_dest(&dfa);
+        i++;
+    }
+    
+    if (verbose) {
+        printf("%s...%s with %d errors!\n", __func__, nerrors ? "failed" : "passed", nerrors);
+    }
+    return nerrors;
+}
+
 int test_regex(void) {
     int nerrors = 0;
 
     size_t i = 0;
-    while (TEST_REGEX_DFA[i] && TEST_REGEX_STRINGS[i]) {
+    while (TEST_REGEX_STRINGS[i]) {
         size_t j = 0;
+        struct avramT3 av;
+        nerrors += CHECK(!are_compile_pattern(TEST_REGEX[i], strlen(TEST_REGEX[i]), &av, 0), "failed to compile regex pattern: %s\n", TEST_REGEX[i]);
         while (TEST_REGEX_STRINGS[i][j].cstr) {
-            nerrors += check_regex(TEST_REGEX_DFA[i], TEST_REGEX_STRINGS[i] + j);
+            nerrors += check_regex(&av, TEST_REGEX_STRINGS[i] + j);
+            // need to reset av for next regex
+            av.cur_state = 0;
+            av.ibuffer = 0;
+            av.end = -1;
             j++;
         }
+        are_free(&av); // clear buffer memory and DFA
         i++;
     }
 
@@ -1823,7 +1855,9 @@ int main(int narg, char ** args) {
 
     test_preprocess();
     test_NFA();
+    test_DFA();
     test_regex();
 
     return 0;
 }
+

@@ -1,17 +1,8 @@
 #ifndef AVRAM_H
 #define AVRAM_H
 
+#include "reutils.h"
 #include "dfa.h"
-
-#define REGEX_ALLOC_BUFFER 1
-#define REGEX_ALLOC_BUFFER_SIZE 128
-#define REGEX_NO_GREEDY 2
-
-#define REGEX_MATCH 0
-#define REGEX_FAIL 1
-#define REGEX_ERROR 2
-#define REGEX_WAIT 3
-#define REGEX_WAIT_MATCH 4
 
 struct avramT3 {
     DFA dfa;

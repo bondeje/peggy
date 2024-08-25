@@ -10,7 +10,6 @@ typedef struct NFATransition NFATransition;
 typedef unsigned int NFA_state;
 
 typedef struct Symbol Symbol;
-typedef Symbol * pSymbol;
 typedef Symbol reChar;
 typedef Symbol reCharClass;
 
@@ -40,9 +39,15 @@ BUILD_ALIGNMENT_STRUCT(Symbol)
 // returns positive value on success, 0 on failure
 int reChar_match(Symbol * sym, char const * str);
 int reChar_empty_match(Symbol * sym, char const * str);
+int reChar_any_match(Symbol * sym, char const * str);
+int reChar_any_nonl_match(Symbol * sym, char const * str);
+int reChar_eos_match(Symbol * sym, char const * str);
 
 // file level
-extern struct Symbol empty_symbol;
+extern struct Symbol sym_empty;
+extern struct Symbol sym_any;
+extern struct Symbol sym_any_nonl;
+extern struct Symbol sym_eos;
 
 // internal to char class
 static inline int reRange_match(char const lower, char const upper, char const * str);
@@ -65,6 +70,7 @@ BUILD_ALIGNMENT_STRUCT(NFAState)
 int pSymbol_comp(Symbol * a, Symbol * b);
 size_t pSymbol_hash(Symbol * key, size_t hash);
 
+typedef Symbol * pSymbol; // used for stack and hash_map definitions, not for actual use
 #define KEY_TYPE pSymbol
 #define VALUE_TYPE pSymbol
 #define KEY_COMP pSymbol_comp

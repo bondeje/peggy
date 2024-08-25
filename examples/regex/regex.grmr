@@ -2,7 +2,7 @@ export = re
 import = reparser
 
 punctuator:
-    '*' | '|' | '+' | '.' | '^' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '-' | ','
+    '*' | '|' | '+' | '.' | '^' | '$' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '-' | ','
 
 // characters are any unescaped normal printing characters. cannot be "." else sequence will capture everything
 character:
@@ -25,7 +25,7 @@ nonclass_escape:
 
 // build symbol should just pass the char_class or build character from single_car, which may be recursive
 symbol(re_build_symbol):
-    char_class | re_escape, nonclass_escape | character
+    char_class | re_escape, nonclass_escape | '$' | '.' | character
 
 element(re_pass):
     '(', choice, ')' | symbol

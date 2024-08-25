@@ -70,17 +70,69 @@ int check_NFA(NFA * nfa, TestState ** ref_states) {
     return nerrors;
 }
 
-// eventually switch this to fully testing the regex from an element of TEST_REGEX[]
-int check_regex(DFA * dfa, TestString * test) {
+int check_SymbolMatch(Symbol * uut, Symbol * ref, int i) {
     int nerrors = 0;
-    static char buffer[1024] = {'\0'};
-    struct avramT3 av = {.buffer = buffer, .buffer_size = 1024, .dfa = *dfa, .flags = test->flags, .end = -1};
-    int status = are_match(&av, test->cstr, strlen(test->cstr), 0);
+
+    nerrors += check_Symbol(uut, ref->sym, ref->sym_len);
+    nerrors += CHECK(uut->match && uut->match == ref->match, "match functions do not match in DFA symbol #%d\n", i);
+    
+
+    return nerrors;
+}
+
+int check_DFATransition(DFATransition ** uut, DFATransition ** ref, int i) {
+    int nerrors = 0;
+    
+    if (CHECK(*uut, "expected transition in DFA state #%d but did not find any\n", i)) {
+        nerrors++;
+        *ref = NULL;
+        return nerrors;
+    }
+
+    nerrors += CHECK((*uut)->final_state == (*ref)->final_state, "final states do not match in DFA state #%d transition. expected: %d, found: %d\n", i, (*ref)->final_state, (*uut)->final_state);
+
+    *uut = (*uut)->next;
+    *ref = (*ref)->next;
+
+    return nerrors;
+}
+
+int check_DFA(DFA * uut, DFA * ref) {
+    int nerrors = 0;
+
+    // don't care about the pool. the reference DFA is not allocated
+    nerrors += CHECK(uut->nsymbols == ref->nsymbols, "mismatch in number of symbols in DFA. expected: %d, found: %d\n", ref->nsymbols, uut->nsymbols);
+    if (!nerrors) {
+        /* // ref does not include the actual symbols. check in transitions
+        for (int i = 0; i < ref->nsymbols; i++) {
+            nerrors += check_SymbolMatch(uut->symbols + i, ref->symbols + i, i);
+        }
+        */
+    }
+    nerrors += CHECK(uut->nstates == ref->nstates, "mismatch in number of states in DFA. expected: %d, found: %d\n", ref->nstates, uut->nstates);
+    if (!nerrors) {
+        for (int i = 0; i < ref->nstates; i++) {
+            DFATransition * ref_trans = ref->states[i].trans;
+            DFATransition * uut_trans = uut->states[i].trans;
+            while (ref_trans) {
+                nerrors += check_DFATransition(&uut_trans, &ref_trans, i);
+            }
+            nerrors += CHECK(uut->states[i].accepting == ref->states[i].accepting, "accepting property does not match in DFA state #%d. expected: %i, found: %i\n", i, ref->states[i].accepting, uut->states[i].accepting);
+        }
+    }
+    
+    return nerrors;
+}
+
+int check_regex(struct avramT3 * av, TestString * test) {
+    DFA * dfa = (DFA *)av;
+    int nerrors = 0;
+    int status = are_match(av, test->cstr, strlen(test->cstr), 0);
     if (test->match.str) {
         nerrors += CHECK(!(status < test->match.len || status > test->match.len), "does not match expected length for regex %.*s and input %s. expected: %d, found %d\n", dfa->regex_len, dfa->regex_s, test->cstr, test->match.len, status);
         if (!nerrors) {
             struct MatchString match;
-            are_get_match(&av, &match, NULL);
+            are_get_match(av, &match, NULL);
             nerrors += CHECK(!strncmp(match.str, test->match.str, test->match.len), "unexpected match value for regex %.*s and input %s. expected: %.*s, found: %.*s\n", dfa->regex_len, dfa->regex_s, test->cstr, test->match.len, test->match.str, match.len, match.str);
         }
     } else {

@@ -11,7 +11,7 @@ TEST_LOG_LEVEL = LOG_LEVEL_TRACE
 DEFAULT_LOG_LEVEL = LOG_LEVEL_WARN
 CFLAGS_COMMON = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter $(STDC_DIALECT) -g -DDEFAULT_LOG_LEVEL=$(DEFAULT_LOG_LEVEL) -DMAX_LOGGING_LEVEL=$(TEST_LOG_LEVEL) -fPIC
 CFLAGS = $(CFLAGS_COMMON) -O2 
-CFLAGS_TEST = $(CFLAGS_COMMON) -fsanitize=address,undefined
+CFLAGS_TEST = $(CFLAGS_COMMON) -O0 -fsanitize=address,undefined
 IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
 LFLAGS_TEST = '-Wl,-rpath,$$ORIGIN/../../bin' -L$(BIN_DIR) -lpeggy

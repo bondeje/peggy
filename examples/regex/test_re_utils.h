@@ -41,4 +41,7 @@ int check_State(NFAState * state, TestState ** ref_states, size_t ref_cur);
 
 int check_NFA(NFA * nfa, TestState ** ref_states);
 
-int check_regex(DFA * dfa, TestString * test);
+int check_DFA(DFA * uut, DFA * ref);
+
+//int check_regex(DFA * dfa, TestString * test);
+int check_regex(struct avramT3 * av, TestString * test);

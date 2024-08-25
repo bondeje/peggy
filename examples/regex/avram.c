@@ -4,6 +4,7 @@
 
 #include "reparser.h"
 #include "dfa.h"
+#include "thompson.h"
 
 char * are_compile_pattern_buffered(const char * regex, const int regex_size,
     struct avramT3 * av, unsigned int flags, char * buffer, 
@@ -19,11 +20,18 @@ char * are_compile_pattern_buffered(const char * regex, const int regex_size,
         .buffer_size = buffer_size,
         .end = -1
     };
-    
+    char * out = NULL;    
+    NFA nfa;
+    NFA_init(&nfa);
     RegexBuilder reb;
-    RegexBuilder_build(&reb, regex, regex_size, (DFA *)&av);
+    RegexBuilder_init(&reb, &nfa);
+    RegexBuilder_build_NFA(&reb, regex, regex_size);
+    if (NFA_to_DFA(&nfa, (DFA *)av)) {
+        out = "NFA to DFA conversion failure";
+    }
     RegexBuilder_dest(&reb);
-    return NULL;
+    NFA_dest(&nfa);
+    return out;
 }
 
 char * are_compile_pattern(const char * regex, const int regex_size,

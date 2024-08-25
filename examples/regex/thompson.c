@@ -3,7 +3,9 @@
 #include <stdlib.h>
 
 #include "peggy/hash_utils.h"
+#include "peggy/mempool.h"
 #include "thompson.h"
+#include "reutils.h"
 
 #define STATE_BUF_TYPE unsigned char
 #define STATE_BUF_TYPE_LOG2 3
@@ -12,11 +14,13 @@ typedef struct StateSet {
     size_t states_size;             // this is the size of the array states, not the number of states
 } StateSet;
 
+const unsigned int STATE_BUF_TYPE_BITS = 8 * sizeof(STATE_BUF_TYPE);
+
 #define StateSet_set(pStateSet, id) \
-    ((pStateSet)->states[id >> STATE_BUF_TYPE_LOG2] |= (1 << (id % sizeof(STATE_BUF_TYPE))))
+    ((pStateSet)->states[id >> STATE_BUF_TYPE_LOG2] |= (1 << (id % STATE_BUF_TYPE_BITS)))
 
 #define StateSet_is_set(pStateSet, id) \
-    (((pStateSet)->states[id >> STATE_BUF_TYPE_LOG2] & (1 << (id % sizeof(STATE_BUF_TYPE)))) != 0)
+    (((pStateSet)->states[id >> STATE_BUF_TYPE_LOG2] & (1 << (id % STATE_BUF_TYPE_BITS))) != 0)
 
 
 void StateSet_clear(StateSet * set) {
@@ -25,13 +29,12 @@ void StateSet_clear(StateSet * set) {
     }
 }
 
-void StateSet_init(StateSet * set, size_t nstates) {
-    set->states_size = ((nstates >> STATE_BUF_TYPE_LOG2) + 1) << STATE_BUF_TYPE_LOG2;
-    set->states = calloc(set->states_size, sizeof(STATE_BUF_TYPE));
-}
-
-void StateSet_dest(StateSet * set) {
-    free(set->states);
+// should take a MemPoolManager as an argument
+void StateSet_init(StateSet * set, size_t nstates, MemPoolManager * pool) {
+    set->states_size = ((nstates - 1) / STATE_BUF_TYPE_BITS + 1);
+    //set->states = calloc(set->states_size, sizeof(STATE_BUF_TYPE));
+    set->states = MemPoolManager_next(pool);
+    memset(set->states, 0, set->states_size * sizeof(STATE_BUF_TYPE));
 }
 
 // returns non-zero on a failure condition
@@ -74,7 +77,7 @@ int StateSet_comp(StateSet set1, StateSet set2) {
 }
 
 int StateSet_hash(StateSet set, size_t bin_size) {
-    static unsigned long long hash = 5381;
+    unsigned long long hash = 5381;
     for (size_t i = 0; i < set.states_size; i++) {
         hash = ((hash << 5) + hash) + set.states[i]; /* hash * 33 + c */
     }
@@ -92,23 +95,23 @@ void fa_move(NFA * nfa, StateSet * set_in, Symbol * sym, StateSet * set_out) {
     size_t state_index = 0;
     for (size_t i = 0; i < set_in->states_size; i++) {
         if (set_in->states[i]) { // at least one state in 
-            size_t max_state_index = (i + 1) * sizeof(STATE_BUF_TYPE);
+            size_t max_state_index = (i + 1) * STATE_BUF_TYPE_BITS;
             for (; state_index < max_state_index; state_index++) {
                 if (StateSet_is_set(set_in, state_index)) {
                     NFATransition * trans = nfa->states[state_index]->out;
                     size_t nout = nfa->states[state_index]->n_out;
                     for (size_t j = 0; j < nout; j++) {
-                        if (trans->symbol == sym) {
+                        if (!pSymbol_comp(trans->symbol, sym)) {
                             StateSet_set(set_out, trans->final->id);
                         }
                         trans = trans->next_out;
                     }
                 }
             }
-            // state_index == (i + 1) * sizeof(STATE_BUF_TYPE) at this point
+            // state_index == (i + 1) * STATE_BUF_TYPE_BITS at this point
         } else {
-            state_index += sizeof(STATE_BUF_TYPE);
-            // state_index == (i + 1) * sizeof(STATE_BUF_TYPE) at this point
+            state_index += STATE_BUF_TYPE_BITS;
+            // state_index == (i + 1) * STATE_BUF_TYPE_BITS at this point
         }
     }
 }
@@ -129,16 +132,16 @@ int eclosure(NFA * nfa, StateSet * set_io) {
     size_t state_index = 0;
     for (size_t i = 0; i < set_io->states_size; i++) {
         if (set_io->states[i]) { // at least one state in 
-            size_t max_state_index = (i + 1) * sizeof(STATE_BUF_TYPE);
+            size_t max_state_index = (i + 1) * STATE_BUF_TYPE_BITS;
             for (; state_index < max_state_index; state_index++) {
                 if (StateSet_is_set(set_io, state_index)) {
                     stack[stack_size++] = state_index;
                 }
             }
-            // state_index == (i + 1) * sizeof(STATE_BUF_TYPE) at this point
+            // state_index == (i + 1) * STATE_BUF_TYPE_BITS at this point
         } else {
-            state_index += sizeof(STATE_BUF_TYPE);
-            // state_index == (i + 1) * sizeof(STATE_BUF_TYPE) at this point
+            state_index += STATE_BUF_TYPE_BITS;
+            // state_index == (i + 1) * STATE_BUF_TYPE_BITS at this point
         }
     }
 
@@ -151,7 +154,7 @@ int eclosure(NFA * nfa, StateSet * set_io) {
         // for each transition from t to another state u labeled empty
         for (size_t i = 0; i < tstate->n_out; i++) {
             // if u is not in e-closure(T)
-            if (StateSet_is_set(set_io, trans->final->id)) {
+            if (trans->symbol == &sym_empty && !StateSet_is_set(set_io, trans->final->id)) {
                 // add u to e-closure(T)
                 StateSet_set(set_io, trans->final->id);
                 // push u onto stack
@@ -179,11 +182,6 @@ typedef struct DFAState_map {
 
 #define ELEMENT_TYPE DFAState_map
 #include "peggy/stack.h"
-
-int NFA_to_DFA_clean(void * data, DFAState_map el) {
-    StateSet_dest(&el.nfa_set);
-    return 0;
-}
 
 int NFASymbols_to_DFA(void * dfa_, Symbol * key, Symbol * value) {
     DFA * dfa = dfa_;
@@ -224,15 +222,18 @@ int NFA_to_DFA(NFA * nfa, DFA * dfa) {
      *      a stack of DFAStates
      */
     HASH_MAP(StateSet, size_t) nfa2dfa;
-    HASH_MAP_INIT(StateSet, size_t)(&nfa2dfa, (nfa->nstates * (nfa->nstates + 1)) >> 1);
+    HASH_MAP_INIT(StateSet, size_t)(&nfa2dfa, nfa->nstates);
 
     // add a new state id (index 0) to dfa
-
     STACK(DFAState_map) dfa_states;
     STACK_INIT(DFAState_map)(&dfa_states, nfa->nstates >> 1);
 
+    // memory pool for state sets
+    MemPoolManager * sset_pool = MemPoolManager_new(nfa->nstates * 2, ((nfa->nstates - 1) / STATE_BUF_TYPE_BITS + 1) * sizeof(STATE_BUF_TYPE), 1);
+
     StateSet sset;
-    StateSet_init(&sset, nfa->nstates);
+    StateSet_init(&sset, nfa->nstates, sset_pool);
+    StateSet_set(&sset, nfa->start->id); // set the first state in the NFA
     if (eclosure(nfa, &sset)) {
         status = 1;
         goto cleanup;
@@ -243,12 +244,12 @@ int NFA_to_DFA(NFA * nfa, DFA * dfa) {
     // initialize dfa with a single state as the e-closure of the start state in nfa.
     size_t dfa_index = 0;
     while (dfa_index < dfa_states.fill /* there is another state to process in dfa */) {
-        DFAState_map * dfa_state_item = dfa_states.bins + dfa_index;
         // increment processing state
         for (int i = 0; i < dfa->nsymbols; i++) {
+            DFAState_map * dfa_state_item = dfa_states.bins + dfa_index;
             // U = e-closure(move(T, a))
             StateSet a_trans;
-            StateSet_init(&a_trans, nfa->nstates);
+            StateSet_init(&a_trans, nfa->nstates, sset_pool);
             fa_move(nfa, &dfa_state_item->nfa_set, dfa->symbols + i, &a_trans);
             if (StateSet_is_empty(&a_trans)) {
                 continue; // move to next symbol
@@ -260,16 +261,16 @@ int NFA_to_DFA(NFA * nfa, DFA * dfa) {
 
             // U state
             size_t dfa_state;
-            if (!nfa2dfa._class->get(&nfa2dfa, sset, &dfa_state)) {
+            if (nfa2dfa._class->get(&nfa2dfa, a_trans, &dfa_state)) {
                 // add U as an unmarked state to Dstates
-                dfa_state = dfa_states.fill;
-                nfa2dfa._class->set(&nfa2dfa, a_trans, dfa_state);
                 dfa_states._class->push(&dfa_states, (DFAState_map){.state = {.accepting = StateSet_is_set(&a_trans, accepting_state), .trans = NULL}, .nfa_set = a_trans}); 
+                dfa_state = dfa_states.fill - 1;
+                nfa2dfa._class->set(&nfa2dfa, a_trans, dfa_state);
             }
             // add a new transition to dfa_state_item->state {dfa->symbols + i, dfa_state}
             DFATransition * trans = MemPoolManager_aligned_alloc(dfa->pool, sizeof(DFATransition), _Alignof(DFATransition));
-            trans->next = ((DFAState *)(dfa_states.bins + dfa_state))->trans;
-            ((DFAState *)(dfa_states.bins + dfa_state))->trans = trans;
+            trans->next = ((DFAState *)(dfa_states.bins + dfa_index))->trans;
+            ((DFAState *)(dfa_states.bins + dfa_index))->trans = trans;
             trans->final_state = dfa_state;
             trans->sym = dfa->symbols + i;
         }
@@ -279,9 +280,9 @@ int NFA_to_DFA(NFA * nfa, DFA * dfa) {
     dfa->states = MemPoolManager_aligned_alloc(dfa->pool, sizeof(DFAState) * dfa_states.fill, _Alignof(DFAState));
     dfa_states._class->for_each(&dfa_states, DFAStates_to_DFA, dfa);
 cleanup:
-    dfa_states._class->for_each(&dfa_states, NFA_to_DFA_clean, NULL);
-    dfa_states._class->dest(&dfa_states);
-    nfa2dfa._class->dest(&nfa2dfa);
+    MemPoolManager_del(sset_pool);          // clear all the state sets
+    dfa_states._class->dest(&dfa_states);   // clean up the state stack
+    nfa2dfa._class->dest(&nfa2dfa);         // clean up the state map
     return status;
 }
 

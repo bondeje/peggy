@@ -18,7 +18,7 @@ BUILD_ALIGNMENT_STRUCT(DFAState)
 
 struct DFATransition {
     Symbol * sym;
-    size_t final_state;
+    int final_state;
     DFATransition * next;
 };
 

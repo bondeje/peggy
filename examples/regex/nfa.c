@@ -3,7 +3,10 @@
 #include <string.h>
 #include "nfa.h"
 
-struct Symbol empty_symbol = {.match = reChar_empty_match, .sym = ""};
+struct Symbol sym_empty = {.match = reChar_empty_match, .sym = "", .sym_len = 0};
+struct Symbol sym_any = {.match = reChar_any_match, .sym = "", .sym_len = 0};
+struct Symbol sym_any_nonl = {.match = reChar_any_nonl_match, .sym = "", .sym_len = 0};
+struct Symbol sym_eos = {.match = reChar_eos_match, .sym = "", .sym_len = 0};
 
 // returns positive value on success, 0 on failure
 int reChar_match(Symbol * sym, char const * str) {
@@ -11,7 +14,19 @@ int reChar_match(Symbol * sym, char const * str) {
 }
 
 int reChar_empty_match(Symbol * sym, char const * str) {
+    return 0;
+}
+
+int reChar_any_match(Symbol * sym, char const * str) {
     return 1;
+}
+
+int reChar_any_nonl_match(Symbol * sym, char const * str) {
+    return *str != '\n';
+}
+
+int reChar_eos_match(Symbol * sym, char const * str) {
+    return *str == '\0';
 }
 
 // internal to char class
@@ -104,7 +119,7 @@ int pSymbol_comp(Symbol * a, Symbol * b) {
 }
 
 size_t pSymbol_hash(Symbol * key, size_t bin_size) {
-    static unsigned long long hash = 5381;
+    unsigned long long hash = 5381;
     char const * str = key->sym;
     unsigned char len = key->sym_len;
     for (unsigned char i = 0; i < len; i++) {

@@ -54,7 +54,7 @@ size_t size_t_hash(size_t a, size_t hash_size) {
 }
 
 size_t cstr_hash(char const * key, size_t bin_size) {
-    static unsigned long long hash = 5381;
+    unsigned long long hash = 5381;
     int c;
     unsigned char * str = (unsigned char *) key;
 

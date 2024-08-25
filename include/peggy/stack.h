@@ -288,13 +288,9 @@ static void CAT(STACK_TYPE, _for_each)(STACK_TYPE * stack, int (*handle_item)(vo
  * @returns non-zero if reallocation fails else 0
  */
 static err_type CAT(STACK_TYPE, _resize)(STACK_TYPE * stack, size_t new_capacity) {
-    ELEMENT_TYPE * new_bins = calloc(new_capacity, sizeof(*stack->bins));
+    ELEMENT_TYPE * new_bins = realloc(stack->bins, new_capacity *sizeof(*stack->bins));
     if (!new_bins) {
         return PEGGY_MALLOC_FAILURE;
-    }
-    if (stack->bins) {
-        memcpy(new_bins, stack->bins, stack->fill * sizeof(ELEMENT_TYPE));
-        free(stack->bins);
     }
     stack->bins = new_bins;
     stack->capacity = new_capacity;
