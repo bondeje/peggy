@@ -9,9 +9,9 @@ GRAMMAR = $(EXAMPLE_NAME).grmr
 BLD_LOG_LEVEL = LOG_LEVEL_WARN
 TEST_LOG_LEVEL = LOG_LEVEL_TRACE
 DEFAULT_LOG_LEVEL = LOG_LEVEL_WARN
-CFLAGS_COMMON = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter $(STDC_DIALECT) -g -DDEFAULT_LOG_LEVEL=$(DEFAULT_LOG_LEVEL) -DMAX_LOGGING_LEVEL=$(TEST_LOG_LEVEL) -fPIC -std=c99
+CFLAGS_COMMON = -Wall -Werror -Wextra -pedantic -Wno-missing-field-initializers -Wno-unused -Wno-unused-parameter $(STDC_DIALECT) -g -DDEFAULT_LOG_LEVEL=$(DEFAULT_LOG_LEVEL) -DMAX_LOGGING_LEVEL=$(TEST_LOG_LEVEL) -fPIC
 CFLAGS = $(CFLAGS_COMMON) -O2 
-CFLAGS_TEST = $(CFLAGS_COMMON) -O0 -fsanitize=address,undefined
+CFLAGS_TEST = $(CFLAGS_COMMON) -O0
 IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
 LFLAGS_TEST = '-Wl,-rpath,$$ORIGIN/../../bin' -L$(BIN_DIR) -lpeggy
@@ -31,7 +31,8 @@ $(BIN_DIR)/regex: re.h
 	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 
 test: re.h $(EXE_SRCS) $(TEST_SRCS)
-	$(CC) $(CFLAGS_TEST) $(IFLAGS) $(EXE_SRCS) $(TEST_SRCS) -o $@ $(LFLAGS_TEST)
+	@if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="" ; fi ; \
+	$(CC) $(CFLAGS_TEST) $$DBGOPT $(IFLAGS) $(EXE_SRCS) $(TEST_SRCS) -o $@ $(LFLAGS_TEST)
 	./test --verbose
 	
 clean:
