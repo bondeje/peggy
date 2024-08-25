@@ -3,7 +3,7 @@
     #define CAT(x, y) CAT_(x, y)
 #endif
 
-#if __STDC_VERSION__ < 201112L
+#if __STDC_VERSION__ < 201112L && !defined(_Alignof)
     #define _Alignof(type) offsetof(struct CAT(type, _ALIGNMENT), type)
     #define BUILD_ALIGNMENT_STRUCT(type) \
     struct CAT(type, _ALIGNMENT) {\

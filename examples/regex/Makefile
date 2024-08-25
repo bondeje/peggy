@@ -9,7 +9,7 @@ GRAMMAR = $(EXAMPLE_NAME).grmr
 BLD_LOG_LEVEL = LOG_LEVEL_WARN
 TEST_LOG_LEVEL = LOG_LEVEL_TRACE
 DEFAULT_LOG_LEVEL = LOG_LEVEL_WARN
-CFLAGS_COMMON = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter $(STDC_DIALECT) -g -DDEFAULT_LOG_LEVEL=$(DEFAULT_LOG_LEVEL) -DMAX_LOGGING_LEVEL=$(TEST_LOG_LEVEL) -fPIC
+CFLAGS_COMMON = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter $(STDC_DIALECT) -g -DDEFAULT_LOG_LEVEL=$(DEFAULT_LOG_LEVEL) -DMAX_LOGGING_LEVEL=$(TEST_LOG_LEVEL) -fPIC -std=c99
 CFLAGS = $(CFLAGS_COMMON) -O2 
 CFLAGS_TEST = $(CFLAGS_COMMON) -O0 -fsanitize=address,undefined
 IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/include
