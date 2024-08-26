@@ -27,6 +27,7 @@ extern struct Symbol sym_any_nonl;
 extern struct Symbol sym_eos;
 
 int Symbol_fprint(FILE * stream, Symbol * sym);
+int Symbol_print(Symbol * sym);
 
 // returns positive value on success, 0 on failure
 int reChar_match(Symbol * sym, char const * str);

@@ -37,7 +37,17 @@ int DFATransition_fprint(FILE * stream, DFATransition * trans, HASH_MAP(pSymbol,
     return n + fprintf(stream, "}");
 }
 
-int DFAState_fprintf(FILE * stream, DFAState * state, HASH_MAP(pSymbol, pSymbol) * sym_map) {
+int DFATransition_print(DFATransition * trans) {
+    int n = printf("{.sym = ");
+    n += Symbol_print(trans->sym);
+    n += printf(", .final_state = %d, .next = %s", trans->final_state, trans->next ? "&(DFATransition)" : NULL);
+    if (trans->next) {
+        n += DFATransition_print(trans->next);
+    }
+    return n + printf("}");
+}
+
+int DFAState_fprint(FILE * stream, DFAState * state, HASH_MAP(pSymbol, pSymbol) * sym_map) {
     int n = fprintf(stream, "{.accepting = %s, .trans = %s", state->accepting ? "true" : "false", state->trans ? "&(DFATransition)" : "NULL");
     if (state->trans) {
         n += DFATransition_fprint(stream, state->trans, sym_map);
@@ -45,11 +55,26 @@ int DFAState_fprintf(FILE * stream, DFAState * state, HASH_MAP(pSymbol, pSymbol)
     return n + fprintf(stream, "}");
 }
 
-int DFA_fprintf(FILE * stream, DFA * dfa, HASH_MAP(pSymbol, pSymbol) * sym_map) {
+int DFAState_print(DFAState * state) {
+    int n = printf("{.accepting = %s, .trans = %s", state->accepting ? "true" : "false", state->trans ? "&(DFATransition)" : "NULL");
+    if (state->trans) {
+        n += DFATransition_print(state->trans);
+    }
+    return n + printf("}");
+}
+
+int DFA_fprint(FILE * stream, DFA * dfa, HASH_MAP(pSymbol, pSymbol) * sym_map) {
     int n = fprintf(stream, "{.nstates = %d, .regex_len = %d, .regex_s = \"%.*s\", .states = &(DFAState[]){", dfa->nstates, dfa->regex_len, dfa->regex_len, dfa->regex_s);
     for (int i = 0; i < dfa->nstates; i++) {
-        n += DFAState_fprintf(stream, dfa->states + i, sym_map);
+        n += DFAState_fprint(stream, dfa->states + i, sym_map);
     }
     return n + fprintf(stream, "}}");
 }
 
+int DFA_print(DFA * dfa) {
+    int n = printf("{.nstates = %d, .regex_len = %d, .regex_s = \"%.*s\", .states = &(DFAState[]){", dfa->nstates, dfa->regex_len, dfa->regex_len, dfa->regex_s);
+    for (int i = 0; i < dfa->nstates; i++) {
+        n += DFAState_print(dfa->states + i);
+    }
+    return n + printf("}}");
+}

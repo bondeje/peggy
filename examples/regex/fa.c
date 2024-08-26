@@ -8,7 +8,11 @@ struct Symbol sym_any_nonl = {.match = reChar_any_nonl_match, .match_name = "reC
 struct Symbol sym_eos = {.match = reChar_eos_match, .match_name = "reChar_eos_match", .sym = "", .sym_len = 0};
 
 int Symbol_fprint(FILE * stream, Symbol * sym) {
-    return fprintf(stream, "{.match = %s, .match_name = \"%s\", .sym = \"%s\", .sym_len = %d}", sym->match_name, sym->match_name, sym->sym, sym->sym_len);
+    return fprintf(stream, "{.match = %s, .match_name = \"%s\", .sym = \"%.*s\", .sym_len = %d}", sym->match_name, sym->match_name, sym->sym_len, sym->sym, sym->sym_len);
+}
+
+int Symbol_print(Symbol * sym) {
+    return printf("{.match = %s, .match_name = \"%s\", .sym = \"%.*s\", .sym_len = %d}", sym->match_name, sym->match_name, sym->sym_len, sym->sym, sym->sym_len);
 }
 
 // returns positive value on success, 0 on failure
@@ -39,8 +43,8 @@ static inline int reRange_match(char const lower, char const upper, char const *
 
 // returns positive value on success, 0 on failure
 int reCharClass_match(Symbol * sym, char const * str) { 
-    char const * start = sym->sym;
-    char const * end = start + sym->sym_len;
+    char const * start = sym->sym + 1;
+    char const * end = start + sym->sym_len - 2;
     int status = 0;
     while (start != end) {
         if (start + 1 != end && *(start + 1) == '-') {
@@ -57,8 +61,8 @@ int reCharClass_match(Symbol * sym, char const * str) {
 }
 
 int reCharClass_inv_match(Symbol * sym, char const * str) { 
-    char const * start = sym->sym;
-    char const * end = start + sym->sym_len;
+    char const * start = sym->sym + 2;
+    char const * end = start + sym->sym_len - 3;
     int status = 0;
     while (start != end) {
         if (start + 1 != end && *(start + 1) == '-') {

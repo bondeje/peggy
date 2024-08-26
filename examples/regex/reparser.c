@@ -23,8 +23,10 @@ ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
     Symbol * new_sym;
     switch (node->rule->id) {
         case CHAR_CLASS: {
-            char const * sym = node->children[2]->token_start->string;
-            unsigned char len = (unsigned char)(node->children[3]->token_start->string - sym);
+            // this should be broken out as a function call.
+            // also the symbol collection is wrong. Need to handle class escape characters
+            char const * sym = node->children[0]->token_start->string;
+            unsigned char len = (unsigned char)(ASTNode_string_length(node));
             new_sym = NFA_get_symbol(reb->nfa, sym, len);
             if (node->children[1]->nchildren) {
                 new_sym->match = reCharClass_inv_match;
@@ -33,6 +35,7 @@ ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
                 new_sym->match = reCharClass_match;
                 new_sym->match_name = "reCharClass_match";
             }
+            
             break;
         }
         case PERIOD: {
@@ -222,19 +225,16 @@ ASTNode * re_build_nfa(Production * prod, Parser * parser, ASTNode * node) {
 
 char const * get_last_element(char const * start, char const * end) {
     end--;
-    if (*end == ')') {
+    if (*end == ')' || *end == ']') {
+        char open_ch = *end;
+        char close_ch = open_ch - 1 - (open_ch > ')' ? 1 : 0);
         int open = 1;
         while (open && end != start) {
             end--;
-            switch (*end) {
-                case ')': {
-                    open++;
-                    break;
-                }
-                case '(': {
-                    open--;
-                    break;
-                }
+            if (*end == open_ch) {
+                open++;
+            } else if (*end == close_ch) {
+                open--;
             }
         }
         return end;

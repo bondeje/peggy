@@ -52,7 +52,8 @@ int are_match(struct avramT3 * av, const char * string, const int size,
     
     int cur = start;
     int status = REGEX_WAIT;
-    while (cur < size && (status = are_update(av, string + cur++, 1)) >= REGEX_WAIT) {
+    while (cur < size && (status = are_update(av, string + cur, 1)) >= REGEX_WAIT) {
+        cur++;
     }
     if (status == REGEX_WAIT) { // match never found but did not fail
         return -REGEX_FAIL;
@@ -125,6 +126,6 @@ void are_free(struct avramT3 * av) {
 
 int are_fprint(FILE * stream, struct avramT3 * av, HASH_MAP(pSymbol, pSymbol) * sym_map) {
     int n = fprintf(stream, "{.flags = %u, .end = -1, .buffer_size = %d, .ibuffer = 0, .buffer = &(char[%d]){0}[0], .cur_state = 0, .dfa = ", av->flags, REGEX_STATIC_BUFFER_SIZE, REGEX_STATIC_BUFFER_SIZE);
-    n += DFA_fprintf(stream, (DFA *)av, sym_map);
+    n += DFA_fprint(stream, (DFA *)av, sym_map);
     return n + fprintf(stream, "}");
 }

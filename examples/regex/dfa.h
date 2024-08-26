@@ -46,9 +46,10 @@ void DFA_dest(DFA * dfa);
 
 int DFATransition_fprint(FILE * stream, DFATransition * trans, HASH_MAP(pSymbol, pSymbol) * sym_map);
 
-int DFAState_fprintf(FILE * stream, DFAState * state, HASH_MAP(pSymbol, pSymbol) * sym_map);
+int DFAState_fprint(FILE * stream, DFAState * state, HASH_MAP(pSymbol, pSymbol) * sym_map);
 
-int DFA_fprintf(FILE * stream, DFA * dfa, HASH_MAP(pSymbol, pSymbol) * sym_map);
+int DFA_fprint(FILE * stream, DFA * dfa, HASH_MAP(pSymbol, pSymbol) * sym_map);
+int DFA_print(DFA * dfa);
 
 #endif
 

@@ -43,6 +43,14 @@ char const * TEST_REGEX[] = {
     "(a|b)*abb",
     "abb(a|b)*",
     "[a-zA-Z_][a-zA-Z_0-9]*",
+    "[ \t\r\n\v\f]+",
+    "//[^\n]*\n",
+    "[^/]",
+    "\\*",
+    "\\*[^/]",
+    "[^*]",
+    "(\\*[^/])|[^*]",
+    "/\\*((\\*[^/])|[^*])*\\*/)",
     NULL
 };
 
@@ -79,6 +87,14 @@ char const * TEST_REGEX_PP[] = {
     "(a|b)*abb",
     "abb(a|b)*",
     "[a-zA-Z_][a-zA-Z_0-9]*", // the all-important identifier
+    "[ \t\r\n\v\f][ \t\r\n\v\f]*",
+    "//[^\n]*\n",
+    "[^/]",
+    "\\*",
+    "\\*[^/]",
+    "[^*]",
+    "(\\*[^/])|[^*]",
+    "/\\*((\\*[^/])|[^*])*\\*/)",
     NULL
 };
 
@@ -274,13 +290,13 @@ struct TestState ** TEST_REGEX_NFA[] = {
         &TEST_STATE(2, 0, NULL)
     }[0],
     // "[abc]"
-    &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("abc", 3, 1)), 
+    &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("[abc]", 5, 1)), 
                             &TEST_STATE(1, 0, NULL)}[0],
     // "[^abc]"
-    &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("abc", 3, 1)), 
+    &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("[^abc]", 6, 1)), 
                             &TEST_STATE(1, 0, NULL)}[0],
     // "[a-c]"
-    &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("a-c", 3, 1)), 
+    &(struct TestState *[]){&TEST_STATE(0, 1, &TEST_TRANSITION("[a-c]", 5, 1)), 
                             &TEST_STATE(1, 0, NULL)}[0],
     // "(a|b)*abb"
     &(struct TestState *[]){&TEST_STATE(0, 2, &TEST_TRANSITION("", 0, 1), &TEST_TRANSITION("", 0, 7)),
@@ -314,9 +330,9 @@ Symbol sym_b = {.sym = "b", .sym_len = 1, .match = reChar_match};
 Symbol sym_c = {.sym = "c", .sym_len = 1, .match = reChar_match};
 Symbol sym_plus = {.sym = "+", .sym_len = 1, .match = reChar_match};
 Symbol sym_lbrace = {.sym = "{", .sym_len = 1, .match = reChar_match};
-Symbol sym_abc = {.sym = "abc", .sym_len = 3, .match = reCharClass_match};
-Symbol sym_not_abc = {.sym = "abc", .sym_len = 3, .match = reCharClass_inv_match};
-Symbol sym_range_ac = {.sym = "a-c", .sym_len = 3, .match = reCharClass_match};
+Symbol sym_abc = {.sym = "[abc]", .sym_len = 5, .match = reCharClass_match};
+Symbol sym_not_abc = {.sym = "[^abc]", .sym_len = 6, .match = reCharClass_inv_match};
+Symbol sym_range_ac = {.sym = "[a-c]", .sym_len = 5, .match = reCharClass_match};
 
 // don't actually need to fill out the symbols
 DFA * TEST_REGEX_DFA[] = {
@@ -1781,6 +1797,73 @@ TestString * TEST_REGEX_STRINGS[] = {
         {.cstr = "_0#", .match = {.len = 2, .str = "_0"}},
         {.cstr = NULL},
     }[0],
+    // "[ \t\r\n\v\f]+"
+    &(TestString[]){
+        {.cstr = " ", .match = {.len = 1, .str = " "}},
+        {.cstr = "\t", .match = {.len = 1, .str = "\t"}},
+        {.cstr = "\r", .match = {.len = 1, .str = "\r"}},
+        {.cstr = "\n", .match = {.len = 1, .str = "\n"}},
+        {.cstr = "\v", .match = {.len = 1, .str = "\v"}},
+        {.cstr = "\f", .match = {.len = 1, .str = "\f"}},
+        {.cstr = " a", .match = {.len = 1, .str = " "}},
+        {.cstr = "a ", .match = {.len = 0, .str = NULL}},
+        {.cstr = "  ", .match = {.len = 2, .str = "  "}},
+        {.cstr = NULL},
+    }[0],
+    // "//[^\n]*\n"
+    &(TestString[]){
+        {.cstr = "//\n", .match = {.len = 3, .str = "//\n"}},
+        {.cstr = "// \n", .match = {.len = 4, .str = "// \n"}},
+        {.cstr = "// This is a comment \n", .match = {.len = 22, .str = "// This is a comment \n"}},
+        {.cstr = "/ /This is not a comment\n", .match = {.len = 0, .str = NULL}},
+        {.cstr = " //This is also not a comment\n", .match = {.len = 0, .str = NULL}},
+        {.cstr = NULL},
+    }[0],
+    // "[^/]",
+    &(TestString[]){
+        {.cstr = "/", .match = {.len = 0, .str = NULL}},
+        {.cstr = "*", .match = {.len = 1, .str = "*"}},
+        {.cstr = NULL},
+    }[0],
+    // "\\*",
+    &(TestString[]){
+        {.cstr = "/", .match = {.len = 0, .str = NULL}},
+        {.cstr = "*", .match = {.len = 1, .str = "*"}},
+        {.cstr = NULL},
+    }[0],
+    // "\\*[^/]",
+    &(TestString[]){
+        {.cstr = "*", .match = {.len = 0, .str = NULL}},
+        {.cstr = "**", .match = {.len = 2, .str = "**"}},
+        {.cstr = NULL},
+    }[0],
+    // "[^*]"
+    &(TestString[]){
+        {.cstr = "/", .match = {.len = 1, .str = "/"}},
+        {.cstr = "*", .match = {.len = 0, .str = NULL}},
+        {.cstr = NULL},
+    }[0],
+    // "(\\*[^/])|[^*]"
+    &(TestString[]){
+        {.cstr = "*", .match = {.len = 0, .str = NULL}},
+        {.cstr = "**", .match = {.len = 2, .str = "**"}},
+        {.cstr = "/", .match = {.len = 1, .str = "/"}},
+        {.cstr = NULL},
+    }[0],
+    // "/\\*((\\*[^/])|[^*])*\\*/)"
+    // proposed: "/\\*([^*]*|*)\\*/"
+    &(TestString[]){
+        {.cstr = "/**/", .match = {.len = 4, .str = "/**/"}},
+        {.cstr = "/** /", .match = {.len = 0, .str = NULL}},
+        {.cstr = "/ **/", .match = {.len = 0, .str = NULL}},
+        {.cstr = " /**/", .match = {.len = 0, .str = NULL}},
+        {.cstr = "/* */", .match = {.len = 5, .str = "/* */"}},
+        //{.cstr = "/***/", .match = {.len = 5, .str = "/***/"}},
+        {.cstr = "/*/*/", .match = {.len = 5, .str = "/*/*/"}},
+        // should only capture the first and not the second
+        {.cstr = "/**/ not a comment /**/", .match = {.len = 4, .str = "/**/"}},
+        {.cstr = NULL},
+    }[0],
     (TestString *)NULL
 };
 
@@ -1872,6 +1955,11 @@ int test_regex(void) {
         size_t j = 0;
         struct avramT3 av;
         nerrors += CHECK(!are_compile_pattern(TEST_REGEX[i], strlen(TEST_REGEX[i]), &av, 0), "failed to compile regex pattern: %s\n", TEST_REGEX[i]);
+        
+        //if (!strcmp(TEST_REGEX[i], "/\\*((\\*[^/])|[^*])*\\*/)")) {
+        //    DFA_print((DFA *)&av);
+        //}
+        
         while (TEST_REGEX_STRINGS[i][j].cstr) {
             nerrors += check_regex(&av, TEST_REGEX_STRINGS[i] + j);
             // need to reset av for next regex
