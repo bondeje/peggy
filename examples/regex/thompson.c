@@ -183,9 +183,16 @@ typedef struct DFAState_map {
 #define ELEMENT_TYPE DFAState_map
 #include "peggy/stack.h"
 
-int NFASymbols_to_DFA(void * dfa_, Symbol * key, Symbol * value) {
-    DFA * dfa = dfa_;
-    Symbol * dfa_sym = dfa->symbols + dfa->nsymbols++;
+struct SymbolArray {
+    DFA * dfa;
+    Symbol * syms;
+    int nsyms;
+};
+
+int NFASymbols_to_DFA(void * symarr_, Symbol * key, Symbol * value) {
+    struct SymbolArray * symarr = symarr_;
+    DFA * dfa = symarr->dfa;
+    Symbol * dfa_sym = symarr->syms + symarr->nsyms++;
     *dfa_sym = *key;
     // allocate new copy of symbol
     dfa_sym->sym = MemPoolManager_malloc(dfa->pool, dfa_sym->sym_len);
@@ -212,8 +219,14 @@ int NFA_to_DFA(NFA * nfa, DFA * dfa) {
     size_t accepting_state = nfa->final->id;
 
     // copy the symbols from nfa to dfa
-    dfa->symbols = MemPoolManager_aligned_alloc(dfa->pool, sizeof(Symbol) * nfa->symbol_map.fill, _Alignof(Symbol));
-    nfa->symbol_map._class->for_each(&nfa->symbol_map, NFASymbols_to_DFA, dfa);
+    //dfa->symbols = MemPoolManager_aligned_alloc(dfa->pool, sizeof(Symbol) * nfa->symbol_map.fill, _Alignof(Symbol));
+    // array of symbols to be referenced in transitions. The actually pointer will never be used after this function, but pointers to individual symbol elements
+    struct SymbolArray symarr = {
+        .dfa = dfa,
+        .syms = MemPoolManager_aligned_alloc(dfa->pool, sizeof(Symbol) * nfa->symbol_map.fill, _Alignof(Symbol)),
+        .nsyms = 0
+    };
+    nfa->symbol_map._class->for_each(&nfa->symbol_map, NFASymbols_to_DFA, &symarr);
 
     // following SS: 3.7.1 in Compilers: Principles, Techniques, and Tools
 
@@ -245,12 +258,12 @@ int NFA_to_DFA(NFA * nfa, DFA * dfa) {
     size_t dfa_index = 0;
     while (dfa_index < dfa_states.fill /* there is another state to process in dfa */) {
         // increment processing state
-        for (int i = 0; i < dfa->nsymbols; i++) {
+        for (int i = 0; i < symarr.nsyms; i++) {
             DFAState_map * dfa_state_item = dfa_states.bins + dfa_index;
             // U = e-closure(move(T, a))
             StateSet a_trans;
             StateSet_init(&a_trans, nfa->nstates, sset_pool);
-            fa_move(nfa, &dfa_state_item->nfa_set, dfa->symbols + i, &a_trans);
+            fa_move(nfa, &dfa_state_item->nfa_set, symarr.syms + i, &a_trans);
             if (StateSet_is_empty(&a_trans)) {
                 continue; // move to next symbol
             }
@@ -272,7 +285,7 @@ int NFA_to_DFA(NFA * nfa, DFA * dfa) {
             trans->next = ((DFAState *)(dfa_states.bins + dfa_index))->trans;
             ((DFAState *)(dfa_states.bins + dfa_index))->trans = trans;
             trans->final_state = dfa_state;
-            trans->sym = dfa->symbols + i;
+            trans->sym = symarr.syms + i;
         }
         dfa_index++;
     }

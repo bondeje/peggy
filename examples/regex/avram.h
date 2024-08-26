@@ -4,6 +4,10 @@
 #include "reutils.h"
 #include "dfa.h"
 
+#ifndef REGEX_STATIC_BUFFER_SIZE
+#define REGEX_STATIC_BUFFER_SIZE 128
+#endif
+
 struct avramT3 {
     DFA dfa;
     int cur_state;       // internal use state tracking
@@ -36,6 +40,14 @@ int are_update(struct avramT3 * av, const char * string, const int size);
 void are_get_match(struct avramT3 * av, struct MatchString * match, 
     struct MatchString * unmatched);
 
+static inline void are_reset(struct avramT3 * av) {
+    av->cur_state = 0;
+    av->ibuffer = 0;
+    av->end = -1;
+}
+
 void are_free(struct avramT3 * av);
+
+int are_fprint(FILE * stream, struct avramT3 * av, HASH_MAP(pSymbol, pSymbol) * sym_map);
 
 #endif

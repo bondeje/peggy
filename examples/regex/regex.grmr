@@ -2,7 +2,7 @@ export = re
 import = reparser
 
 punctuator:
-    '*' | '|' | '+' | '.' | '^' | '$' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '-' | ','
+    '*' | '|' | '.' | '^' | '$' | '?' | '(' | ')' | '[' | ']' | '-' 
 
 // characters are any unescaped normal printing characters. cannot be "." else sequence will capture everything
 character:

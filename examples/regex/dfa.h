@@ -3,7 +3,8 @@
 
 #include <stddef.h>
 #include "peggy/mempool.h"
-#include "nfa.h"
+#include "reutils.h"
+#include "fa_.h"
 
 typedef struct DFAState DFAState;
 typedef struct DFATransition DFATransition;
@@ -27,12 +28,10 @@ BUILD_ALIGNMENT_STRUCT(DFATransition)
 // regex structures would be a copy of the singleton constructed from this
 struct DFA {
     MemPoolManager * pool;  // pool for all allocated data in dfa. if null, symbols and states are not owned by DFA
-    Symbol * symbols;       // list of symbols in DFA language. owned by DFA if pool is non-null
     DFAState * states;      // list of states in DFA. owned by DFA if pool is non-null
     char const * regex_s;   // this is just for convenience. owned by DFA if pool is non-null
     int regex_len;          // this is just for convenience.
     int nstates;            // number of states, also capacity. NOTE: regex has to keep track of current one    
-    int nsymbols;           // number of symbols, also capacity
 };
 
 // takes DFA and index and returns a const pointer to a state
@@ -44,6 +43,12 @@ struct DFA {
 // returns 0 on success, else error
 int DFA_check(DFAState const * cur_state, char const * str, int const len, int * final);
 void DFA_dest(DFA * dfa);
+
+int DFATransition_fprint(FILE * stream, DFATransition * trans, HASH_MAP(pSymbol, pSymbol) * sym_map);
+
+int DFAState_fprintf(FILE * stream, DFAState * state, HASH_MAP(pSymbol, pSymbol) * sym_map);
+
+int DFA_fprintf(FILE * stream, DFA * dfa, HASH_MAP(pSymbol, pSymbol) * sym_map);
 
 #endif
 

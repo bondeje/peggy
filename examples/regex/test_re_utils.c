@@ -4,17 +4,9 @@
 #include "test_utils.h"
 #include "test_re_utils.h"
 
-int check_Symbol(Symbol * sym, char const * str, size_t len) {
-    int nerrors = 0;
-    nerrors += CHECK(sym->sym_len == len, "symbol length mismatch. expected: %zu, found: %zu\n", sym->sym_len, len);
-    nerrors += CHECK(!strncmp(sym->sym, str, len), "symbol mismatch. expected: %.*s, found: %.*s\n", (int)len, str, (int)sym->sym_len, sym->sym);
-    return nerrors;
-}
-
 int check_Transition(NFATransition * trans, TestTransition * ref_trans, size_t ref_state_start) {
     int nerrors = 0;
-    nerrors += check_Symbol(trans->symbol, ref_trans->symbol, ref_trans->symbol_len);
-    CHECK(!nerrors, "transition with symbol %.*s from state %zu to state %zu\b", (int)ref_trans->symbol_len, ref_trans->symbol, ref_state_start, ref_trans->state_end);
+    nerrors += check_Symbol(trans->symbol, &(Symbol){.sym = ref_trans->symbol, .sym_len = ref_trans->symbol_len}, 0);
     return nerrors;
 }
 
@@ -70,12 +62,16 @@ int check_NFA(NFA * nfa, TestState ** ref_states) {
     return nerrors;
 }
 
-int check_SymbolMatch(Symbol * uut, Symbol * ref, int i) {
+int check_Symbol(Symbol * uut, Symbol * ref, int i) {
     int nerrors = 0;
 
-    nerrors += check_Symbol(uut, ref->sym, ref->sym_len);
-    nerrors += CHECK(uut->match && uut->match == ref->match, "match functions do not match in DFA symbol #%d\n", i);
-    
+    nerrors += CHECK(uut->sym_len == ref->sym_len, "symbol length mismatch in DFA symbol transition #%d. expected: %zu, found: %zu\n", i, ref->sym_len, uut->sym_len);
+    if (!nerrors) {
+        nerrors += CHECK(!strncmp(uut->sym, ref->sym, ref->sym_len), "symbol mismatch in DFA symbol transition #%d. expected: %.*s, found: %.*s\n", i, ref->sym_len, ref->sym, uut->sym_len, uut->sym);
+    }
+    if (ref->match) { // don't test if reference doesn't have it
+        nerrors += CHECK(uut->match && uut->match == ref->match, "match functions do not match in DFA symbol transition #%d\n", i);
+    }
 
     return nerrors;
 }
@@ -90,6 +86,7 @@ int check_DFATransition(DFATransition ** uut, DFATransition ** ref, int i) {
     }
 
     nerrors += CHECK((*uut)->final_state == (*ref)->final_state, "final states do not match in DFA state #%d transition. expected: %d, found: %d\n", i, (*ref)->final_state, (*uut)->final_state);
+    nerrors += check_Symbol((*uut)->sym, (*ref)->sym, i);
 
     *uut = (*uut)->next;
     *ref = (*ref)->next;
@@ -100,15 +97,6 @@ int check_DFATransition(DFATransition ** uut, DFATransition ** ref, int i) {
 int check_DFA(DFA * uut, DFA * ref) {
     int nerrors = 0;
 
-    // don't care about the pool. the reference DFA is not allocated
-    nerrors += CHECK(uut->nsymbols == ref->nsymbols, "mismatch in number of symbols in DFA. expected: %d, found: %d\n", ref->nsymbols, uut->nsymbols);
-    if (!nerrors) {
-        /* // ref does not include the actual symbols. check in transitions
-        for (int i = 0; i < ref->nsymbols; i++) {
-            nerrors += check_SymbolMatch(uut->symbols + i, ref->symbols + i, i);
-        }
-        */
-    }
     nerrors += CHECK(uut->nstates == ref->nstates, "mismatch in number of states in DFA. expected: %d, found: %d\n", ref->nstates, uut->nstates);
     if (!nerrors) {
         for (int i = 0; i < ref->nstates; i++) {

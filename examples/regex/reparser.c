@@ -28,8 +28,10 @@ ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
             new_sym = NFA_get_symbol(reb->nfa, sym, len);
             if (node->children[1]->nchildren) {
                 new_sym->match = reCharClass_inv_match;
+                new_sym->match_name = "reCharClass_inv_match";
             } else {
                 new_sym->match = reCharClass_match;
+                new_sym->match_name = "reCharClass_match";
             }
             break;
         }
@@ -48,11 +50,13 @@ ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
         case CHARACTER: {
             new_sym = NFA_get_symbol(reb->nfa, node->token_start->string, 1);
             new_sym->match = reChar_match;
+            new_sym->match_name = "reChar_match";
             break;
         }
         default: {
             new_sym = NFA_get_symbol(reb->nfa, node->children[1]->token_start->string, 1);
             new_sym->match = reChar_match;
+            new_sym->match_name = "reChar_match";
         }
     }
 

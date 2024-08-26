@@ -42,6 +42,7 @@ char const * TEST_REGEX[] = {
     "[a-c]",
     "(a|b)*abb",
     "abb(a|b)*",
+    "[a-zA-Z_][a-zA-Z_0-9]*",
     NULL
 };
 
@@ -77,6 +78,7 @@ char const * TEST_REGEX_PP[] = {
     "[a-c]",
     "(a|b)*abb",
     "abb(a|b)*",
+    "[a-zA-Z_][a-zA-Z_0-9]*", // the all-important identifier
     NULL
 };
 
@@ -319,7 +321,8 @@ Symbol sym_range_ac = {.sym = "a-c", .sym_len = 3, .match = reCharClass_match};
 // don't actually need to fill out the symbols
 DFA * TEST_REGEX_DFA[] = {
     // "a"
-    &(DFA){.nstates = 2, .nsymbols = 1, .regex_s = "a", .regex_len = 1,
+    &(DFA){.nstates = 2, //.nsymbols = 1,
+        .regex_s = "a", .regex_len = 1,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -335,7 +338,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab"
-    &(DFA){.nstates = 3, .nsymbols = 2, .regex_s = "ab", .regex_len = 2,
+    &(DFA){.nstates = 3, //.nsymbols = 2, 
+        .regex_s = "ab", .regex_len = 2,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -358,7 +362,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a|b"
-    &(DFA){.nstates = 3, .nsymbols = 2, .regex_s = "a|b", .regex_len = 3,
+    &(DFA){.nstates = 3, //.nsymbols = 2, 
+        .regex_s = "a|b", .regex_len = 3,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -382,7 +387,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab+" // NOTE: this DFA is reducible. The [3] DFAState is essentially identical to [2]. When I am able to reduce states, this should be fixed
-    &(DFA){.nstates = 4, .nsymbols = 2, .regex_s = "ab+", .regex_len = 3,
+    &(DFA){.nstates = 4, //.nsymbols = 2, 
+        .regex_s = "ab+", .regex_len = 3,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -417,7 +423,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab\\+"
-    &(DFA){.nstates = 4, .nsymbols = 3, .regex_s = "ab\\+", .regex_len = 4,
+    &(DFA){.nstates = 4, //.nsymbols = 3, 
+        .regex_s = "ab\\+", .regex_len = 4,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -447,7 +454,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab{,}" // NOTE: this DFA is reducible. The [2] DFAState is essentially identical to [1]. When I am able to reduce states, this should be fixed
-    &(DFA){.nstates = 3, .nsymbols = 2, .regex_s = "ab{,}", .regex_len = 5,
+    &(DFA){.nstates = 3, //.nsymbols = 2, 
+        .regex_s = "ab{,}", .regex_len = 5,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -475,7 +483,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab{,0}" // NOTE: this DFA is reducible. The [2] DFAState is essentially identical to [1]. When I am able to reduce states, this should be fixed
-    &(DFA){.nstates = 3, .nsymbols = 2, .regex_s = "ab{,0}", .regex_len = 6,
+    &(DFA){.nstates = 3, //.nsymbols = 2, 
+        .regex_s = "ab{,0}", .regex_len = 6,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -503,7 +512,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab{0,0}" // NOTE: this DFA is reducible. The [2] DFAState is essentially identical to [1]. When I am able to reduce states, this should be fixed
-    &(DFA){.nstates = 3, .nsymbols = 2, .regex_s = "ab{0,0}", .regex_len = 7,
+    &(DFA){.nstates = 3, //.nsymbols = 2, 
+        .regex_s = "ab{0,0}", .regex_len = 7,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -531,7 +541,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab{,1}"
-    &(DFA){.nstates = 3, .nsymbols = 2, .regex_s = "ab{,1}", .regex_len = 6,
+    &(DFA){.nstates = 3, //.nsymbols = 2, 
+        .regex_s = "ab{,1}", .regex_len = 6,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -555,7 +566,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab{0,1}"
-    &(DFA){.nstates = 3, .nsymbols = 2, .regex_s = "ab{0,1}", .regex_len = 7,
+    &(DFA){.nstates = 3, //.nsymbols = 2, 
+        .regex_s = "ab{0,1}", .regex_len = 7,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -579,7 +591,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab?"
-    &(DFA){.nstates = 3, .nsymbols = 2, .regex_s = "ab{0,1}", .regex_len = 7,
+    &(DFA){.nstates = 3, //.nsymbols = 2, 
+        .regex_s = "ab{0,1}", .regex_len = 7,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -603,7 +616,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab{1,2}"
-    &(DFA){.nstates = 4, .nsymbols = 2, .regex_s = "ab{1,2}", .regex_len = 7,
+    &(DFA){.nstates = 4, //.nsymbols = 2, 
+        .regex_s = "ab{1,2}", .regex_len = 7,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -634,7 +648,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab{2}"
-    &(DFA){.nstates = 4, .nsymbols = 2, .regex_s = "ab{2}", .regex_len = 5,
+    &(DFA){.nstates = 4, //.nsymbols = 2, 
+        .regex_s = "ab{2}", .regex_len = 5,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -664,7 +679,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab{2,5}"
-    &(DFA){.nstates = 7, .nsymbols = 2, .regex_s = "ab{2,5}", .regex_len = 7,
+    &(DFA){.nstates = 7, //.nsymbols = 2, 
+        .regex_s = "ab{2,5}", .regex_len = 7,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -718,7 +734,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "ab\\{"
-    &(DFA){.nstates = 4, .nsymbols = 3, .regex_s = "ab\\+", .regex_len = 4,
+    &(DFA){.nstates = 4, //.nsymbols = 3, 
+        .regex_s = "ab\\+", .regex_len = 4,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -748,7 +765,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc){,}" // NOTE: this DFA is reducible. The [2] DFAState is essentially identical to [1]. When I am able to reduce states, this should be fixed
-    &(DFA){.nstates = 4, .nsymbols = 3, .regex_s = "a(bc){,}", .regex_len = 8,
+    &(DFA){.nstates = 4, //.nsymbols = 3, 
+        .regex_s = "a(bc){,}", .regex_len = 8,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -783,7 +801,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc){,0}" // NOTE: this DFA is reducible. The [2] DFAState is essentially identical to [1]. When I am able to reduce states, this should be fixed
-    &(DFA){.nstates = 4, .nsymbols = 3, .regex_s = "a(bc){,0}", .regex_len = 9,
+    &(DFA){.nstates = 4, //.nsymbols = 3, 
+        .regex_s = "a(bc){,0}", .regex_len = 9,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -818,7 +837,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc){0,0}" // NOTE: this DFA is reducible. The [2] DFAState is essentially identical to [1]. When I am able to reduce states, this should be fixed
-    &(DFA){.nstates = 4, .nsymbols = 3, .regex_s = "a(bc){0,0}", .regex_len = 10,
+    &(DFA){.nstates = 4, //.nsymbols = 3, 
+        .regex_s = "a(bc){0,0}", .regex_len = 10,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -853,7 +873,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc){,1}"
-    &(DFA){.nstates = 4, .nsymbols = 3, .regex_s = "a(bc){,1}", .regex_len = 9,
+    &(DFA){.nstates = 4, //.nsymbols = 3, 
+        .regex_s = "a(bc){,1}", .regex_len = 9,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -884,7 +905,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc){0,1}"
-    &(DFA){.nstates = 4, .nsymbols = 3, .regex_s = "a(bc){0,1}", .regex_len = 10,
+    &(DFA){.nstates = 4, //.nsymbols = 3, 
+        .regex_s = "a(bc){0,1}", .regex_len = 10,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -915,7 +937,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc){1,2}"
-    &(DFA){.nstates = 6, .nsymbols = 3, .regex_s = "a(bc){1,2}", .regex_len = 10,
+    &(DFA){.nstates = 6, //.nsymbols = 3, 
+        .regex_s = "a(bc){1,2}", .regex_len = 10,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -960,7 +983,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc){2}"
-    &(DFA){.nstates = 6, .nsymbols = 3, .regex_s = "a(bc){2}", .regex_len = 8,
+    &(DFA){.nstates = 6, //.nsymbols = 3, 
+        .regex_s = "a(bc){2}", .regex_len = 8,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -1004,7 +1028,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc){2,5}"
-    &(DFA){.nstates = 12, .nsymbols = 3, .regex_s = "a(bc){2,5}", .regex_len = 10,
+    &(DFA){.nstates = 12, //.nsymbols = 3, 
+        .regex_s = "a(bc){2,5}", .regex_len = 10,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -1093,7 +1118,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc)\\{"
-    &(DFA){.nstates = 5, .nsymbols = 4, .regex_s = "ab\\{", .regex_len = 4,
+    &(DFA){.nstates = 5, //.nsymbols = 4, 
+        .regex_s = "ab\\{", .regex_len = 4,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -1130,7 +1156,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc)\\+"
-    &(DFA){.nstates = 5, .nsymbols = 4, .regex_s = "ab\\+", .regex_len = 4,
+    &(DFA){.nstates = 5, //.nsymbols = 4, 
+        .regex_s = "ab\\+", .regex_len = 4,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -1167,7 +1194,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "a(bc)+"
-    &(DFA){.nstates = 6, .nsymbols = 3, .regex_s = "ab+", .regex_len = 3,
+    &(DFA){.nstates = 6, //.nsymbols = 3, 
+        .regex_s = "ab+", .regex_len = 3,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -1216,7 +1244,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "[abc]"
-    &(DFA){.nstates = 2, .nsymbols = 1, .regex_s = "[abc]", .regex_len = 5,
+    &(DFA){.nstates = 2, //.nsymbols = 1, 
+        .regex_s = "[abc]", .regex_len = 5,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -1232,7 +1261,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "[^abc]"
-    &(DFA){.nstates = 2, .nsymbols = 1, .regex_s = "[^abc]", .regex_len = 6,
+    &(DFA){.nstates = 2, //.nsymbols = 1, 
+        .regex_s = "[^abc]", .regex_len = 6,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -1248,7 +1278,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "[a-c]"
-    &(DFA){.nstates = 2, .nsymbols = 1, .regex_s = "[a-c]", .regex_len = 5,
+    &(DFA){.nstates = 2, //.nsymbols = 1, 
+        .regex_s = "[a-c]", .regex_len = 5,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -1264,7 +1295,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "(a|b)*abb"
-    &(DFA){.nstates = 5, .nsymbols = 2, .regex_s = "(a|b)*abb", .regex_len = 9,
+    &(DFA){.nstates = 5, //.nsymbols = 2, 
+        .regex_s = "(a|b)*abb", .regex_len = 9,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -1325,7 +1357,8 @@ DFA * TEST_REGEX_DFA[] = {
         }[0]
     },
     // "abb(a|b)*"
-    &(DFA){.nstates = 6, .nsymbols = 2, .regex_s = "abb(a|b)*", .regex_len = 9,
+    &(DFA){.nstates = 6, //.nsymbols = 2, 
+        .regex_s = "abb(a|b)*", .regex_len = 9,
         .states = &(DFAState[]){
             {
                 .trans = &(DFATransition) {
@@ -1736,6 +1769,18 @@ TestString * TEST_REGEX_STRINGS[] = {
         {.cstr = "abaabb", .match = {.len = 0, .str = NULL}},
         {.cstr = NULL},
     }[0],
+    // "[a-zA-Z_][a-zA-Z_0-9]*",
+    &(TestString[]){
+        {.cstr = "_", .match = {.len = 1, .str = "_"}},
+        {.cstr = "__", .match = {.len = 2, .str = "__"}},
+        {.cstr = "0", .match = {.len = 0, .str = NULL}},
+        {.cstr = "_0", .match = {.len = 2, .str = "_0"}},
+        {.cstr = "IAmTheVeryModelOfAModernMajorGeneral", .match = {.len = 36, .str = "IAmTheVeryModelOfAModernMajorGeneral"}},
+        {.cstr = "_!", .match = {.len = 1, .str = "_"}},
+        {.cstr = "__.", .match = {.len = 2, .str = "__"}},
+        {.cstr = "_0#", .match = {.len = 2, .str = "_0"}},
+        {.cstr = NULL},
+    }[0],
     (TestString *)NULL
 };
 
@@ -1800,7 +1845,7 @@ int test_DFA(void) {
     DFA dfa;
     RegexBuilder reb;
     size_t i = 0;
-    while (TEST_REGEX[i]) {
+    while (TEST_REGEX_DFA[i]) {
         NFA nfa; // dummy, not used. Need to fix API for RegexBuilder_build. probably just replace with a DFA_init
         RegexBuilder_init(&reb, &nfa);
         RegexBuilder_build(&reb, TEST_REGEX[i], strlen(TEST_REGEX[i]), &dfa);

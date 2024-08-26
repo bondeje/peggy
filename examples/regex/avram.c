@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "avram.h"
 
@@ -87,10 +89,7 @@ int are_update(struct avramT3 * av, const char * string, const int size) {
         }
         return REGEX_FAIL;
     }
-    if (av->cur_state >= ((DFA *)av)->nstates) {
-        return REGEX_ERROR;
-    }
-    if (av_push_buffer(av, string, size)) {
+    if (av->cur_state >= ((DFA *)av)->nstates || av_push_buffer(av, string, size)) {
         return REGEX_ERROR;
     }
     if (DFA_is_accepting((DFA *)av, av->cur_state)) {
@@ -124,3 +123,8 @@ void are_free(struct avramT3 * av) {
     DFA_dest(&av->dfa);
 }
 
+int are_fprint(FILE * stream, struct avramT3 * av, HASH_MAP(pSymbol, pSymbol) * sym_map) {
+    int n = fprintf(stream, "{.flags = %u, .end = -1, .buffer_size = %d, .ibuffer = 0, .buffer = &(char[%d]){0}[0], .cur_state = 0, .dfa = ", av->flags, REGEX_STATIC_BUFFER_SIZE, REGEX_STATIC_BUFFER_SIZE);
+    n += DFA_fprintf(stream, (DFA *)av, sym_map);
+    return n + fprintf(stream, "}");
+}
