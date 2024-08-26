@@ -5,13 +5,61 @@
 #include "thompson.h"
 
 ASTNode * re_pass(Production * prod, Parser * parser, ASTNode * node) {
-    if (node->children[0]->rule->id == LPAREN) { // of form '(', choice, ')'
+    if (node->nchildren == 3 && node->children[0]->rule->id == LPAREN) { // of form '(', choice, ')'
         *node->children[1] = *node; // copy node metadata into choice result (which is really an NFANode)
         node->children[1]->rule = (Rule *)prod;
         return node->children[1];
     }
     node->rule = (Rule *)prod;
     return node; // symbol should already be reduced
+}
+
+void re_charclass_preprocess(RegexBuilder * reb, ASTNode * node, char const ** sym, unsigned char * len) {
+    unsigned char max_len = (unsigned char)ASTNode_string_length(node);
+    char const * src = node->children[0]->token_start->string;
+    unsigned char i = 0, j = 0;
+    char * dest = MemPoolManager_aligned_alloc(reb->nfa->nfa_pool, max_len, 1);
+    dest[j++] = src[i++];   // '['
+    if (src[i] == '^') {
+        dest[j++] = src[i++];   // '^'
+    }
+
+    while (i < max_len) {
+        if (src[i] == '\\') {
+            switch (src[i+1]) {
+                case '^':
+                case '-':
+                case ']':
+                case '\\':{
+                    i++;
+                }
+            }
+        }
+        dest[j++] = src[i++];
+    }
+    *sym = dest;
+    *len = j;
+}
+
+ASTNode * re_check_range(Production * prod, Parser * parser, ASTNode * node) {
+    char upper = 0;
+    char lower = 1;
+    if (node->children[0]->nchildren > 1) {
+        lower = node->children[0]->children[1]->token_start->string[0];
+    } else {
+        lower = node->children[0]->token_start->string[0];
+    }
+
+    if (node->children[2]->nchildren > 1) {
+        upper = node->children[2]->children[1]->token_start->string[0];
+    } else {
+        upper = node->children[2]->token_start->string[0];
+    }
+
+    if (upper < lower) {
+        return Parser_fail_node(parser);
+    }
+    return build_action_default(prod, parser, node);
 }
 
 ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
@@ -25,8 +73,10 @@ ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
         case CHAR_CLASS: {
             // this should be broken out as a function call.
             // also the symbol collection is wrong. Need to handle class escape characters
-            char const * sym = node->children[0]->token_start->string;
-            unsigned char len = (unsigned char)(ASTNode_string_length(node));
+            char const * sym = NULL;
+            unsigned char len = 0;
+            re_charclass_preprocess(reb, node, &sym, &len);
+            //printf("char class: %.*s from %.*s\n", (int)len, sym, (int)ASTNode_string_length(node), node->children[0]->token_start->string);
             new_sym = NFA_get_symbol(reb->nfa, sym, len);
             if (node->children[1]->nchildren) {
                 new_sym->match = reCharClass_inv_match;
@@ -50,6 +100,10 @@ ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
             new_sym = &sym_eos;
             break;
         }
+        case CARET: {
+            new_sym = &sym_bos;
+            break;
+        }
         case CHARACTER: {
             new_sym = NFA_get_symbol(reb->nfa, node->token_start->string, 1);
             new_sym->match = reChar_match;
@@ -66,6 +120,70 @@ ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node) {
     NFATransition * trans = NFA_new_transition(reb->nfa);
     
     // build and initialize start and final state for a transition using the symbol
+    // NOTE that some of the tests depend on the order in which the new states are allocated. if moved, refactor tests
+    NFAState * final = NFA_new_state(reb->nfa);
+    NFAState * start = NFA_new_state(reb->nfa);
+    *start = (NFAState) {.n_out = 1, .n_in = 0, .out = trans, .id = start->id};
+    *final = (NFAState) {.n_out = 0, .n_in = 1, .in = trans, .id = final->id};
+
+    // initialize transition for start to final state
+    *trans = (NFATransition) {.final = final, .next_in = NULL, .next_out = NULL, .start = start, .symbol = new_sym};
+
+    // memory allocation with Mempool...entire node follows NFA output rather than parser
+    //NFANode * subnfa = MemPoolManager_aligned_alloc(reb->nfa->nfa_pool, sizeof(NFANode), _Alignof(NFANode));
+    // memory allocation with Parser...node is released with parser
+    NFANode * subnfa = (NFANode *)Parser_add_node(parser, (Rule *)prod, node->token_start, node->token_end, 0, 0, sizeof(NFANode));
+    *subnfa = (NFANode) {.node = *node, .start = start, .final = final};
+    subnfa->node.rule = (Rule *)prod;
+    return (ASTNode *)subnfa;
+}
+
+void re_lookahead_preprocess(RegexBuilder * reb, ASTNode * node, char const ** sym, unsigned char * len) {
+    unsigned char max_len = (unsigned char)ASTNode_string_length(node);
+    char const * src = node->children[0]->token_start->string;
+    unsigned char i = 0, j = 0;
+    char * dest = MemPoolManager_aligned_alloc(reb->nfa->nfa_pool, max_len, 1);
+    dest[j++] = src[i++];   // '('
+    dest[j++] = src[i++];   // '?'
+    dest[j++] = src[i++];   // '='/'!'
+
+    while (i < max_len) {
+        if (src[i] == '\\' && src[i+1] == ')') {
+            i++;
+        }
+        dest[j++] = src[i++];
+    }
+    *sym = dest;
+    *len = j;
+}
+
+ASTNode * re_build_lookahead(Production * prod, Parser * parser, ASTNode * node) {
+    RegexBuilder * reb = (RegexBuilder *)parser;
+    // build a new symbol
+    Symbol * new_sym;
+    // does not handle escaped lparen. TODO
+    char const * sym = NULL;
+    unsigned char len = 0;
+    re_lookahead_preprocess(reb, node, &sym, &len);
+    switch (node->children[2]->rule->id) {
+        case EQUALS: {
+            new_sym = NFA_get_symbol(reb->nfa, sym, len);
+            new_sym->match = rePositiveLookahead_match;
+            new_sym->match_name = "rePositiveLookahead_match";
+            break;
+        }
+        case EXCLAIM: {
+            new_sym = NFA_get_symbol(reb->nfa, sym, len);
+            new_sym->match = reNegativeLookahead_match;
+            new_sym->match_name = "reNegativeLookahead_match";
+            break;
+        }
+    }
+
+    NFATransition * trans = NFA_new_transition(reb->nfa);
+    
+    // build and initialize start and final state for a transition using the symbol
+    // NOTE that some of the tests depend on the order in which the new states are allocated. if moved, refactor tests
     NFAState * final = NFA_new_state(reb->nfa);
     NFAState * start = NFA_new_state(reb->nfa);
     *start = (NFAState) {.n_out = 1, .n_in = 0, .out = trans, .id = start->id};

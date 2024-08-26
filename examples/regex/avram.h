@@ -31,11 +31,11 @@ char * are_compile_pattern(const char * regex, const int regex_size,
     struct avramT3 * av,
     unsigned int flags);
 
-int are_match(struct avramT3 * av, const char * string, const int size,
-    const int start);
+int are_match(struct avramT3 * av, const char * string, size_t size,
+    size_t start);
 
 // for streaming mode
-int are_update(struct avramT3 * av, const char * string, const int size);
+int are_update(struct avramT3 * av, const char * string, size_t size, size_t * cursor);
 
 void are_get_match(struct avramT3 * av, struct MatchString * match, 
     struct MatchString * unmatched);

@@ -1,12 +1,12 @@
 #include "dfa.h"
 
-int DFA_check(DFAState const * cur_state, char const * str, int const len, 
-    int * final) {
+int DFA_check(DFAState const * cur_state, char const * str, size_t const len, 
+    size_t * cursor, int * final) {
     
     DFATransition * trans = cur_state->trans;
     while (trans) {
         Symbol * sym = trans->sym;
-        if (sym->match(sym, str)) {
+        if (sym->match(sym, str, len, cursor)) {
             if (final) {
                 *final = trans->final_state;
             }

@@ -33,7 +33,9 @@ $(BIN_DIR)/regex: re.h
 test: re.h $(EXE_SRCS) $(TEST_SRCS)
 	@if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="" ; fi ; \
 	$(CC) $(CFLAGS_TEST) $$DBGOPT $(IFLAGS) $(EXE_SRCS) $(TEST_SRCS) -o $@ $(LFLAGS_TEST)
+
+check: test
 	./test --verbose
-	
+
 clean:
 	@rm -f re.h re.c *.log $(BIN_DIR)/regex test

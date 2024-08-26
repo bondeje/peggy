@@ -50,7 +50,15 @@ char const * TEST_REGEX[] = {
     "\\*[^/]",
     "[^*]",
     "(\\*[^/])|[^*]",
-    "/\\*((\\*[^/])|[^*])*\\*/)",
+    "a(?=b)",
+    "a(?=\\))",
+    "a(?!b)",
+    "/\\*((\\*(?!/))|[^*])*\\*/)",
+    // check that it can compile it's own more complicated regex
+    "[\\\\\\^$.[|()*?]", // character tokens. these are characters that are not escaped in a symbol outside a character class or lookaround
+    "[^\\\\\\^$.[|()*?]", // nonclass_escape. these are characters that must be escaped in a symbol outside a character class or lookaround
+    "[\\\\\\-\\]\\^]", // unescaped character class symbols
+    "[^\\\\\\-\\]\\^]", // escaped character class symbols
     NULL
 };
 
@@ -94,7 +102,15 @@ char const * TEST_REGEX_PP[] = {
     "\\*[^/]",
     "[^*]",
     "(\\*[^/])|[^*]",
-    "/\\*((\\*[^/])|[^*])*\\*/)",
+    "a(?=b)",
+    "a(?=\\))",
+    "a(?!b)",
+    "/\\*((\\*(?!/))|[^*])*\\*/)",
+    // check that it can compile it's own more complicated regex
+    "[\\\\\\^$.[|()*?]",
+    "[^\\\\\\^$.[|()*?]",
+    "[\\\\\\-\\]\\^]",
+    "[^\\\\\\-\\]\\^]",
     NULL
 };
 
@@ -1850,18 +1866,105 @@ TestString * TEST_REGEX_STRINGS[] = {
         {.cstr = "/", .match = {.len = 1, .str = "/"}},
         {.cstr = NULL},
     }[0],
-    // "/\\*((\\*[^/])|[^*])*\\*/)"
-    // proposed: "/\\*([^*]*|*)\\*/"
+    // "a(?=b)"
+    &(TestString[]){
+        {.cstr = "ab", .match = {.len = 1, .str = "a"}},
+        {.cstr = "aa", .match = {.len = 0, .str = NULL}},
+        {.cstr = "a", .match = {.len = 0, .str = NULL}},
+        {.cstr = "abb", .match = {.len = 1, .str = "a"}},
+        {.cstr = NULL},
+    }[0],
+    // "a(?=\\))"
+    &(TestString[]){
+        {.cstr = "a)", .match = {.len = 1, .str = "a"}},
+        {.cstr = "aa", .match = {.len = 0, .str = NULL}},
+        {.cstr = "a", .match = {.len = 0, .str = NULL}},
+        {.cstr = "a))", .match = {.len = 1, .str = "a"}},
+        {.cstr = NULL},
+    }[0],
+    // "a(?!b)"
+    &(TestString[]){
+        {.cstr = "ab", .match = {.len = 0, .str = NULL}},
+        {.cstr = "aa", .match = {.len = 1, .str = "a"}},
+        {.cstr = "a", .match = {.len = 1, .str = "a"}},
+        {.cstr = "abb", .match = {.len = 0, .str = NULL}},
+        {.cstr = NULL},
+    }[0],
+    // "/\\*((\\*(?!/))|[^*])*\\*/)"
     &(TestString[]){
         {.cstr = "/**/", .match = {.len = 4, .str = "/**/"}},
         {.cstr = "/** /", .match = {.len = 0, .str = NULL}},
         {.cstr = "/ **/", .match = {.len = 0, .str = NULL}},
         {.cstr = " /**/", .match = {.len = 0, .str = NULL}},
         {.cstr = "/* */", .match = {.len = 5, .str = "/* */"}},
-        //{.cstr = "/***/", .match = {.len = 5, .str = "/***/"}},
+        {.cstr = "/***/", .match = {.len = 5, .str = "/***/"}},
         {.cstr = "/*/*/", .match = {.len = 5, .str = "/*/*/"}},
         // should only capture the first and not the second
         {.cstr = "/**/ not a comment /**/", .match = {.len = 4, .str = "/**/"}},
+        {.cstr = NULL},
+    }[0],
+    // "[\\\\\\^$.[|()*?]"
+    &(TestString[]){
+        {.cstr = "\\", .match = {.len = 1, .str = "\\"}},
+        {.cstr = "^", .match = {.len = 1, .str = "^"}},
+        {.cstr = "$", .match = {.len = 1, .str = "$"}},
+        {.cstr = ".", .match = {.len = 1, .str = "."}},
+        {.cstr = "[", .match = {.len = 1, .str = "["}},
+        {.cstr = "|", .match = {.len = 1, .str = "|"}},
+        {.cstr = "(", .match = {.len = 1, .str = "("}},
+        {.cstr = ")", .match = {.len = 1, .str = ")"}},
+        {.cstr = "*", .match = {.len = 1, .str = "*"}},
+        {.cstr = "?", .match = {.len = 1, .str = "?"}},
+        {.cstr = "a", .match = {.len = 0, .str = NULL}},
+        {.cstr = NULL},
+    }[0],
+    // "[^\\\\\\^$.[|()*?]"
+    &(TestString[]){
+        {.cstr = "\\", .match = {.len = 0, .str = NULL}},
+        {.cstr = "^", .match = {.len = 0, .str = NULL}},
+        {.cstr = "$", .match = {.len = 0, .str = NULL}},
+        {.cstr = ".", .match = {.len = 0, .str = NULL}},
+        {.cstr = "[", .match = {.len = 0, .str = NULL}},
+        {.cstr = "|", .match = {.len = 0, .str = NULL}},
+        {.cstr = "(", .match = {.len = 0, .str = NULL}},
+        {.cstr = ")", .match = {.len = 0, .str = NULL}},
+        {.cstr = "*", .match = {.len = 0, .str = NULL}},
+        {.cstr = "?", .match = {.len = 0, .str = NULL}},
+        {.cstr = "a", .match = {.len = 1, .str = "a"}},
+        {.cstr = NULL},
+    }[0],
+    //"[\\\\\\-\\]\\^]",
+    &(TestString[]){
+        {.cstr = "\\", .match = {.len = 1, .str = "\\"}},
+        {.cstr = "^", .match = {.len = 1, .str = "^"}},
+        {.cstr = "-", .match = {.len = 1, .str = "-"}},
+        {.cstr = "]", .match = {.len = 1, .str = "]"}},
+        {.cstr = "$", .match = {.len = 0, .str = NULL}},
+        {.cstr = ".", .match = {.len = 0, .str = NULL}},
+        {.cstr = "[", .match = {.len = 0, .str = NULL}},
+        {.cstr = "|", .match = {.len = 0, .str = NULL}},
+        {.cstr = "(", .match = {.len = 0, .str = NULL}},
+        {.cstr = ")", .match = {.len = 0, .str = NULL}},
+        {.cstr = "*", .match = {.len = 0, .str = NULL}},
+        {.cstr = "?", .match = {.len = 0, .str = NULL}},
+        {.cstr = "a", .match = {.len = 0, .str = NULL}},
+        {.cstr = NULL},
+    }[0],
+    //"[^\\\\\\-\\]\\^]",
+    &(TestString[]){
+        {.cstr = "\\", .match = {.len = 0, .str = NULL}},
+        {.cstr = "^", .match = {.len = 0, .str = NULL}},
+        {.cstr = "-", .match = {.len = 0, .str = NULL}},
+        {.cstr = "]", .match = {.len = 0, .str = NULL}},
+        {.cstr = "$", .match = {.len = 1, .str = "$"}},
+        {.cstr = ".", .match = {.len = 1, .str = "."}},
+        {.cstr = "[", .match = {.len = 1, .str = "["}},
+        {.cstr = "|", .match = {.len = 1, .str = "|"}},
+        {.cstr = "(", .match = {.len = 1, .str = "("}},
+        {.cstr = ")", .match = {.len = 1, .str = ")"}},
+        {.cstr = "*", .match = {.len = 1, .str = "*"}},
+        {.cstr = "?", .match = {.len = 1, .str = "?"}},
+        {.cstr = "a", .match = {.len = 1, .str = "a"}},
         {.cstr = NULL},
     }[0],
     (TestString *)NULL
@@ -1902,7 +2005,7 @@ int test_NFA(void) {
     RegexBuilder reb;
     size_t j = 0;
     size_t i = 0;
-    while (TEST_REGEX_NFA[i]) {
+    while (TEST_REGEX[i] && TEST_REGEX_NFA[i]) {
         RegexBuilder_init(&reb, &nfa);
         NFA_init(&nfa);
         if (!strncmp(TEST_REGEX[i], "(a|b)*abb", strlen(TEST_REGEX[i]))) {
@@ -1928,7 +2031,7 @@ int test_DFA(void) {
     DFA dfa;
     RegexBuilder reb;
     size_t i = 0;
-    while (TEST_REGEX_DFA[i]) {
+    while (TEST_REGEX[i] && TEST_REGEX_DFA[i]) {
         NFA nfa; // dummy, not used. Need to fix API for RegexBuilder_build. probably just replace with a DFA_init
         RegexBuilder_init(&reb, &nfa);
         RegexBuilder_build(&reb, TEST_REGEX[i], strlen(TEST_REGEX[i]), &dfa);
@@ -1951,10 +2054,11 @@ int test_regex(void) {
     int nerrors = 0;
 
     size_t i = 0;
-    while (TEST_REGEX_STRINGS[i]) {
+    while (TEST_REGEX[i] && TEST_REGEX_STRINGS[i]) {
         size_t j = 0;
         struct avramT3 av;
-        nerrors += CHECK(!are_compile_pattern(TEST_REGEX[i], strlen(TEST_REGEX[i]), &av, 0), "failed to compile regex pattern: %s\n", TEST_REGEX[i]);
+        size_t len = strlen(TEST_REGEX[i]);
+        nerrors += CHECK(!are_compile_pattern(TEST_REGEX[i], len, &av, 0), "failed to compile regex pattern: %s\n", TEST_REGEX[i]);
         
         //if (!strcmp(TEST_REGEX[i], "/\\*((\\*[^/])|[^*])*\\*/)")) {
         //    DFA_print((DFA *)&av);
@@ -1963,9 +2067,7 @@ int test_regex(void) {
         while (TEST_REGEX_STRINGS[i][j].cstr) {
             nerrors += check_regex(&av, TEST_REGEX_STRINGS[i] + j);
             // need to reset av for next regex
-            av.cur_state = 0;
-            av.ibuffer = 0;
-            av.end = -1;
+            are_reset(&av);
             j++;
         }
         are_free(&av); // clear buffer memory and DFA

@@ -115,7 +115,8 @@ int check_DFA(DFA * uut, DFA * ref) {
 int check_regex(struct avramT3 * av, TestString * test) {
     DFA * dfa = (DFA *)av;
     int nerrors = 0;
-    int status = are_match(av, test->cstr, strlen(test->cstr), 0);
+    size_t size = strlen(test->cstr);
+    int status = are_match(av, test->cstr, size, 0);
     if (test->match.str) {
         nerrors += CHECK(!(status < test->match.len || status > test->match.len), "does not match expected length for regex %.*s and input %s. expected: %d, found %d\n", dfa->regex_len, dfa->regex_s, test->cstr, test->match.len, status);
         if (!nerrors) {
@@ -124,7 +125,7 @@ int check_regex(struct avramT3 * av, TestString * test) {
             nerrors += CHECK(!strncmp(match.str, test->match.str, test->match.len), "unexpected match value for regex %.*s and input %s. expected: %.*s, found: %.*s\n", dfa->regex_len, dfa->regex_s, test->cstr, test->match.len, test->match.str, match.len, match.str);
         }
     } else {
-        nerrors += CHECK(status == -REGEX_FAIL, "unexpected status of failure test. expected: %d, found %d\n", -REGEX_FAIL, status);
+        nerrors += CHECK(status == -REGEX_FAIL, "unexpected status of failure test for regex %.*s and input %s. expected: %d, found %d\n", dfa->regex_len, dfa->regex_s, test->cstr, -REGEX_FAIL, status);
     }
     return nerrors;
 }

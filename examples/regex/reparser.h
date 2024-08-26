@@ -23,6 +23,8 @@ BUILD_ALIGNMENT_STRUCT(NFANode)
 
 ASTNode * re_pass(Production * prod, Parser * parser, ASTNode * node);
 ASTNode * re_build_symbol(Production * prod, Parser * parser, ASTNode * node);
+ASTNode * re_build_lookahead(Production * prod, Parser * parser, ASTNode * node);
+ASTNode * re_check_range(Production * prod, Parser * parser, ASTNode * node);
 NFATransition * re_build_empty_transition(RegexBuilder * reb, NFAState * start, NFAState * final);
 ASTNode * re_build_choice(Production * prod, Parser * parser, ASTNode * node);
 ASTNode * re_build_optional(Production * prod, Parser * parser, ASTNode * node);

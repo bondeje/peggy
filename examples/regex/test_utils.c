@@ -19,9 +19,3 @@ int check(_Bool result, char const * failmsg, ...) {
     return 0;
 }
 
-/*
-int checkNFA(NFAState * start, NFAState * end) {
-
-}
-*/
-

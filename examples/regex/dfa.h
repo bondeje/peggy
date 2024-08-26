@@ -41,7 +41,7 @@ struct DFA {
 #define DFA_is_accepting(pDFA, index) ((pDFA)->states + index)->accepting
 
 // returns 0 on success, else error
-int DFA_check(DFAState const * cur_state, char const * str, int const len, int * final);
+int DFA_check(DFAState const * cur_state, char const * str, size_t const len, size_t * cursor, int * final);
 void DFA_dest(DFA * dfa);
 
 int DFATransition_fprint(FILE * stream, DFATransition * trans, HASH_MAP(pSymbol, pSymbol) * sym_map);
