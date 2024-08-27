@@ -160,7 +160,7 @@ void re_lookahead_preprocess(RegexBuilder * reb, ASTNode * node, char const ** s
 ASTNode * re_build_lookahead(Production * prod, Parser * parser, ASTNode * node) {
     RegexBuilder * reb = (RegexBuilder *)parser;
     // build a new symbol
-    Symbol * new_sym;
+    Symbol * new_sym = {0};
     // does not handle escaped lparen. TODO
     char const * sym = NULL;
     unsigned char len = 0;
