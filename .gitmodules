@@ -4,3 +4,6 @@
 [submodule "TypeMemPools"]
 	path = lib/TypeMemPools
 	url = https://github.com/bondeje/TypeMemPools.git
+[submodule "lib/lexre"]
+	path = lib/lexre
+	url = https://github.com/bondeje/lexre.git
