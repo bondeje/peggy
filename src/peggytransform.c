@@ -20,16 +20,6 @@ PeggyString get_rule_pointer(PeggyParser * parser, PeggyString name) {
     return arg;
 }
 
-unsigned char size_t_strlen(size_t val){
-    char buffer[64]; // a buffer of 64 will cover any crazy sized architectures
-    int length = sprintf(buffer, "%zu", val);
-    if (length < 0 || length > 63) {
-        printf("what the hell did you do\?\?\?!!!\n");
-        exit(EXIT_FAILURE);
-    }
-    return (unsigned char) length;
-}
-
 void handle_terminal(PeggyParser * parser, ASTNode * node, const PeggyString parent_id) {
     if (node->rule->id == STRING_LITERAL) {
         handle_string_literal(parser, node->children[0], parent_id);
@@ -49,24 +39,29 @@ void handle_lookahead_rule(PeggyParser * parser, ASTNode * node, PeggyString nam
     switch (lookahead_type->rule->id) {
         case AMPERSAND: {
             prod.type = PEGGY_POSITIVELOOKAHEAD;
-            prod.identifier.len = parser->export.len + 1 + strlen("pos") + 1 + size_t_strlen(parser->productions.fill);
-            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
+            size_t buf_len = sizeof(char) * (parser->export.len + strlen("pos") + size_t_strlen(parser->productions.fill) + 3);
+            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
+            prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_pos_%zu", (int)parser->export.len, parser->export.str, parser->productions.fill);
+            /*
             char * buffer = copy_export(parser, prod.identifier.str);
             size_t written = (size_t)(buffer - prod.identifier.str);
             written += sprintf(buffer, "_pos_%zu", parser->productions.fill);
             prod.identifier.str[written] = '\0';
-
+            */
             // add arguments
             break;
         }
         case EXCLAIM: { // repeat 0 or more
             prod.type = PEGGY_NEGATIVELOOKAHEAD;
-            prod.identifier.len = parser->export.len + 1 + strlen("neg") + 1 + size_t_strlen(parser->productions.fill);
-            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
+            size_t buf_len = sizeof(char) * (parser->export.len + strlen("neg") + size_t_strlen(parser->productions.fill) + 3);
+            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
+            prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_neg_%zu", (int)parser->export.len, parser->export.str, parser->productions.fill);
+            /*
             char * buffer = copy_export(parser, prod.identifier.str);
             size_t written = (size_t)(buffer - prod.identifier.str);
             written += sprintf(buffer, "_neg_%zu", parser->productions.fill);
             prod.identifier.str[written] = '\0';
+            */
             // add arguments
             break;
         }
@@ -93,13 +88,15 @@ void handle_list_rule(PeggyParser * parser, ASTNode * node, PeggyString name) {
     PeggyProduction prod;
     production_init(parser, name, &prod);
     size_t nchildren = (node->nchildren + 1) / 2;
-    prod.identifier.len = parser->export.len + 1 + strlen("list") + 1 + size_t_strlen((size_t)nchildren) + 1 + size_t_strlen(parser->productions.fill);
-    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
+    size_t buf_len = sizeof(char) * (parser->export.len + strlen("list") + size_t_strlen((size_t)nchildren) + size_t_strlen(parser->productions.fill) + 4);
+    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
+    prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_list_%zu_%zu", (int)parser->export.len, parser->export.str, nchildren, parser->productions.fill);
+    /*
     char * buffer = copy_export(parser, prod.identifier.str);
     size_t written = (size_t)(buffer - prod.identifier.str);
     written += sprintf(buffer, "_list_%zu_%zu", nchildren, parser->productions.fill);
     prod.identifier.str[written] = '\0';
-
+    */
     prod.type = PEGGY_LIST;
 
     PeggyProduction_declare(parser, prod);
@@ -130,53 +127,71 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
         case PLUS: { // repeat 1 or more
             //printf("one or more\n");
             m.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char));
-            memcpy((void*)m.str, "1", 1);
+            m.str[0] = '1';
+            //memcpy((void*)m.str, "1", 1);
             m.len = 1;
 
-            prod.identifier.len = parser->export.len + 9 /* 1 + strlen("rep_1_0") + 1 */ + size_t_strlen(parser->productions.fill);
-            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
+            size_t buf_len = sizeof(char) * (parser->export.len + size_t_strlen(parser->productions.fill) + 10);
+            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
+            prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_rep_1_0_%zu", (int)parser->export.len, parser->export.str, parser->productions.fill);
+            /*
             char * buffer = copy_export(parser, prod.identifier.str);
             size_t written = (size_t)(buffer - prod.identifier.str);
             written += sprintf(buffer, "_rep_1_0_%zu", parser->productions.fill);
             prod.identifier.str[written] = '\0';
-
+            */
             // add arguments
             break;
         }
         case ASTERISK: { // repeat 0 or more
             //printf("zero or more\n");
-            prod.identifier.len = parser->export.len + 9 /* 1 + strlen("rep_0_0") + 1 */ + size_t_strlen(parser->productions.fill);
-            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
+            size_t buf_len = sizeof(char) * (parser->export.len + size_t_strlen(parser->productions.fill) + 10);
+            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
+            prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_rep_0_0_%zu", (int)parser->export.len, parser->export.str, parser->productions.fill);
+            /*
             char * buffer = copy_export(parser, prod.identifier.str);
             size_t written = (size_t)(buffer - prod.identifier.str);
             written += sprintf(buffer, "_rep_0_0_%zu", parser->productions.fill);
             prod.identifier.str[written] = '\0';
-
+            */
             // add arguments
             break;
         }
         case QUESTION: { // repeat 0 or 1
             //printf("optional\n");
             m.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char));
-            memcpy((void*)m.str, "0", 1);
+            m.str[0] = '0';
+            //memcpy((void*)m.str, "0", 1);
             m.len = 1;
             n.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char));
-            memcpy((void*)n.str, "1", 1);
+            n.str[0] = '1';
+            //memcpy((void*)n.str, "1", 1);
             n.len = 1;
 
-            prod.identifier.len = parser->export.len + 9 /* 1 + strlen("rep_0_1") + 1 */ + size_t_strlen(parser->productions.fill);
-            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
+            size_t buf_len = sizeof(char) * (parser->export.len + size_t_strlen(parser->productions.fill) + 10);
+            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
+            prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_rep_0_1_%zu", (int)parser->export.len, parser->export.str, parser->productions.fill);
+            /*
             char * buffer = copy_export(parser, prod.identifier.str);
             size_t written = (size_t)(buffer - prod.identifier.str);
             written += sprintf(buffer, "_rep_0_1_%zu", parser->productions.fill);
             prod.identifier.str[written] = '\0';
-            
+            */
             break;
         }
         default: { // repeat m to n // TODO: assess whether m and n are really necessary since get_string_from_parser now makes a new copy
+
+            // TODO: BUG: This assumes children[3] and children[1] are populated...they might not be
             ASTNode ** children = repeat_type->children;
-            PeggyString mstr = get_string_from_parser(parser, children[1]);
-            PeggyString nstr = get_string_from_parser(parser, children[3]);
+
+            PeggyString mstr = {0};
+            if (node->children[1]->nchildren) {
+                mstr = get_string_from_parser(parser, children[1]);
+            }
+            PeggyString nstr = {0};
+            if (node->children[3]->nchildren) {
+                nstr = get_string_from_parser(parser, children[3]);
+            }
             //printf("mstr: %zu, %.*s, nstr: %zu, %.*s\n", mstr.len, (int)mstr.len, mstr.str, nstr.len, (int)nstr.len, nstr.str);
             if (mstr.len) {
                 m.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * mstr.len);
@@ -204,8 +219,10 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
                 }
             }
 
-            prod.identifier.len = parser->export.len + 6 /* 1 + strlen("rep__") */ + mstr.len + nstr.len + 1 + size_t_strlen(parser->productions.fill);
-            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
+            size_t buf_len = sizeof(char) * (parser->export.len + mstr.len + nstr.len + size_t_strlen(parser->productions.fill) + 8);
+            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
+            prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_rep_%.*s_%.*s_%zu", (int)parser->export.len, parser->export.str, (int)m.len, m.str, (int)n.len, n.str, parser->productions.fill);
+            /*
             char * buffer = copy_export(parser, prod.identifier.str);
             size_t written = (size_t)(buffer - prod.identifier.str);
             written += sprintf(buffer, "_rep_");
@@ -220,7 +237,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
             written += n.len;
             written += sprintf((prod.identifier.str + written), "_%zu", parser->productions.fill);
             prod.identifier.str[written] = '\0';
-
+            */
             // add arguments
         }
     }
@@ -246,12 +263,15 @@ void handle_sequence(PeggyParser * parser, ASTNode * node, PeggyString name) {
     PeggyProduction prod;
     production_init(parser, name, &prod);
     size_t nchildren = (node->nchildren + 1) / 2;
-    prod.identifier.len = parser->export.len + 1 + strlen("seq") + 1 + size_t_strlen((size_t)nchildren) + 1 + size_t_strlen(parser->productions.fill);
-    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
+    size_t buf_len = sizeof(char) * (parser->export.len + strlen("seq") + size_t_strlen((size_t)nchildren) + size_t_strlen(parser->productions.fill) + 4);
+    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
+    prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_seq_%zu_%zu", (int)parser->export.len, parser->export.str, nchildren, parser->productions.fill);
+    /*
     char * buffer = copy_export(parser, prod.identifier.str);
     size_t written = (size_t)(buffer - prod.identifier.str);
     written += sprintf(buffer, "_seq_%zu_%zu", nchildren, parser->productions.fill);
     prod.identifier.str[written] = '\0';
+    */
     prod.type = PEGGY_SEQUENCE;
 
     PeggyProduction_declare(parser, prod);
@@ -272,12 +292,15 @@ void handle_choice(PeggyParser * parser, ASTNode * node, PeggyString name) {
     PeggyProduction prod;
     production_init(parser, name, &prod);
     size_t nchildren = (node->nchildren + 1) / 2;
-    prod.identifier.len = parser->export.len + 1 + strlen("choice") + 1 + size_t_strlen((size_t)nchildren) + 1 + size_t_strlen(parser->productions.fill);
-    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
+    size_t buf_len = sizeof(char) * (parser->export.len + strlen("choice") + size_t_strlen((size_t)nchildren) + size_t_strlen(parser->productions.fill) + 4);
+    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
+    prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_choice_%zu_%zu", (int)parser->export.len, parser->export.str, nchildren, parser->productions.fill);
+    /*
     char * buffer = copy_export(parser, prod.identifier.str);
     size_t written = (size_t)(buffer - prod.identifier.str);
     written += sprintf(buffer, "_choice_%zu_%zu", nchildren, parser->productions.fill);
     prod.identifier.str[written] = '\0';
+    */
     prod.type = PEGGY_CHOICE;
 
     PeggyProduction_declare(parser, prod);
@@ -523,25 +546,33 @@ void handle_regex_literal(PeggyParser * parser, ASTNode * node, const PeggyStrin
     
     prod.name = get_string_from_parser(parser, node);
     
-    prod.identifier.len = parent_id.len + 3;
-    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
+    size_t buf_len = sizeof(char) * (parent_id.len + 4);
+    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
+    prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_re", (int)parent_id.len, parent_id.str);
+    /*
     memcpy((void*)prod.identifier.str, (void*)parent_id.str, parent_id.len);
     prod.identifier.str[parent_id.len] = '_';
     prod.identifier.str[parent_id.len+1] = 'r';
     prod.identifier.str[parent_id.len+2] = 'e';
-
+    */
     prod.type = PEGGY_LITERAL;
 
     PeggyProduction_declare(parser, prod);
     parser->productions._class->set(&parser->productions, prod.name, prod);
 
-    PeggyString arg = {.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.name.len  - 1 + REGEX_LIB_OFFSET_LEFT + REGEX_LIB_OFFSET_RIGHT)), .len = 0};
+    buf_len = sizeof(char) * (prod.name.len  - 1 + REGEX_LIB_OFFSET_LEFT + REGEX_LIB_OFFSET_RIGHT);
+    PeggyString arg = {.str = MemPoolManager_malloc(parser->str_mgr, buf_len), .len = 0};
+
+    arg.len += snprintf(arg.str + arg.len, buf_len - arg.len, "\"%.*s\"", (int)(prod.name.len - 2), prod.name.str + 1);
+
+    /*
     memcpy((void*)arg.str, REGEX_LIB_STRING_LEFT, REGEX_LIB_OFFSET_LEFT);
     arg.len += REGEX_LIB_OFFSET_LEFT;
     memcpy((void*)(arg.str + arg.len), (void*)(prod.name.str + 1), prod.name.len - 2);
     arg.len += prod.name.len - 2;
     memcpy((void*)(arg.str + arg.len), REGEX_LIB_STRING_RIGHT, REGEX_LIB_OFFSET_RIGHT + 1);
     arg.len += REGEX_LIB_OFFSET_RIGHT;
+    */
 
     // assign args
     prod.args._class->push(&prod.args, arg);
@@ -558,12 +589,16 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
 
     prod.name = get_string_from_parser(parser, node->children[0]);
 
-    prod.identifier.len = parser->export.len + 1 + prod.name.len;
-    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1)); // +1 for underscore
+    size_t buf_len = sizeof(char) * (parser->export.len + prod.name.len + 2);
+    
+    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len); // +1 for underscore
+    prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_%.*s", (int)parser->export.len, parser->export.str, (int)prod.name.len, prod.name.str);
+    /*
     char * buffer = copy_export(parser, prod.identifier.str);
     buffer[0] = '_';
     buffer++;
     memcpy(buffer, prod.name.str, prod.name.len);
+    */
     prod.type = PEGGY_LITERAL;
 
     PeggyProduction_declare(parser, prod);

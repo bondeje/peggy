@@ -8,7 +8,7 @@ GRAMMAR = $(EXAMPLE_NAME).grmr
 BLD_LOG_LEVEL = LOG_LEVEL_INFO
 TEST_LOG_LEVEL = LOG_LEVEL_ERROR
 CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) -fPIC
-IFLAGS = -I../../include
+IFLAGS = -I../../include -I../../lib/lexre/include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
 
 SRC_DIR = ../../src
@@ -30,8 +30,8 @@ $(BIN_DIR)/peggy: $(GRAMMAR)
 	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS))
 
 rebuild:
-	@cp $(SRCS) $(INCS) .
-	@(cd ../.. && bin/peggy examples/peggy/$(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL) && mv peggy.* examples/peggy && \
+	@cp -f $(SRCS) $(INCS) .
+	@(cd ../.. && bin/peggy examples/peggy/$(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL) && mv -f peggy.* examples/peggy && \
 	rm -f bin/peggy) || $(BIN_DIR)/peggy peggy.grmr $(GRAMMAR).log $(BLD_LOG_LEVEL) && rm -f $(BIN_DIR)/peggy
 	@(echo "\nbuilding peggy parser")
 	@(if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="-DNDEBUG"; fi ; \
@@ -39,8 +39,8 @@ rebuild:
 
 test: rebuild
 	@(echo "running bootstrap tests")
-	@mv peggy.c peggy_orig.c
-	@mv peggy.h peggy_orig.h
+	@mv -f peggy.c peggy_orig.c
+	@mv -f peggy.h peggy_orig.h
 	@(cd ../../ && bin/peggy examples/peggy/peggy.grmr $(GRAMMAR).log LOG_LEVEL_ERROR && mv peggy.* examples/peggy) || $(BIN_DIR)/peggy peggy.grmr $(GRAMMAR).log $(BLD_LOG_LEVEL)
 	@(if [ -z "`comm -3 peggy_orig.h peggy.h`" ] && [ -z "`comm -3 peggy_orig.c peggy.c`" ] ; then echo "test peggy bootstrap...passed" ; else echo "test peggy bootstrap...failed" ; fi)
 

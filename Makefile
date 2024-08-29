@@ -14,7 +14,7 @@ PCRE2 =
 COMMON_CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -fPIC -g3
 DBG_CFLAGS = $(COMMON_CFLAGS) -O0 -DMAX_LOGGING_LEVEL=$(DBG_LOG_LEVEL)
 CFLAGS = $(COMMON_CFLAGS) -O2 -DNDEBUG -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL)
-COMMON_IFLAGS = -Iinclude -Ilib/logger/include/ -Ilib/TypeMemPools/include/
+COMMON_IFLAGS = -Iinclude -Ilib/logger/include/ -Ilib/TypeMemPools/include/ -Ilib/lexre/include/
 DBG_IFLAGS = $(COMMON_IFLAGS)
 IFLAGS = $(COMMON_IFLAGS)
 COMMON_LFLAGS = -Lbin '-Wl,-rpath,$$ORIGIN/.'
@@ -23,9 +23,9 @@ DBG_LFLAGS = $(COMMON_LFLAGS) -lpeggyd
 LFLAGS = $(COMMON_LFLAGS) -lpeggy
 
 EXT_LIB_OBJS = lib/logger/src/logger.o lib/TypeMemPools/src/mempool.o
-DBG_EXT_LIB_OBJS = lib/logger/src/logger.do lib/TypeMemPools/src/mempool.do
-LIB_OBJS = src/astnode.o src/hash_utils.o src/packrat_cache.o src/parser.o src/rule.o src/token.o src/utils.o
-DBG_LIB_OBJS = src/astnode.do src/hash_utils.do src/packrat_cache.do src/parser.do src/rule.do src/token.do src/utils.do
+DBG_EXT_LIB_OBJS = lib/logger/src/logger.do lib/TypeMemPools/src/mempool.do 
+LIB_OBJS = src/astnode.o src/hash_utils.o src/packrat_cache.o src/parser.o src/rule.o src/token.o src/utils.o lib/lexre/src/fa.o lib/lexre/src/lexre.o lib/lexre/src/dfa.o lib/lexre/src/nfa.o lib/lexre/src/thompson.o lib/lexre/src/reparser.o lib/lexre/src/re.o
+DBG_LIB_OBJS = src/astnode.do src/hash_utils.do src/packrat_cache.do src/parser.do src/rule.do src/token.do src/utils.do lib/lexre/src/fa.do lib/lexre/src/lexre.do lib/lexre/src/dfa.do lib/lexre/src/nfa.do lib/lexre/src/thompson.do lib/lexre/src/reparser.do lib/lexre/src/re.do
 EXE_OBJS = src/peggy.o src/peggyparser.o src/peggystring.o src/peggybuild.o src/peggytransform.o
 
 all: build_paths bin/lib$(NAME).so bin/lib$(NAME)d.so bin/$(NAME) bin/test
@@ -50,7 +50,7 @@ ext_libs: $(EXT_LIB_OBJS) $(DBG_EXT_LIB_OBJS)
 	@cp lib/TypeMemPools/include/* include/peggy/
 
 clean:
-	@rm -f src/*.o src/*.do src/*.ast include/peggy/logger.h include/peggy/mempool.h *.log
+	@rm -f src/*.o src/*.do src/*.ast lib/lexre/src/*.do lib/lexre/src/*.o include/peggy/logger.h include/peggy/mempool.h *.log
 	@rm -rf bin
 	@(cd tests && unset MAKELEVEL && make clean)
 	@(cd lib/TypeMemPools && unset MAKELEVEL && make clean)

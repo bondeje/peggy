@@ -3,6 +3,7 @@
 
 #include <peggy/parser.h>
 #include <peggystring.h>
+#include "lexre.h"
 
 #define MAX_N_TRANSFORM_FUNCTIONS 1
 #define MAX_FUNCTION_NAME_LEN 255
@@ -40,7 +41,9 @@ struct PeggyParser {
     HASH_MAP(PeggyString, PeggyProduction) productions;
     STACK(PeggyString) imports;
     MemPoolManager * str_mgr;
+    MemPoolManager * sym_mgr;
     PeggyString export;
+    HASH_MAP(pSymbol, pSymbol) symbol_map;
     char * header_name;
     FILE * header_file;
     char * source_name;

@@ -6,8 +6,6 @@
 
 PeggyString get_rule_pointer(PeggyParser * parser, PeggyString name);
 
-unsigned char size_t_strlen(size_t val);
-
 void handle_terminal(PeggyParser * parser, ASTNode * node, const PeggyString parent_id);
 
 void handle_lookahead_rule(PeggyParser * parser, ASTNode * node, PeggyString name);

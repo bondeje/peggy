@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <peggy/utils.h>
 
 /**
@@ -64,5 +65,15 @@ bool isinstance(RuleTypeID const type, RuleTypeID const * types) {
         types++;
     }
     return false;
+}
+
+unsigned char size_t_strlen(size_t val){
+    static char buffer[64] = {'\0'}; // a buffer of 64 will cover any crazy sized architectures
+    int length = sprintf(buffer, "%zu", val);
+    if (length < 0 || length > 63) {
+        printf("what the hell did you do\?\?\?!!!\n");
+        exit(EXIT_FAILURE);
+    }
+    return (unsigned char) length;
 }
 

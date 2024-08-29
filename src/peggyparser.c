@@ -22,6 +22,8 @@
 #include "peggy.h"
 #include "peggytransform.h"
 
+#define REGEX_SYMBOLS 128
+
 
 struct PeggyParserType PeggyParser_class = {
     .Parser_class = {
@@ -71,10 +73,12 @@ PeggyString get_string_from_parser(PeggyParser * parser, ASTNode * node) {
     return out;
 }
 
+/*
 char * copy_export(PeggyParser * parser, char * buffer) {
     memcpy((void *)buffer, (void *)parser->export.str, parser->export.len);
     return buffer + parser->export.len;
 }
+*/
 
 char * PUNCTUATION_LOOKUP[][2] = {
     {"!", "exclaim"},
@@ -165,6 +169,7 @@ err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_l
         return err_status;
     }
     parser->str_mgr = MemPoolManager_new(PEGGYSTRING_MEMPOOL_COUNT, PEGGYSTRING_BUFFER_SIZE, 1);
+    parser->sym_mgr = MemPoolManager_new(REGEX_SYMBOLS, sizeof(Symbol), _Alignof(Symbol));
     hash_map_err status = HM_SUCCESS;
     if ((STACK_INIT(PeggyString)(&parser->imports, 0))) {
         status = HM_MALLOC_PAIR_FAILURE;
@@ -175,15 +180,17 @@ err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_l
     }
     parser->export.str = (char *)name;
     parser->export.len = name_length;
+    if (HASH_MAP_INIT(pSymbol, pSymbol)(&parser->symbol_map, REGEX_SYMBOLS)) {
+        goto parser_symbol_map_fail;
+    }
     return PEGGY_SUCCESS;
-
+parser_symbol_map_fail:
+    parser->productions._class->dest(&parser->productions);
 parser_productions_map_fail:
     parser->imports._class->dest(&parser->imports);
 parser_import_stack_fail:
 	return PEGGY_INIT_FAILURE;
 }
-
-
 
 void PeggyParser_dest(PeggyParser * parser) {
     LOG_EVENT(&((Parser*)parser)->logger, LOG_LEVEL_INFO, "INFO: %s - destroying peggy parser attributes\n", __func__);
@@ -203,8 +210,10 @@ void PeggyParser_dest(PeggyParser * parser) {
     parser->productions._class->for_each(&parser->productions, &PeggyProduction_cleanup, NULL);
 	parser->productions._class->dest(&(parser->productions));
     parser->imports._class->dest(&parser->imports);
+    parser->symbol_map._class->dest(&parser->symbol_map);
     Parser_dest((Parser *)parser);
     MemPoolManager_del(parser->str_mgr);
+    MemPoolManager_del(parser->sym_mgr);
 }
 
 err_type from_string(char const * string, size_t string_length, char const * name, size_t name_length, char const * log_file, unsigned char log_level) {

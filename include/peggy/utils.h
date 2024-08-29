@@ -100,4 +100,6 @@ char const * get_type_name(RuleTypeID type);
  */
 bool isinstance(RuleTypeID const type, RuleTypeID const * types);
 
+unsigned char size_t_strlen(size_t val);
+
 #endif // PEGGY_UTILS_H
