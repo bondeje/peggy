@@ -219,7 +219,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
                 }
             }
 
-            size_t buf_len = sizeof(char) * (parser->export.len + mstr.len + nstr.len + size_t_strlen(parser->productions.fill) + 8);
+            size_t buf_len = sizeof(char) * (parser->export.len + m.len + n.len + size_t_strlen(parser->productions.fill) + 8);
             prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
             prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_rep_%.*s_%.*s_%zu", (int)parser->export.len, parser->export.str, (int)m.len, m.str, (int)n.len, n.str, parser->productions.fill);
             /*
