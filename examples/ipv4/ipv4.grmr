@@ -1,9 +1,9 @@
 // ipv4.grmr
-export = ipv4                // redundant but allows change of file name
-import = ipv4parser          // check_ipv4 is declared in ipv4parser.h
+export = ipv4               // redundant but allows change of file name
+import = ipv4parser         // check_ipv4 is declared in ipv4parser.h
 
 punctuator: '.'             // needed to be able to use '.' in ipv4
 digit: "[0-9]"              
-octet: digit{1,3}           // 0 digits and more than 3 are definitely errors
+octet: digit+               // 0 digits and more than 3 are definitely errors
 token: punctuator | digit
 ipv4(check_ipv4): '.'.octet // check_ipv4 as a build transform function triggers AST traversal

@@ -129,7 +129,7 @@ All `LOG_EVENTS` in the code that are lower on this list will be ommitted (in co
 I have included a couple toy parsers generated with <b>peggy</b> in `examples/`. These are not intended to be stand alone project as they are not in the best of condition and of limited practical use--the possible exception being the C parser. They are meant to show different ways to use <b>peggy</b>. If you have any interesting use cases or ideas, let me know.
 
 ### ipv4
-This validates a string as ipv4. This is only included because it is the simplest possible grammar I could think of to show how to build a parser with <b>peggy</b>. It is of no other use.
+This validates a string in dotted decimal notation as ipv4. This is only included because it is the simplest possible grammar I could think of to show how to build a parser with <b>peggy</b>. It is of no other use.
 
 ### csv 
 A simple csv parser. Generates a `CSVData` struct from an input file. Data is not converted to any data types but kept as strings. This example is more to demonstrate the linearity of the parser. The build command `make test_all` will parse the files in `examples/csv/sample_files` and time the results.
@@ -176,7 +176,7 @@ int main(int narg, char ** args) {
         initialize the parser for the given grammar. This is a generic parser that will
         simply provide a token list an AST
         */
-        Parser_init(&parser, (Rule *)&token, (Rule *)&root, MYDSL_NRULES);
+        Parser_init(&parser, (Rule *)&mydsl_token, (Rule *)&mydsl_root, MYDSL_NRULES, 0);
         // optional for logging. default is "stdout" with LOG_LEVEL_ERROR
         Parser_set_log_file(&parser, "stdout", LOG_LEVEL_WARN);  
         // LOG_LEVEL_* above are the same that can be specified at build time (see above)
