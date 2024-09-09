@@ -24,8 +24,8 @@ LFLAGS = $(COMMON_LFLAGS) -lpeggy
 
 EXT_LIB_OBJS = lib/logger/src/logger.o lib/TypeMemPools/src/mempool.o
 DBG_EXT_LIB_OBJS = lib/logger/src/logger.do lib/TypeMemPools/src/mempool.do 
-LIB_OBJS = src/astnode.o src/hash_utils.o src/packrat_cache.o src/parser.o src/rule.o src/token.o src/utils.o lib/lexre/src/fa.o lib/lexre/src/lexre.o lib/lexre/src/dfa.o lib/lexre/src/nfa.o lib/lexre/src/thompson.o lib/lexre/src/reparser.o lib/lexre/src/re.o
-DBG_LIB_OBJS = src/astnode.do src/hash_utils.do src/packrat_cache.do src/parser.do src/rule.do src/token.do src/utils.do lib/lexre/src/fa.do lib/lexre/src/lexre.do lib/lexre/src/dfa.do lib/lexre/src/nfa.do lib/lexre/src/thompson.do lib/lexre/src/reparser.do lib/lexre/src/re.do
+LIB_OBJS = src/astnode.o src/hash_utils.o src/packrat_cache.o src/parser.o src/rule.o src/token.o src/utils.o #lib/lexre/src/fa.o lib/lexre/src/lexre.o lib/lexre/src/dfa.o lib/lexre/src/nfa.o lib/lexre/src/thompson.o lib/lexre/src/reparser.o lib/lexre/src/re.o
+DBG_LIB_OBJS = src/astnode.do src/hash_utils.do src/packrat_cache.do src/parser.do src/rule.do src/token.do src/utils.do #lib/lexre/src/fa.do lib/lexre/src/lexre.do lib/lexre/src/dfa.do lib/lexre/src/nfa.do lib/lexre/src/thompson.do lib/lexre/src/reparser.do lib/lexre/src/re.do
 EXE_OBJS = src/peggy.o src/peggyparser.o src/peggystring.o src/peggybuild.o src/peggytransform.o
 
 all: build_paths bin/lib$(NAME).so bin/lib$(NAME)d.so bin/$(NAME) bin/test

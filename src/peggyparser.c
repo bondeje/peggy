@@ -180,9 +180,9 @@ err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_l
     }
     parser->export.str = (char *)name;
     parser->export.len = name_length;
-    if (HASH_MAP_INIT(pSymbol, pSymbol)(&parser->symbol_map, REGEX_SYMBOLS)) {
-        goto parser_symbol_map_fail;
-    }
+    //if (HASH_MAP_INIT(pSymbol, pSymbol)(&parser->symbol_map, REGEX_SYMBOLS)) {
+    //    goto parser_symbol_map_fail;
+    //}
     return PEGGY_SUCCESS;
 parser_symbol_map_fail:
     parser->productions._class->dest(&parser->productions);
@@ -210,7 +210,7 @@ void PeggyParser_dest(PeggyParser * parser) {
     parser->productions._class->for_each(&parser->productions, &PeggyProduction_cleanup, NULL);
 	parser->productions._class->dest(&(parser->productions));
     parser->imports._class->dest(&parser->imports);
-    parser->symbol_map._class->dest(&parser->symbol_map);
+    //parser->symbol_map._class->dest(&parser->symbol_map);
     Parser_dest((Parser *)parser);
     MemPoolManager_del(parser->str_mgr);
     MemPoolManager_del(parser->sym_mgr);
