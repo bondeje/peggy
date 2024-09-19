@@ -278,7 +278,6 @@ err_type from_file(char const * filename, char const * log_file, unsigned char l
 
 
 int main(int narg, char ** args) {
-    printf("size of ASTNode: %zu\n", sizeof(ASTNode));
     char const * input_file = NULL;
     char const * log_file = NULL;
     unsigned char log_level = LOG_LEVEL_INFO;
