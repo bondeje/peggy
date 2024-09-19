@@ -8,7 +8,7 @@ whitespace(skip_token):
     
 
 string_literal:
-    "'([^'\\\\]|(\\\\.))*'" // need to add hex escape support
+    "'((\\\\')|[^'])*'" // need to add hex escape support
     
 regex_literal:
     "\"([^\"\\\\]|(\\\\.))*\"" // need to add hex escape support

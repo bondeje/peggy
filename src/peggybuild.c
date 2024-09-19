@@ -1,3 +1,7 @@
+#include <stdio.h>
+
+#include "peggy/utils.h"
+#include "peggy/mempool.h"
 #include "peggybuild.h"
 #include "peggystring.h"
 #include "peggyparser.h"
@@ -15,9 +19,88 @@ int PeggyProduction_write_arg(void * data, PeggyString arg) {
     return 0;
 }
 
+// NOTE: will not handle octal, hex, or unicode escapes yet. ref: https://en.wikipedia.org/wiki/Escape_sequences_in_C
+char * unescape_string(char const * buffer, size_t buffer_size, size_t * buf_out_size, MemPoolManager * str_mgr) {
+    char * buf_out = MemPoolManager_malloc(str_mgr, buffer_size);
+    size_t i = 0, j = 0;
+    while (i < buffer_size - 1) {
+        if (buffer[i] == '\\') {
+            switch (buffer[i + 1]) {
+                case 'a': {
+                    buf_out[j++] = '\a';
+                    i++;
+                    break;
+                }
+                case 'b': {
+                    buf_out[j++] = '\b';
+                    i++;
+                    break;
+                }
+                case 'f': {
+                    buf_out[j++] = '\f';
+                    i++;
+                    break;
+                }
+                case 'n':  {
+                    buf_out[j++] = '\n';
+                    i++;
+                    break;
+                }
+                case 'r': {
+                    buf_out[j++] = '\r';
+                    i++;
+                    break;
+                }
+                case 't':  {
+                    buf_out[j++] = '\t';
+                    i++;
+                    break;
+                }
+                case 'v':  {
+                    buf_out[j++] = '\v';
+                    i++;
+                    break;
+                }
+                case '\'':  {
+                    buf_out[j++] = '\'';
+                    i++;
+                    break;
+                } 
+                case '"': {
+                    buf_out[j++] = '\"';
+                    i++;
+                    break;
+                } 
+                case '?': {
+                    buf_out[j++] = '\?';
+                    i++;
+                    break;
+                }
+                case '\\': { // non-standard, but regex needs to keep the '\\' escaped
+                    buf_out[j++] = buffer[i++];
+                    break;
+                }
+                default: {
+                    buf_out[j++] = buffer[i];
+                }
+            }
+            i++;
+        } else {
+            buf_out[j++] = buffer[i++];
+        }
+    }
+    if (i == buffer_size - 1) {
+        buf_out[j++] = buffer[i++];
+    }
+    *buf_out_size = j;
+    return buf_out;
+}
+
 // signature is so that it can be used by for_each in the hash map
 int PeggyProduction_define(void * parser_, PeggyString name, PeggyProduction prod) {
     PeggyParser * parser = (PeggyParser *)parser_;
+
+    /* work here for generating static, compiled regex */
 
     char const * type_name_cstr = get_type_name(prod.type);
     PeggyString type_main = {.len = strlen(type_name_cstr), .str = (char *)type_name_cstr};
@@ -45,11 +128,9 @@ int build_export_rules_resolved(void * parser_, PeggyString name, PeggyProductio
     PeggyParser * parser = (PeggyParser *) parser_;
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building export rules for %.*s\n", __func__, prod.name.len, prod.name.str);
     
-    PeggyString arg = {.len = 9 + prod.identifier.len};
-    arg.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (arg.len + 1));
-    memcpy((void *)(arg.str), "(Rule *)", 8);
-    arg.str[8] = '&';
-    memcpy((void*)(arg.str + 9), (void*)prod.identifier.str, prod.identifier.len);
+    size_t buf_len = sizeof(char) * (prod.identifier.len + 10);
+    PeggyString arg = {.str = MemPoolManager_malloc(parser->str_mgr, buf_len)};
+    arg.len = snprintf(arg.str, buf_len, "(Rule *)&%.*s", (int)prod.identifier.len, prod.identifier.str);
 
     PeggyString_fwrite(arg, parser->source_file, PSFO_NONE);
     char * buffer = ",\n\t";
@@ -112,12 +193,10 @@ PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, RuleTy
     STACK_INIT(PeggyString)(&prod.args, 0);
 
     prod.name = get_string_from_parser(parser, id);
-    prod.identifier.len = parser->export.len + 1 + prod.name.len;
-    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1)); // +1 for underscore
-    char * buffer = copy_export(parser, prod.identifier.str);
-    buffer[0] = '_';
-    buffer++;
-    memcpy(buffer, prod.name.str, prod.name.len);
+    size_t buf_len = sizeof(char) * (parser->export.len + prod.name.len + 2);
+    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len); // +1 for underscore
+    prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_%.*s", (int)parser->export.len, parser->export.str, (int)prod.name.len, prod.name.str);
+
     if (type != PEGGY_NOTRULE) {
         prod.type = type;
     } else {
@@ -194,20 +273,16 @@ void prep_output_files(PeggyParser * parser) {
 
 err_type open_output_files(PeggyParser * parser) {
     size_t name_length = parser->export.len;
-    parser->header_name = MemPoolManager_malloc(parser->str_mgr, 2* (sizeof(*parser->header_name) * (name_length + 3)));
+    size_t buf_len = 2* (sizeof(*parser->header_name) * (name_length + 3));
+    parser->header_name = MemPoolManager_malloc(parser->str_mgr, buf_len);
     if (!parser->header_name) {
         return PEGGY_MALLOC_FAILURE;
     }
     
-    memcpy((void*)parser->header_name, (void*)parser->export.str, name_length);
-    parser->header_name[name_length] = '.';
-    parser->header_name[name_length+1] = 'h';
-    parser->header_name[name_length+2] = '\0';
-    parser->source_name = parser->header_name + name_length + 3;
-    memcpy((void*)parser->source_name, (void*)parser->export.str, name_length);
-    parser->source_name[name_length] = '.';
-    parser->source_name[name_length+1] = 'c';
-    parser->source_name[name_length+2] = '\0';
+    // +1 to go after the null-terminator
+    parser->source_name = parser->header_name + 1 + snprintf(parser->header_name, buf_len, "%.*s.h", (int)name_length, parser->export.str);
+    buf_len -= (size_t)(parser->source_name - parser->header_name);
+    snprintf(parser->source_name, buf_len, "%.*s.c", (int)name_length, parser->export.str);
 
     if (!(parser->header_file = fopen(parser->header_name, "w"))) {
         LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to open header file %s\n", __func__, parser->header_name);

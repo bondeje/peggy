@@ -9,7 +9,7 @@ This is a very basic JSON parser (deserialization only, no serialization unfortu
 
 ## How to use
 
-- `/path/to/peggy/bin/csv -i=[/-separated indices] /path/to/file.csv`
+- `/path/to/peggy/bin/json -i=[/-separated indices] /path/to/file.json`
 
 For example, for a json (sample_files/basic.json):
 ```

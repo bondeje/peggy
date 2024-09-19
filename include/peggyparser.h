@@ -41,6 +41,7 @@ struct PeggyParser {
     STACK(PeggyString) imports;
     MemPoolManager * str_mgr;
     PeggyString export;
+    //HASH_MAP(pSymbol, pSymbol) symbol_map;
     char * header_name;
     FILE * header_file;
     char * source_name;
