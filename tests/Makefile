@@ -4,7 +4,8 @@ CC = gcc
 NAME = test
 BIN_DIR = ../bin
 DBG_LOG_LEVEL=LOG_LEVEL_DEBUG
-CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O0 -g2 -DMAX_LOGGING_LEVEL=$(DBG_LOG_LEVEL)
+ASTNODE_ADD_PARENT = 0
+CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O0 -g2 -DMAX_LOGGING_LEVEL=$(DBG_LOG_LEVEL) -DASTNODE_ADD_PARENT=$(ASTNODE_ADD_PARENT)
 LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggyd
 IFLAGS = -I../include -I../lib/logger/include -I../lib/TypeMemPools/include
 

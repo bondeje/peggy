@@ -27,6 +27,9 @@ int check_ASTNodes(ASTNode * uut, TestASTNode * ref, char const * file, char con
     nerrors += check(uut->nchildren == ref->nchildren, "%s-%s-%zu: nchildren do not match in node with rule %d/%d (type: %d). expected: %d, found: %d\n", file, func, line, uut->rule->id, ref->rule_id, uut->rule->_class->type, uut->nchildren, ref->nchildren);
     for (size_t i = 0; i < ref->nchildren; i++) {
         ASTNode * child = uut->children[i];
+#if ASTNODE_ADD_PARENT > 0
+        nerrors += check(child->parent == uut, "%s-%s-%zu: parent-child relationship violation for ASTNode %p. expected parent: %p, found %p\n", file, func, line, (void *)child, (void *)uut, (void *)child->parent);
+#endif
         TestASTNode * test_child = ref->children[i];
         assert(test_child != NULL || !printf("TestASTNode malformed with null child %zu in node with rule: %d, nchildren: %zu, start_str: %s\n", i, ref->rule_id, ref->nchildren, ref->start_str));
         int valid = check(child != NULL, "%s-%s-%zu: invalid ASTNode in child %zu in node with rule: %d, nchildren: %zu, start_str: %.*s\n", i, uut->rule->id, uut->nchildren, (int)uut->token_start->length, uut->token_start->string);

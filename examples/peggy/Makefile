@@ -5,9 +5,10 @@ CC = gcc
 EXAMPLE_NAME = peggy
 BIN_DIR = ../../bin
 GRAMMAR = $(EXAMPLE_NAME).grmr
+ASTNODE_ADD_PARENT = 0
 BLD_LOG_LEVEL = LOG_LEVEL_INFO
 TEST_LOG_LEVEL = LOG_LEVEL_ERROR
-CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) -fPIC
+CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) -fPIC -DASTNODE_ADD_PARENT=$(ASTNODE_ADD_PARENT)
 IFLAGS = -I../../include -I../../lib/lexre/include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
 

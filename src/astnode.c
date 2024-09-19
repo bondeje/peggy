@@ -19,6 +19,11 @@ void ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end,
     self->_class = &ASTNode_class;
     self->children = children;
     self->nchildren = nchildren;
+#if ASTNODE_ADD_PARENT > 0
+    for (size_t i = 0; i < self->nchildren; i++) {
+        self->children[i]->parent = self;
+    }
+#endif
     self->rule = rule;
     self->str_length = str_length;
     self->token_start = start;

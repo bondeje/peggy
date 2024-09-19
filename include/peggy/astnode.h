@@ -18,6 +18,9 @@ The base structure for the ASTNode
 */
 struct ASTNode {
     struct ASTNodeType * _class;//!< vtable
+#if ASTNODE_ADD_PARENT > 0
+    ASTNode * parent;           //!< parent reference in ASTNode
+#endif
     ASTNode ** children;        //!< Child node references. Note the array's memory is NOT owned by the node
     Rule * rule;                //!< Pointer to the rule that succeeded in creation of the ASTNode
     Token * token_start;        //!< Initial token encompassed by the ASTNode and its children
