@@ -523,10 +523,10 @@ void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyStri
         //prod.identifier.str[prod.identifier.len-2] = 'k';
         //prod.identifier.str[prod.identifier.len-1] = 'w';
     } else {
-        prod.identifier.len = parent_id.len + 3 + parser->export.len;
+        prod.identifier.len = parent_id.len + 3;
         prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len) + 1);
-		snprintf(prod.identifier.str, prod.identifier.len + 1, "%.*s_%.*s_re",
-			(int)parser->export.len, parser->export.str, (int)parent_id.len, parent_id.str);
+		snprintf(prod.identifier.str, prod.identifier.len + 1, "%.*s_re",
+			(int)parent_id.len, parent_id.str);
         //memcpy((void*)prod.identifier.str, (void*)parent_id.str, parent_id.len);
         //prod.identifier.str[parent_id.len] = '_';
         //prod.identifier.str[parent_id.len+1] = 'r';
@@ -554,10 +554,10 @@ void handle_regex_literal(PeggyParser * parser, ASTNode * node, const PeggyStrin
     
     prod.name = get_string_from_parser(parser, node);
     
-    size_t buf_len = sizeof(char) * (parent_id.len + 5 + strlen(parser->export.str));
-    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
-    prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_%.*s_re", 
-		(int)parser->export.len, parser->export.str, (int)parent_id.len, parent_id.str);
+    size_t buf_len = sizeof(char) * (parent_id.len + 3);
+    prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len + 1);
+    prod.identifier.len = snprintf(prod.identifier.str, buf_len + 1, "%.*s_re", 
+		(int)parent_id.len, parent_id.str);
     /*
     memcpy((void*)prod.identifier.str, (void*)parent_id.str, parent_id.len);
     prod.identifier.str[parent_id.len] = '_';
