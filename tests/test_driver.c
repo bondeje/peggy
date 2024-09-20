@@ -10,22 +10,22 @@ int main(int narg, char ** args) {
         }
     }
     int nerrors = 0;
-    
+
     nerrors += test_tokenizer_single_char();
     nerrors += test_tokenizer_alphanumeric();
     nerrors += test_tokenizer_hexadecimal();
     nerrors += test_tokenizer_test_parser_token();
-    
+
     nerrors += test_parser_doc();
     test_parser_cleanup();
-    
-    
+
+
     nerrors += test_sequence();
     nerrors += test_repeat();
     nerrors += test_list();
     nerrors += test_lookahead();
     test_rule_cleanup();
-    
+
     return nerrors;
 }
 

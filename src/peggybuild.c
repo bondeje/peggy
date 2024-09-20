@@ -320,19 +320,7 @@ void cleanup_header_file(PeggyParser * parser) {
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
     PeggyString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
 
-    buffer = "_NRULES + 1];\n\nextern Production ";
-    fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_NONE);
-
-    buffer = "_token;\nextern Production ";
-    fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_NONE);
-
-    buffer = "_";
-    fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_NONE);
-
-    buffer = ";\n\nvoid ";
+    buffer = "_NRULES + 1];\n\nvoid ";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
     PeggyString_fwrite(parser->export, parser->header_file, PSFO_NONE);
 

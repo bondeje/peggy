@@ -1,10 +1,11 @@
 #include <string.h>
 
 // tokenizer
-#include <peggy/rule.h>
-#include <peggy/parser.h>
-#include <peggy/parser_gen.h>
-#include <peggy/utils.h>
+#include "peggy/rule.h"
+#include "peggy/parser.h"
+#include "peggy/parser_gen.h"
+#include "peggy/utils.h"
+#include "peggy.h"
 
 #include "test_utils.h"
 #include "test_parser.h"

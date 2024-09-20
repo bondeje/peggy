@@ -162,7 +162,8 @@ char * punctuator_lookup(char * punctuation, size_t len) {
 }
 
 err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * log_file, unsigned char log_level) {
-    err_type err_status = Parser_init((Parser *)parser, (Rule *)&peggy_token, (Rule *)&peggy_peggy, PEGGY_NRULES, 0);
+    //err_type err_status = Parser_init((Parser *)parser, (Rule *)&peggy_token, (Rule *)&peggy_peggy, PEGGY_NRULES, 0);
+	err_type err_status = Parser_init((Parser *)parser, peggyrules[PEGGY_TOKEN], peggyrules[PEGGY_PEGGY], PEGGY_NRULES, 0);
     Parser_set_log_file((Parser *)parser, log_file, log_level);
     LOG_EVENT(&((Parser*)parser)->logger, LOG_LEVEL_INFO, "INFO: %s - initializing peggy parser attributes\n", __func__);
     if (err_status) {
