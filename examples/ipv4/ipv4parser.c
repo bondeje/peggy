@@ -64,7 +64,7 @@ int main(int narg, char ** args) {
     max_ull_len = snprintf(buffer, 256, "%llu", ULLONG_MAX);
     if (narg > 1) {
         Parser parser = {._class = &Parser_class};
-        Parser_init(&parser, (Rule *)&ipv4_token, (Rule *)&ipv4_ipv4, IPV4_NRULES, 0);
+        Parser_init(&parser, ipv4rules[IPV4_TOKEN], ipv4rules[IPV4_IPV4], IPV4_NRULES, 0);
         while (--narg > 0) {
             // will print
             Parser_parse(&parser, args[narg], strlen(args[narg]));

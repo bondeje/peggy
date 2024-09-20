@@ -121,10 +121,10 @@ JSONValue * handle_decimal(JSONParser * parser, ASTNode * node) {
 JSONValue *  handle_number(JSONParser * parser, ASTNode * node) {
     ASTNode * child = node->children[0];
     switch (child->rule->id) {
-        case INT_CONSTANT: {
+        case JASON_INT_CONSTANT: {
             return handle_integer(parser, child);
         }
-        case DECIMAL_FLOAT_CONSTANT: {
+        case JASON_DECIMAL_FLOAT_CONSTANT: {
             return handle_decimal(parser, child);
         }
         default: {
@@ -144,17 +144,17 @@ JSONValue * handle_string(JSONParser * parser, ASTNode * node) {
 JSONValue * handle_keyword(JSONParser * parser, ASTNode * node) {
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
     switch (node->children[0]->rule->id) {
-        case NULL_KW: {
+        case JASON_NULL_KW: {
             jval->value.null = NULL_VALUE;
             jval->type = JSON_NULL;
             break;
         }
-        case TRUE_KW: {
+        case JASON_TRUE_KW: {
             jval->value.boolean = true;
             jval->type = JSON_BOOL;
             break;
         }
-        case FALSE_KW: {
+        case JASON_FALSE_KW: {
             jval->value.boolean = false;
             jval->type = JSON_BOOL;
             break;
@@ -214,19 +214,19 @@ JSONValue * handle_object(JSONParser * parser, ASTNode * node) {
 JSONValue * handle_value(JSONParser * parser, ASTNode * node) {
     ASTNode * child = node->children[0];
     switch (child->rule->id) {
-        case OBJECT: {
+        case JASON_OBJECT: {
             return handle_object(parser, child);
         }
-        case ARRAY: {
+        case JASON_ARRAY: {
             return handle_array(parser, child);
         }
-        case KEYWORDS: {
+        case JASON_KEYWORDS: {
             return handle_keyword(parser, child);
         }
-        case STRING: {
+        case JASON_STRING: {
             return handle_string(parser, child);
         }
-        case NUMBER: {
+        case JASON_NUMBER: {
             return handle_number(parser, child);
         }
         default: {
@@ -267,7 +267,7 @@ void JSONDoc_dest(JSONDoc * json) {
 
 void JSONParser_init(JSONParser * parser, char * log_file, unsigned char log_level) {
     parser->json = (JSONDoc) {0};
-    Parser_init((Parser *)parser, (Rule *)&json_token, (Rule *)&json_json, JSON_NRULES, 0);
+    Parser_init((Parser *)parser, jasonrules[JASON_TOKEN], jasonrules[JASON_JSON], JASON_NRULES, 0);
     Parser_set_log_file((Parser *)parser, log_file, log_level);
 }
 
@@ -599,7 +599,7 @@ int main(int narg, char ** args) {
         }
         iarg++;
     }
-    json_dest();
+    jason_dest();
     Logger_tear_down();
     return 0;
 }

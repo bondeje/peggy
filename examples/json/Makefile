@@ -11,7 +11,7 @@ CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=
 IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
 
-EXE_SRCS = jsonparser.c json.c
+EXE_SRCS = jsonparser.c jason.c
 
 all: $(BIN_DIR)/json
 
@@ -23,5 +23,5 @@ $(BIN_DIR)/json: $(GRAMMAR)
 	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 
 clean:
-	@rm -f json.h json.c json *.log $(BIN_DIR)/json
+	@rm -f jason.h jason.c json *.log $(BIN_DIR)/json
 

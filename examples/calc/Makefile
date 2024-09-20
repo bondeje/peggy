@@ -11,7 +11,7 @@ CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=
 IFLAGS = -I../../include -I../../lib/logger/include -I../../lib/TypeMemPools/include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy -lm
 
-EXE_SRCS = mathrepl.c calculatorparser.c calculator.c
+EXE_SRCS = mathrepl.c calculatorparser.c calctr.c
 
 all: $(BIN_DIR)/calculator
 
@@ -25,4 +25,4 @@ $(BIN_DIR)/calculator: $(GRAMMAR)
 # testing -sinh([-1*-2.0, 2.0/2.0, 2-2, 2^0.5]^2 + 1) should equal [-74.203211,-3.626860,-1.175201,-10.017875]
 
 clean:
-	@rm -f calculator.h calculator.c calculator *.log $(BIN_DIR)/calculator
+	@rm -f calctr.h calctr.c calculator *.log $(BIN_DIR)/calculator

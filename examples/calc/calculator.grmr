@@ -1,4 +1,4 @@
-export = calculator
+export = calctr
 import = calculatorparser
 
 punctuator:

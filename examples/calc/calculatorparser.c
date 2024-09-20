@@ -3,13 +3,13 @@
 #include <math.h>
 #include <string.h>
 
-#include <peggy/rule.h>
-#include <peggy/astnode.h>
-#include <peggy/parser.h>
-#include <logger.h>
+#include "peggy/rule.h"
+#include "peggy/astnode.h"
+#include "peggy/parser.h"
+#include "logger.h"
 
 #include "calculatorparser.h"
-#include "calculator.h"
+#include "calctr.h"
 #include "mathrepl.h"
 
 // -9223372036854775807 + '\0'
@@ -225,33 +225,33 @@ ASTNode * calc_add_sub(Production * prod, Parser * parser, ASTNode * node) {
                 }
             }
             switch (operator->rule->id) {
-                case ADD: {
+                case CALCTR_ADD: {
                     calc_aa(&result, rvalue, calc_add_ss);
                     break;
                 }
-                case SUBTRACT: {
+                case CALCTR_SUBTRACT: {
                     calc_aa(&result, rvalue, calc_sub_ss);
                     break;
                 }
             }
         } else if (is_array) {
             switch (operator->rule->id) {
-                case ADD: {
+                case CALCTR_ADD: {
                     calc_as(&result, rvalue, calc_add_ss);
                     break;
                 }
-                case SUBTRACT: {
+                case CALCTR_SUBTRACT: {
                     calc_as(&result, rvalue, calc_sub_ss);
                     break;
                 }
             }
         } else {
             switch (operator->rule->id) {
-                case ADD: {
+                case CALCTR_ADD: {
                     calc_add_ss(&result, rvalue);
                     break;
                 }
-                case SUBTRACT: {
+                case CALCTR_SUBTRACT: {
                     calc_sub_ss(&result, rvalue);
                     break;
                 }
@@ -294,45 +294,45 @@ ASTNode * calc_mul_div_mod(Production * prod, Parser * parser, ASTNode * node) {
                 }
             }
             switch (operator->rule->id) {
-                case MULTIPLY: {
+                case CALCTR_MULTIPLY: {
                     calc_aa(&result, rvalue, calc_mul_ss);
                     break;
                 }
-                case DIVIDE: {
+                case CALCTR_DIVIDE: {
                     calc_aa(&result, rvalue, calc_div_ss);
                     break;
                 }
-                case MOD: {
+                case CALCTR_MOD: {
                     calc_aa(&result, rvalue, calc_mod_ss);
                     break;
                 }
             }
         } else if (is_array) {
             switch (operator->rule->id) {
-                case MULTIPLY: {
+                case CALCTR_MULTIPLY: {
                     calc_as(&result, rvalue, calc_mul_ss);
                     break;
                 }
-                case DIVIDE: {
+                case CALCTR_DIVIDE: {
                     calc_as(&result, rvalue, calc_div_ss);
                     break;
                 }
-                case MOD: {
+                case CALCTR_MOD: {
                     calc_as(&result, rvalue, calc_mod_ss);
                     break;
                 }
             }
         } else {
             switch (operator->rule->id) {
-                case MULTIPLY: {
+                case CALCTR_MULTIPLY: {
                     calc_mul_ss(&result, rvalue);
                     break;
                 }
-                case DIVIDE: {
+                case CALCTR_DIVIDE: {
                     calc_div_ss(&result, rvalue);
                     break;
                 }
-                case MOD: {
+                case CALCTR_MOD: {
                     calc_mod_ss(&result, rvalue);
                     break;
                 }
@@ -419,11 +419,11 @@ ASTNode * func_eval(Production * prod, Parser * parser, ASTNode * node) {
 ASTNode * calc_eval(Production * prod, Parser * parser, ASTNode * node) {
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - tokens %zu-%zu\n", __func__, node->token_key, node->token_key + node->ntokens);
     switch (node->rule->id) {
-        case INTEGER: {} FALLTHROUGH
-        case FLOAT: {} FALLTHROUGH
-        case CONSTANTS: {} FALLTHROUGH
-        case ARRAY: {} FALLTHROUGH
-        case FUNCTION_CALL: {
+        case CALCTR_INTEGER: {} FALLTHROUGH
+        case CALCTR_FLOAT: {} FALLTHROUGH
+        case CALCTR_CONSTANTS: {} FALLTHROUGH
+        case CALCTR_ARRAY: {} FALLTHROUGH
+        case CALCTR_FUNCTION_CALL: {
             return node;
         }
         default: { // parenthesized expression
@@ -442,7 +442,7 @@ ASTNode * calc_unary(Production * prod, Parser * parser, ASTNode * node) {
     size_t Nunary = unary_repeat->nchildren;
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - calc unary with %zu operators. tokens %zu-%zu\n", __func__, Nunary, node->token_key, node->token_key + node->ntokens);
     for (size_t i = 0; i < Nunary; i++) {
-        if (unary_repeat->children[i]->rule->id == SUBTRACT) {
+        if (unary_repeat->children[i]->rule->id == CALCTR_SUBTRACT) {
             n_odd++;
         }
     }
@@ -516,23 +516,23 @@ ASTNode * build_constants(Production * prod, Parser * parser, ASTNode * node) {
     val->node._class = &CalcNode_ASTNode_class;
     val->value.type = CALC_FLOAT;
     switch (node->rule->id) {
-        case PI_KW: {
+        case CALCTR_PI_KW: {
             val->value.value.d = CONSTANT_PI;
             break;
         }
-        case TAU_KW: {
+        case CALCTR_TAU_KW: {
             val->value.value.d = CONSTANT_TAU;
             break;
         }
-        case E_KW: {
+        case CALCTR_E_KW: {
             val->value.value.d = CONSTANT_EXP;
             break;
         }
-        case GAMMA_KW: {
+        case CALCTR_GAMMA_KW: {
             val->value.value.d = CONSTANT_GAMMA;
             break;
         }
-        case PREV_KW: { // copy in the previous result into the current calculation
+        case CALCTR_PREV_KW: { // copy in the previous result into the current calculation
             val->value = ((CalcParser *)parser)->result;
             break;
         }
@@ -648,7 +648,7 @@ int main(int narg, char ** args) {
         } else if (!strcmp("functions\n", buffer)) {
             print_functions();
         } else {
-            Parser_init((Parser *)&calc, (Rule *)&calculator_token, (Rule *)&calculator_calculator, CALCULATOR_NRULES, 0);
+            Parser_init((Parser *)&calc, calctrrules[CALCTR_TOKEN], calctrrules[CALCTR_CALCULATOR], CALCTR_NRULES, 0);
             Parser_set_log_file((Parser *)&calc, log_file, log_level);
             Parser_parse((Parser *)&calc, buffer, strlen(buffer));
             Parser_dest((Parser *)&calc);
@@ -657,7 +657,7 @@ int main(int narg, char ** args) {
         N = strlen(fgets(buffer, 1024, stdin));
         EXIT_COND = strcmp("exit\n", buffer) == 0;
     }
-    calculator_dest();
+    calctr_dest();
     math_repl_dest();
     Logger_tear_down();
     return 0;

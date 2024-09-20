@@ -40,7 +40,7 @@ err_type CSVParser_init(CSVParser * parser, char const * string, size_t string_l
     parser->csv.nrows = 0;
     parser->csv.noffsets = 0;
     parser->csv.nbytes = string_length;
-    Parser_init((Parser *)parser, (Rule *)&csv_token, (Rule *)&csv_csv, CSV_NRULES, 0);
+    Parser_init((Parser *)parser, csvrules[CSV_TOKEN], csvrules[CSV_CSV], CSV_NRULES, 0);
     Parser_set_log_file((Parser *)parser, log_file, log_level);
     Parser_parse((Parser *)parser, string, string_length);
     return 0;
@@ -70,7 +70,7 @@ void handle_field(CSVParser * csv_parser, ASTNode * node, size_t index) {
     Token * tok = node->token_start;
     size_t N = 0;
     CSVData * data = &csv_parser->csv;
-    if (node->children[0]->rule->id == NONSTRING_FIELD) {
+    if (node->children[0]->rule->id == CSV_NONSTRING_FIELD) {
         data->offsets[index] = tok->string - data->data;
         data->offsets[index + data->noffsets] = data->offsets[index] + node->str_length;
     } else { // STRING
