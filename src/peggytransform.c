@@ -21,7 +21,7 @@ PeggyString get_rule_pointer(PeggyParser * parser, PeggyString name) {
 }
 
 void handle_terminal(PeggyParser * parser, ASTNode * node, const PeggyString parent_id) {
-    if (node->rule->id == STRING_LITERAL) {
+    if (node->rule->id == PEGGY_STRING_LITERAL) {
         handle_string_literal(parser, node->children[0], parent_id);
     } else {
         handle_regex_literal(parser, node->children[0], parent_id);
@@ -37,8 +37,8 @@ void handle_lookahead_rule(PeggyParser * parser, ASTNode * node, PeggyString nam
 
     ASTNode * lookahead_type = node->children[0]->children[0];
     switch (lookahead_type->rule->id) {
-        case AMPERSAND: {
-            prod.type = PEGGY_POSITIVELOOKAHEAD;
+        case PEGGY_AMPERSAND: {
+            prod.type = PEG_POSITIVELOOKAHEAD;
             size_t buf_len = sizeof(char) * (parser->export.len + strlen("pos") + size_t_strlen(parser->productions.fill) + 3);
             prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
             prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_pos_%zu", (int)parser->export.len, parser->export.str, parser->productions.fill);
@@ -51,8 +51,8 @@ void handle_lookahead_rule(PeggyParser * parser, ASTNode * node, PeggyString nam
             // add arguments
             break;
         }
-        case EXCLAIM: { // repeat 0 or more
-            prod.type = PEGGY_NEGATIVELOOKAHEAD;
+        case PEGGY_EXCLAIM: { // repeat 0 or more
+            prod.type = PEG_NEGATIVELOOKAHEAD;
             size_t buf_len = sizeof(char) * (parser->export.len + strlen("neg") + size_t_strlen(parser->productions.fill) + 3);
             prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
             prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_neg_%zu", (int)parser->export.len, parser->export.str, parser->productions.fill);
@@ -97,7 +97,7 @@ void handle_list_rule(PeggyParser * parser, ASTNode * node, PeggyString name) {
     written += sprintf(buffer, "_list_%zu_%zu", nchildren, parser->productions.fill);
     prod.identifier.str[written] = '\0';
     */
-    prod.type = PEGGY_LIST;
+    prod.type = PEG_LIST;
 
     PeggyProduction_declare(parser, prod);
     parser->productions._class->set(&parser->productions, prod.name, prod);
@@ -117,14 +117,14 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
 
     PeggyProduction prod;  
     production_init(parser, name, &prod);
-    prod.type = PEGGY_REPEAT;
+    prod.type = PEG_REPEAT;
 
     ASTNode * repeat_type = node->children[1]->children[0];
 
     PeggyString m = {0}, n = {0};
     
     switch (repeat_type->rule->id) {
-        case PLUS: { // repeat 1 or more
+        case PEGGY_PLUS: { // repeat 1 or more
             //printf("one or more\n");
             m.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char));
             m.str[0] = '1';
@@ -143,7 +143,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
             // add arguments
             break;
         }
-        case ASTERISK: { // repeat 0 or more
+        case PEGGY_ASTERISK: { // repeat 0 or more
             //printf("zero or more\n");
             size_t buf_len = sizeof(char) * (parser->export.len + size_t_strlen(parser->productions.fill) + 10);
             prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
@@ -157,7 +157,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
             // add arguments
             break;
         }
-        case QUESTION: { // repeat 0 or 1
+        case PEGGY_QUESTION: { // repeat 0 or 1
             //printf("optional\n");
             m.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char));
             m.str[0] = '0';
@@ -272,7 +272,7 @@ void handle_sequence(PeggyParser * parser, ASTNode * node, PeggyString name) {
     written += sprintf(buffer, "_seq_%zu_%zu", nchildren, parser->productions.fill);
     prod.identifier.str[written] = '\0';
     */
-    prod.type = PEGGY_SEQUENCE;
+    prod.type = PEG_SEQUENCE;
 
     PeggyProduction_declare(parser, prod);
     parser->productions._class->set(&parser->productions, prod.name, prod);
@@ -301,7 +301,7 @@ void handle_choice(PeggyParser * parser, ASTNode * node, PeggyString name) {
     written += sprintf(buffer, "_choice_%zu_%zu", nchildren, parser->productions.fill);
     prod.identifier.str[written] = '\0';
     */
-    prod.type = PEGGY_CHOICE;
+    prod.type = PEG_CHOICE;
 
     PeggyProduction_declare(parser, prod);
     parser->productions._class->set(&parser->productions, prod.name, prod);
@@ -319,22 +319,22 @@ void handle_choice(PeggyParser * parser, ASTNode * node, PeggyString name) {
 void handle_base_rule(PeggyParser * parser, ASTNode * node, const PeggyString parent_id, PeggyString name) {
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling base rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
     switch (node->children[0]->rule->id) {
-        case TERMINAL: {
+        case PEGGY_TERMINAL: {
             // terminals are only built if parent_id is not empty
             if (parent_id.len) {
                 handle_terminal(parser, node->children[0], parent_id);
             }
             break;
         }
-        case NONTERMINAL: { // do nothing. Don't make a new production
+        case PEGGY_NONTERMINAL: { // do nothing. Don't make a new production
             /* forward declare the nonterminal */
             PeggyString name = get_string_from_parser(parser, node->children[0]);
             
             if (!parser->productions._class->in(&parser->productions, name)) {
                 if (strncmp(name.str, "punctuator", name.len) && strncmp(name.str, "keyword", name.len)) {
-                    PeggyProduction_build(parser, node->children[0], PEGGY_PRODUCTION);
+                    PeggyProduction_build(parser, node->children[0], PEG_PRODUCTION);
                 } else {
-                    PeggyProduction_build(parser, node->children[0], PEGGY_LITERAL);
+                    PeggyProduction_build(parser, node->children[0], PEG_LITERAL);
                 }
             }
             
@@ -359,27 +359,27 @@ void handle_simplified_rules(PeggyParser * parser, ASTNode * node, const PeggySt
 
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling simplified rule rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
     switch (node->rule->id) {
-        case CHOICE: {
+        case PEGGY_CHOICE: {
             handle_choice(parser, node, name);
             break;
         }
-        case SEQUENCE: {
+        case PEGGY_SEQUENCE: {
             handle_sequence(parser, node, name);
             break;
         }
-        case REPEATED_RULE: {
+        case PEGGY_REPEATED_RULE: {
             handle_repeated_rule(parser, node, name);
             break;
         }
-        case LIST_RULE: {
+        case PEGGY_LIST_RULE: {
             handle_list_rule(parser, node, name);
             break;
         }
-        case LOOKAHEAD_RULE: {
+        case PEGGY_LOOKAHEAD_RULE: {
             handle_lookahead_rule(parser, node, name);
             break;
         }
-        case BASE_RULE: { // BASE_RULE
+        case PEGGY_BASE_RULE: { // BASE_RULE
             handle_base_rule(parser, node, parent_id, name);
             break;
         }
@@ -397,7 +397,7 @@ void handle_production_(PeggyParser * parser, ASTNode * id, ASTNode * transforms
     PeggyString prod_name = get_string_from_parser(parser, id);
     if (parser->productions._class->get(&parser->productions, prod_name, &prod)) {
         // if retrieval fails, build a new one
-        prod = PeggyProduction_build(parser, id, PEGGY_PRODUCTION);
+        prod = PeggyProduction_build(parser, id, PEG_PRODUCTION);
     }
     PeggyProduction_declare(parser, prod);
     
@@ -486,9 +486,11 @@ void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyStri
         char * lookup_result = punctuator_lookup(prod.name.str + 1, prod.name.len - 2);
         //printf("%.*s -> %s\n", (int)prod.name.len, prod.name.str, lookup_result ? lookup_result : "(not found)");
         if (lookup_result) {
-            prod.identifier.len = strlen(lookup_result);
-            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
-            memcpy((void*)prod.identifier.str, (void*)lookup_result, prod.identifier.len);    
+            prod.identifier.len = strlen(lookup_result) + parser->export.len + 1;
+            prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len) + 1);
+			snprintf(prod.identifier.str, prod.identifier.len + 1, "%.*s_%s",
+				(int)parser->export.len, parser->export.str, lookup_result);
+            //memcpy((void*)prod.identifier.str, (void*)lookup_result, prod.identifier.len);    
         } else {
             prod.identifier.len = (prod.name.len - 2)*4 + 5;
             prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
@@ -510,22 +512,26 @@ void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyStri
         }
         
     } else if (!strncmp("keyword", parent_id.str, parent_id.len)) {
-        prod.identifier.len = (prod.name.len - 2) + 3;
-        prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
-        memcpy((void*)prod.identifier.str, (void*)(prod.name.str + 1), prod.name.len-2);
-        prod.identifier.str[prod.identifier.len-3] = '_';
-        prod.identifier.str[prod.identifier.len-2] = 'k';
-        prod.identifier.str[prod.identifier.len-1] = 'w';
+        prod.identifier.len = (prod.name.len - 2) + 4 + parser->export.len;
+        prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len) + 1);
+		snprintf(prod.identifier.str, prod.identifier.len + 1, "%.*s_%.*s_kw", 
+			(int)parser->export.len, parser->export.str, (int)(prod.name.len - 2), prod.name.str + 1);
+        //memcpy((void*)prod.identifier.str, (void*)(prod.name.str + 1), prod.name.len-2);
+        //prod.identifier.str[prod.identifier.len-3] = '_';
+        //prod.identifier.str[prod.identifier.len-2] = 'k';
+        //prod.identifier.str[prod.identifier.len-1] = 'w';
     } else {
-        prod.identifier.len = parent_id.len + 3;
-        prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
-        memcpy((void*)prod.identifier.str, (void*)parent_id.str, parent_id.len);
-        prod.identifier.str[parent_id.len] = '_';
-        prod.identifier.str[parent_id.len+1] = 'r';
-        prod.identifier.str[parent_id.len+2] = 'e';
+        prod.identifier.len = parent_id.len + 3 + parser->export.len;
+        prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len) + 1);
+		snprintf(prod.identifier.str, prod.identifier.len + 1, "%.*s_%.*s_re",
+			(int)parser->export.len, parser->export.str, (int)parent_id.len, parent_id.str);
+        //memcpy((void*)prod.identifier.str, (void*)parent_id.str, parent_id.len);
+        //prod.identifier.str[parent_id.len] = '_';
+        //prod.identifier.str[parent_id.len+1] = 'r';
+        //prod.identifier.str[parent_id.len+2] = 'e';
     } 
     
-    prod.type = PEGGY_LITERAL;
+    prod.type = PEG_LITERAL;
 
     // don't need to declare LiteralRules
     PeggyProduction_declare(parser, prod);
@@ -546,16 +552,17 @@ void handle_regex_literal(PeggyParser * parser, ASTNode * node, const PeggyStrin
     
     prod.name = get_string_from_parser(parser, node);
     
-    size_t buf_len = sizeof(char) * (parent_id.len + 4);
+    size_t buf_len = sizeof(char) * (parent_id.len + 5 + strlen(parser->export.str));
     prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
-    prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_re", (int)parent_id.len, parent_id.str);
+    prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_%.*s_re", 
+		(int)parser->export.len, parser->export.str, (int)parent_id.len, parent_id.str);
     /*
     memcpy((void*)prod.identifier.str, (void*)parent_id.str, parent_id.len);
     prod.identifier.str[parent_id.len] = '_';
     prod.identifier.str[parent_id.len+1] = 'r';
     prod.identifier.str[parent_id.len+2] = 'e';
     */
-    prod.type = PEGGY_LITERAL;
+    prod.type = PEG_LITERAL;
 
     PeggyProduction_declare(parser, prod);
     parser->productions._class->set(&parser->productions, prod.name, prod);
@@ -583,7 +590,7 @@ void handle_regex_literal(PeggyParser * parser, ASTNode * node, const PeggyStrin
 void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
     PeggyProduction prod;
     STACK_INIT(PeggyString)(&prod.args, 0);
-    PeggyString parent_id = {.str = (node->children[0]->rule->id == PUNCTUATOR_KW) ? "punctuator" : "keyword"};
+    PeggyString parent_id = {.str = (node->children[0]->rule->id == PEGGY_PUNCTUATOR_KW) ? "punctuator" : "keyword"};
     parent_id.len = strlen(parent_id.str);
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling %s from line %u, col %u\n", __func__, parent_id.str, node->token_start->coords.line, node->token_start->coords.col);
 
@@ -599,7 +606,7 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
     buffer++;
     memcpy(buffer, prod.name.str, prod.name.len);
     */
-    prod.type = PEGGY_LITERAL;
+    prod.type = PEG_LITERAL;
 
     PeggyProduction_declare(parser, prod);
     parser->productions._class->set(&parser->productions, prod.name, prod);
@@ -651,13 +658,13 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
 
 void handle_special_production(PeggyParser * parser, ASTNode * node) {
     switch (node->children[0]->rule->id) {
-        case TOKEN_KW: {
+        case PEGGY_TOKEN_KW: {
             handle_production_(parser, node->children[0], NULL, node->children[2], HANDLE_PRODUCTION_TOKEN);
             break;
         }
-        case PUNCTUATOR_KW: { }
+        case PEGGY_PUNCTUATOR_KW: { }
            FALLTHROUGH // otherwise gcc -pedantic complains about fallthrough
-        case KEYWORD_KW: {
+        case PEGGY_KEYWORD_KW: {
             handle_punctuator_keyword(parser, node);
             break;
         }
@@ -732,15 +739,15 @@ ASTNode * handle_peggy(Production * peggy_prod, Parser * parser_, ASTNode * node
     // node is a peggy document production
     for (size_t i = 0; i < node->nchildren; i++) {
         switch (node->children[i]->rule->id) {
-            case CONFIG: {
+            case PEGGY_CONFIG: {
                 handle_config(parser, node->children[i]);
                 break;
             }
-            case SPECIAL_PRODUCTION: {
+            case PEGGY_SPECIAL_PRODUCTION: {
                 handle_special_production(parser, node->children[i]);
                 break;
             }
-            case PRODUCTION: {
+            case PEGGY_PRODUCTION: {
                 handle_production(parser, node->children[i]);
                 break;
             }
@@ -767,27 +774,27 @@ ASTNode * simplify_rule(Production * simplifiable_rule, Parser * parser, ASTNode
     LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - trying to simplifying rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
     rule_id_type cur_rule = ((Rule *)simplifiable_rule)->id;
     switch (cur_rule) {
-        case LOOKAHEAD_RULE: {
+        case PEGGY_LOOKAHEAD_RULE: {
             if (!(node->children[0]->nchildren)) {
                 return node->children[1];
                 
             }
             break;
         }
-        case REPEATED_RULE: {
+        case PEGGY_REPEATED_RULE: {
             //printf("repeated rule found with %zu children. is actually repeated rule? %s\n", node->nchildren, node->children[1]->nchildren ? "yes": "no");
             if (!node->children[1]->nchildren) {
                 return node->children[0];
             }
             break;
         }
-        case LIST_RULE: {
+        case PEGGY_LIST_RULE: {
         }
             FALLTHROUGH // otherwise gcc -pedantic complains about fallthrough
-        case SEQUENCE: {
+        case PEGGY_SEQUENCE: {
         }
             FALLTHROUGH // otherwise gcc -pedantic complains about fallthrough
-        case CHOICE: {
+        case PEGGY_CHOICE: {
             if (node->nchildren == 1) {
                 return node->children[0];
             }

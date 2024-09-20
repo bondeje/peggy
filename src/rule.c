@@ -38,7 +38,7 @@
 /* Rule implementations */
 
 struct RuleType Rule_class = {
-    .type = PEGGY_RULE,
+    .type = PEG_RULE,
     .new = &Rule_new,
     .init = &Rule_init,
     .dest = &Rule_dest, 
@@ -187,7 +187,7 @@ ASTNode * Rule_check(Rule * self, Parser * parser) {
 
 struct ChainRuleType ChainRule_class = {
     .Rule_class = {
-        .type = PEGGY_CHAIN,
+        .type = PEG_CHAIN,
         .new = &Rule_new,
         .init = &Rule_init,
         .dest = &Rule_dest,
@@ -272,7 +272,7 @@ void ChainRule_as_Rule_del(Rule * chain_rule) {
 struct SequenceRuleType SequenceRule_class = {
     .ChainRule_class = {
         .Rule_class = {
-            .type = PEGGY_SEQUENCE,
+            .type = PEG_SEQUENCE,
             .new = &Rule_new,
             .init = &Rule_init,
             .dest = &Rule_dest,
@@ -395,7 +395,7 @@ ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser) {
 struct ChoiceRuleType ChoiceRule_class = {
     .ChainRule_class = {
         .Rule_class = {
-            .type = PEGGY_CHOICE,
+            .type = PEG_CHOICE,
             .new = &Rule_new,
             .init = &Rule_init,
             .dest = &Rule_dest,
@@ -507,7 +507,7 @@ ASTNode * ChoiceRule_check_rule_(Rule * choice_rule, Parser * parser) {
 
 struct LiteralRuleType LiteralRule_class = {
     .Rule_class = {
-        .type = PEGGY_LITERAL,
+        .type = PEG_LITERAL,
         .new = &Rule_new,
         .init = &Rule_init,
         .dest = &LiteralRule_as_Rule_dest,
@@ -715,7 +715,7 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser) {
 
 struct DerivedRuleType DerivedRule_class = {  
     .Rule_class = {
-        .type = PEGGY_DERIVED,
+        .type = PEG_DERIVED,
         .new = &Rule_new,
         .init = &Rule_init,
         .dest = &Rule_dest,
@@ -794,7 +794,7 @@ void DerivedRule_as_Rule_del(Rule * derived_rule) {
 struct ListRuleType ListRule_class = { 
     .DerivedRule_class = {
         .Rule_class = {
-            .type = PEGGY_LIST,
+            .type = PEG_LIST,
             .new = &Rule_new,
             .init = &Rule_init,
             .dest = &Rule_dest,
@@ -946,7 +946,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser) {
 struct RepeatRuleType RepeatRule_class = {
     .DerivedRule_class = {
         .Rule_class = {
-            .type = PEGGY_REPEAT,
+            .type = PEG_REPEAT,
             .new = &Rule_new,
             .init = &Rule_init,
             .dest = &Rule_dest,
@@ -1095,7 +1095,7 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser) {
 struct NegativeLookaheadType NegativeLookahead_class = {
     .DerivedRule_class = {
         .Rule_class = {
-            .type = PEGGY_NEGATIVELOOKAHEAD,
+            .type = PEG_NEGATIVELOOKAHEAD,
             .new = &Rule_new,
             .init = &Rule_init,
             .dest = &Rule_dest,
@@ -1218,7 +1218,7 @@ ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead,
 struct PositiveLookaheadType PositiveLookahead_class = {
     .DerivedRule_class = {
         .Rule_class = {
-            .type = PEGGY_POSITIVELOOKAHEAD,
+            .type = PEG_POSITIVELOOKAHEAD,
             .new = &Rule_new,
             .init = &Rule_init,
             .dest = &Rule_dest,
@@ -1332,9 +1332,9 @@ ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead,
 #define Production_NAME "Production.DerivedRule.Rule"
 
 RuleTypeID const PRODUCTION_UNESCAPED_RULES[3] = {
-    PEGGY_PRODUCTION,
-    PEGGY_LITERAL,
-    PEGGY_NOTRULE
+    PEG_PRODUCTION,
+    PEG_LITERAL,
+    PEG_NOTRULE
 };
 
 ASTNode * build_action_default(Production * production, Parser * parser, 
@@ -1376,7 +1376,7 @@ ASTNode * build_action_default(Production * production, Parser * parser,
 struct ProductionType Production_class = {  
     .DerivedRule_class = {
         .Rule_class = {
-            .type = PEGGY_PRODUCTION,
+            .type = PEG_PRODUCTION,
             .new = &Rule_new,
             .init = &Rule_init,
             .dest = &Rule_dest,

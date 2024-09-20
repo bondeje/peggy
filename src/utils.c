@@ -11,35 +11,35 @@
 char const * get_type_name(RuleTypeID type) {
     char const * rule_resolve = NULL;
     switch (type) {
-        case PEGGY_SEQUENCE: {
+        case PEG_SEQUENCE: {
             rule_resolve = "SequenceRule";
             break;
         }
-        case PEGGY_CHOICE: {
+        case PEG_CHOICE: {
             rule_resolve = "ChoiceRule";
             break;
         }
-        case PEGGY_LITERAL: {
+        case PEG_LITERAL: {
             rule_resolve = "LiteralRule";
             break;
         }
-        case PEGGY_LIST: {
+        case PEG_LIST: {
             rule_resolve = "ListRule";
             break;
         }
-        case PEGGY_REPEAT: {
+        case PEG_REPEAT: {
             rule_resolve = "RepeatRule";
             break;
         }
-        case PEGGY_NEGATIVELOOKAHEAD: {
+        case PEG_NEGATIVELOOKAHEAD: {
             rule_resolve = "NegativeLookahead";
             break;
         }
-        case PEGGY_POSITIVELOOKAHEAD: {
+        case PEG_POSITIVELOOKAHEAD: {
             rule_resolve = "PositiveLookahead";
             break;
         }
-        case PEGGY_PRODUCTION: {
+        case PEG_PRODUCTION: {
             rule_resolve = "Production";
             break;
         }
@@ -58,7 +58,7 @@ char const * get_type_name(RuleTypeID type) {
  * @returns true if type is in types else false
  */
 bool isinstance(RuleTypeID const type, RuleTypeID const * types) {
-    while (*types != PEGGY_NOTRULE) {
+    while (*types != PEG_NOTRULE) {
         if (*types == type) {
             return true;
         }

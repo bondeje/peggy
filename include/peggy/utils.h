@@ -65,18 +65,18 @@ typedef enum err_type {
 } err_type;
 
 typedef enum RuleTypeID {
-    PEGGY_NOTRULE = -1,
-    PEGGY_RULE,
-    PEGGY_CHAIN,
-    PEGGY_SEQUENCE,
-    PEGGY_CHOICE,
-    PEGGY_LITERAL,
-    PEGGY_DERIVED,
-    PEGGY_LIST,
-    PEGGY_REPEAT,
-    PEGGY_POSITIVELOOKAHEAD,
-    PEGGY_NEGATIVELOOKAHEAD,
-    PEGGY_PRODUCTION
+    PEG_NOTRULE = -1,
+    PEG_RULE,
+    PEG_CHAIN,
+    PEG_SEQUENCE,
+    PEG_CHOICE,
+    PEG_LITERAL,
+    PEG_DERIVED,
+    PEG_LIST,
+    PEG_REPEAT,
+    PEG_POSITIVELOOKAHEAD,
+    PEG_NEGATIVELOOKAHEAD,
+    PEG_PRODUCTION
 } RuleTypeID;
 
 // needed because of circular includes

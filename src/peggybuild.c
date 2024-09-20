@@ -112,9 +112,9 @@ int PeggyProduction_define(void * parser_, PeggyString name, PeggyProduction pro
     fputc(',', parser->source_file);
 
     unsigned int offset = 0;
-    if (PeggyString_startswith(prod.identifier, parser->export) && parser->export.len < prod.identifier.len && *(prod.identifier.str + parser->export.len) == '_') {
-        offset = (unsigned int)(parser->export.len + 1);
-    }
+    //if (PeggyString_startswith(prod.identifier, parser->export) && parser->export.len < prod.identifier.len && *(prod.identifier.str + parser->export.len) == '_') {
+    //    offset = (unsigned int)(parser->export.len + 1);
+    //}
     PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER | PSFO_LOFFSET(offset));
 
     prod.args._class->for_each(&prod.args, &PeggyProduction_write_arg, (void*)parser);
@@ -197,10 +197,10 @@ PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, RuleTy
     prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len); // +1 for underscore
     prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_%.*s", (int)parser->export.len, parser->export.str, (int)prod.name.len, prod.name.str);
 
-    if (type != PEGGY_NOTRULE) {
+    if (type != PEG_NOTRULE) {
         prod.type = type;
     } else {
-        prod.type = PEGGY_PRODUCTION;
+        prod.type = PEG_PRODUCTION;
     }    
 
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding build of production rule id %s with name %.*s from line %u, col %u to production map\n", __func__, id->rule->name, prod.name.len, prod.name.str, id->token_start->coords.line, id->token_start->coords.col);
@@ -222,9 +222,9 @@ void PeggyProduction_declare(PeggyParser * parser, PeggyProduction prod) {
     fwrite("; // ", 1, strlen("; // "), parser->source_file);
     
     unsigned int offset = 0;
-    if (PeggyString_startswith(prod.identifier, parser->export) && parser->export.len < prod.identifier.len && *(prod.identifier.str + parser->export.len) == '_') {
-        offset = (unsigned int)(parser->export.len + 1);
-    }
+//    if (PeggyString_startswith(prod.identifier, parser->export) && parser->export.len < prod.identifier.len && *(prod.identifier.str + parser->export.len) == '_') {
+//        offset = (unsigned int)(parser->export.len + 1);
+//    }
 
     PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER | PSFO_LOFFSET(offset));
     fputc('\n', parser->source_file);

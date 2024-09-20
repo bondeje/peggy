@@ -564,7 +564,7 @@ ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start,
         switch (rule->_class->type) {
 
             // build child array for ListRule
-            case PEGGY_LIST: {
+            case PEG_LIST: {
                 rule_id_type id = ((DerivedRule *)rule)->rule->id;
                 rule_id_type delim_id = ((ListRule *)rule)->delim->id;
                 for (size_t i = 0; i < nchildren; i++) {
@@ -575,7 +575,7 @@ ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start,
             }
 
             // build child array for SequenceRule
-            case PEGGY_SEQUENCE: {
+            case PEG_SEQUENCE: {
                 Rule ** deps = ((ChainRule *)rule)->deps;
                 //assert(((ChainRule *)rule)->deps_size == nchildren);
                 for (size_t i = 0; i < nchildren; i++) {
