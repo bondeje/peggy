@@ -1,9 +1,12 @@
+#include <stdio.h>
 #include <string.h>
+#include "peggy/astnode.h"
 #include "test_parser.h"
 #include "test_rules.h"
 #include "test_utils.h"
 
 int main(int narg, char ** args) {
+	printf("sizeof(ASTNode) = %zu\n", sizeof(ASTNode));
     for (int i = 1; i < narg; i++) {
         if (!strcmp(args[i], "--verbose")) {
             verbose = 1;

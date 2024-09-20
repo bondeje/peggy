@@ -492,13 +492,15 @@ void handle_string_literal(PeggyParser * parser, ASTNode * node, const PeggyStri
 				(int)parser->export.len, parser->export.str, lookup_result);
             //memcpy((void*)prod.identifier.str, (void*)lookup_result, prod.identifier.len);    
         } else {
-            prod.identifier.len = (prod.name.len - 2)*4 + 5;
+            prod.identifier.len = (prod.name.len - 2)*4 + 6 + parser->export.len;
             prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char) * (prod.identifier.len + 1));
-            prod.identifier.str[0] = 'p';
-            prod.identifier.str[1] = 'u';
-            prod.identifier.str[2] = 'n';
-            prod.identifier.str[3] = 'c';
-            size_t j = 4; // target index in prod.identifier.str
+			snprintf(prod.identifier.str, prod.identifier.len + 1, "%.*s_punc",
+				(int)parser->export.len, parser->export.str);
+            //prod.identifier.str[0] = 'p';
+            //prod.identifier.str[1] = 'u';
+            //prod.identifier.str[2] = 'n';
+            //prod.identifier.str[3] = 'c';
+            size_t j = 5 + parser->export.len; // target index in prod.identifier.str
             for (size_t i = 1; i < prod.name.len - 1; i++) {
                 prod.identifier.str[j++] = '_';
                 if (isalnum((unsigned char)prod.name.str[i]) || prod.name.str[i] == '_') {
