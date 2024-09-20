@@ -127,10 +127,13 @@ int PeggyProduction_define(void * parser_, PeggyString name, PeggyProduction pro
 int build_export_rules_resolved(void * parser_, PeggyString name, PeggyProduction prod) {
     PeggyParser * parser = (PeggyParser *) parser_;
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building export rules for %.*s\n", __func__, prod.name.len, prod.name.str);
-    
-    size_t buf_len = sizeof(char) * (prod.identifier.len + 10);
+
+	fwrite("[", sizeof(char), 1, parser->source_file);
+	PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER);
+
+    size_t buf_len = sizeof(char) * (prod.identifier.len + 14);
     PeggyString arg = {.str = MemPoolManager_malloc(parser->str_mgr, buf_len)};
-    arg.len = snprintf(arg.str, buf_len, "(Rule *)&%.*s", (int)prod.identifier.len, prod.identifier.str);
+    arg.len = snprintf(arg.str, buf_len, "] = (Rule *)&%.*s", (int)prod.identifier.len, prod.identifier.str);
 
     PeggyString_fwrite(arg, parser->source_file, PSFO_NONE);
     char * buffer = ",\n\t";
@@ -158,7 +161,9 @@ void build_export_rules(PeggyParser * parser) {
 
     parser->productions._class->for_each(&parser->productions, &build_export_rules_resolved, (void*)parser);
 
-    buffer = "NULL\n};\n\n";
+	fwrite("[", sizeof(char), 1, file);
+	PeggyString_fwrite(parser->export, file, PSFO_UPPER);
+    buffer = "_NRULES] = NULL\n};\n\n";
     fwrite(buffer, sizeof(char), strlen(buffer), file);
     
 }
@@ -307,7 +312,15 @@ void cleanup_header_file(PeggyParser * parser) {
     buffer = "rule;";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
 
-    buffer = "\n\nextern Production ";
+	buffer = "\n\nextern Rule * ";
+    fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
+    PeggyString_fwrite(parser->export, parser->header_file, PSFO_NONE);
+
+	buffer = "rules[";
+    fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
+    PeggyString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
+
+    buffer = "_NRULES + 1];\n\nextern Production ";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
     PeggyString_fwrite(parser->export, parser->header_file, PSFO_NONE);
 
@@ -329,6 +342,8 @@ void cleanup_header_file(PeggyParser * parser) {
 
     buffer = "_H\n";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
+
+// extern Rule * peggyrules[PEGGY_NRULES + 1];
     fflush(parser->header_file);
 }
 
