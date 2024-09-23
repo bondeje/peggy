@@ -262,7 +262,6 @@ int test_sequence(void) {
 
     Parser parser;
     Parser_init(&parser, trrules, SEQ_PARSER + 1, AB_LETTER_TOKEN, SEQ_PARSER, 0);
-    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     parser._class->parse(&parser, string, strlen(string));
     nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
@@ -324,7 +323,6 @@ int test_repeat(void) {
 
     Parser parser;
     Parser_init(&parser, trrules, REP_PARSER + 1, AB_LETTER_TOKEN, REP_PARSER, 0);
-    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);
@@ -395,7 +393,6 @@ int test_list(void) {
 
     Parser parser;
     Parser_init(&parser, trrules, LIST_PARSER + 1, AB_LETTER_TOKEN, LIST_PARSER, 0);
-    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);
@@ -448,7 +445,6 @@ int test_lookahead(void) {
 
     Parser parser;
     Parser_init(&parser, trrules, LA_PARSER + 1, AB_LETTER_TOKEN, LA_PARSER, 0);
-    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);

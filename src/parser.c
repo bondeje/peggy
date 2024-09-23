@@ -67,12 +67,7 @@ err_type Parser_init(Parser * self, Rule * rules[], rule_id_type nrules,
         self->root_rule = rules[root_rule];
     } else {
         self->root_rule = NULL;
-    }
-    
-
-    // set a default logger to disabled
-    self->log_file = "stdout";
-    LOG_INIT(&self->logger, self->log_file, NULL, 0, 0, 0, NULL, "");    
+    }  
     
     // initialize packrat memoization
     err_type status = PackratCache_init(&self->cache, nrules, PARSER_DEFAULT_NTOKENS); 
@@ -121,43 +116,15 @@ err_type Parser_init(Parser * self, Rule * rules[], rule_id_type nrules,
 }
 
 /**
- * @brief set a logger file for the Parser. Defaults to disabled
- * @param[in] self the Parser instance that is called to initiate the 
- *      the tokenizer/lexer to split input string into tokens
- * @param[in] log_file the file at which to place LOG_EVENT calls
- * @param[in] log_level the log level to use. If greater than 
- *      MAX_LOGGING_LEVEL used at compile time, reduces to MAX_LOGGING_LEVEL 
- *      LOG_EVENTS greater than this level are not set to log
- */
-void Parser_set_log_file(Parser * self, char const * log_file, unsigned char log_level) {
-    // destroy any existing logger
-    LOG_DEST(&self->logger);
-
-    // default to stdout
-    if (log_file) {
-        self->log_file = log_file;
-    } else {
-        self->log_file = "stdout";
-    }
-
-    LOG_INIT(&self->logger, self->log_file, NULL, 0, log_level, 0, NULL, "");
-    LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - initialized logger\n", __func__);
-}
-
-/**
  * @brief destroy and reclaim memory in parser. Use directly if initialized 
  *      with Parser_inint
  */
 void Parser_dest(Parser * self) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - destroying parser\n", __func__);
-    
     /* clear out the ASTNodes */
     MemPoolManager_del(self->node_mgr);
     self->node_mgr = NULL;
     self->ast = NULL;
     
-    LOG_DEST(&self->logger);
-
     // clear the cache
     PackratCache_dest(&self->cache);
 
@@ -195,11 +162,6 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
     Token ** start, Token ** end) {
 
     static const unsigned int REMAINING_TOKEN_MAX_SIZE = 16;
-    LOG_EVENT(&self->logger, LOG_LEVEL_INFO, 
-        "INFO: %s - tokenizing string of length %zu: %.*s\n", __func__, 
-        string_length, 
-        string_length > REMAINING_TOKEN_MAX_SIZE ? (int)REMAINING_TOKEN_MAX_SIZE : (int)string_length, 
-        string);
     if (!string_length) {
         return 0;
     }
@@ -244,11 +206,6 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
 
         // check for failed node and handle
         if (Parser_is_fail_node(self, node)) {
-            LOG_EVENT(&self->logger, LOG_LEVEL_ERROR, 
-                "ERROR: %s - failed to tokenize string at line: %hu, col: %hu - %.*s\n", 
-                __func__, cur->coords.line, cur->coords.col, 
-                REMAINING_TOKEN_MAX_SIZE < cur->length ? REMAINING_TOKEN_MAX_SIZE : cur->length, 
-                cur->string);
             return 0;
         }
 
@@ -292,11 +249,6 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
  * @returns non-zero on error, else 0
  */
 err_type Parser_add_token(Parser * self, ASTNode * node) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, 
-        "DEBUG: %s - adding new token at line %u, col %u of length %zu: %.*s\n", 
-        __func__, node->token_start->coords.line, node->token_start->coords.col, 
-        node->str_length, (int)node->str_length, node->token_start->string);
-    
     Parser_generate_new_token(self, node->str_length, node->token_start);
     Parser_seek(self, node->token_end->next);
     //self->token_tail->id = self->token_tail->prev->id + 1;
@@ -397,9 +349,6 @@ void Parser_generate_new_token(Parser * self, size_t token_length, Token * cur) 
     }
     size_t length = cur->length - token_length;
     cur->length = token_length;
-    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, 
-        "TRACE: %s - adding token at line: %hu, col: %hu - %.*s\n", __func__, 
-        cur->coords.line, cur->coords.col, (int)cur->length, cur->string);
     Parser_add_string(self, cur, cur->string + token_length, length);
 }
 
@@ -413,9 +362,6 @@ void Parser_generate_new_token(Parser * self, size_t token_length, Token * cur) 
  */
 err_type Parser_skip_token(Parser * self, ASTNode * node) {
     Token * skipped = node->token_start;
-    LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, 
-        "DEBUG: %s - skipping token at line %u, col %u of length %zu\n", 
-        __func__, skipped->coords.line, skipped->coords.col, node->str_length);
     Parser_generate_new_token(self, node->str_length, skipped);
 
     // extract the skipped token from the linked list of tokens
@@ -469,9 +415,6 @@ ASTNode ** Parser_make_child_array(Parser * self, size_t nchildren) {
  * @param[in] string_length the length of the input string
  */
 void Parser_parse(Parser * self, char const * string, size_t string_length) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_INFO, "INFO: %s - initiating parse\n", 
-        __func__);
-
     // storage for start and end tokens
     Token * start;
     Token * end;
@@ -479,9 +422,6 @@ void Parser_parse(Parser * self, char const * string, size_t string_length) {
     // tokenize the input string
     size_t ntokens = self->_class->tokenize(self, string, string_length, 
         &start, &end);
-    LOG_EVENT(&self->logger, LOG_LEVEL_INFO, 
-        "INFO: %s - tokenizer %ssuccessfully completed\n", __func__, 
-        ntokens ? "" : "un");
 
     // if tokenizer succeeded (at least one token found)
     if (ntokens) {
@@ -503,9 +443,6 @@ void Parser_parse(Parser * self, char const * string, size_t string_length) {
         if (self->root_rule) {
             // initiae parse of the Token list
             self->ast = Rule_check(self->root_rule, self);
-            LOG_EVENT(&self->logger, LOG_LEVEL_INFO, 
-                "INFO: %s - parser %ssuccessfully completed\n", __func__, 
-                Parser_is_fail_node(self, self->ast) ? "un" : "");
         }
     }
     
@@ -616,9 +553,6 @@ ASTNode * Parser_add_node(Parser * self, rule_id_type rule, Token * start,
  * @returns The ASTNode at the (Rule, Token) key. NULL if not present
  */
 ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, Token * tok) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, 
-        "TRACE: %s - retrieving cache result of rule id %d at line: %hu, "
-        "col: %hu\n", __func__, rule_id, tok->coords.line, tok->coords.col);
     //if (tok == self->token_head || tok == self->token_tail) {
     if (tok == self->token_head) {
         return Parser_fail_node(self);
@@ -637,9 +571,6 @@ ASTNode * Parser_check_cache(Parser * self, rule_id_type rule_id, Token * tok) {
 void Parser_cache_check(Parser * self, rule_id_type rule_id, Token * tok, 
     ASTNode * node) {
 
-    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, 
-        "TRACE: %s - caching result of rule id %d at line: %hu, col: %hu: %p\n", 
-        __func__, rule_id, tok->coords.line, tok->coords.col, (void*)node);
     //if (tok != self->token_head && tok != self->token_tail) {
     if (tok != self->token_head) {
         PackratCache_set(&self->cache, self, rule_id, tok, node);
@@ -663,11 +594,7 @@ typedef struct ASTNodeSize {
  * @brief print the available Abstract Syntax Tree to stream
  */
 err_type Parser_print_ast(Parser * self, FILE * stream) {
-    LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, 
-        "DEBUG: %s - starting ast print %p\n", __func__, (void*)self->ast);
     if (Parser_is_fail_node(self, self->ast)) {
-        LOG_EVENT(&self->logger, LOG_LEVEL_DEBUG, 
-            "DEBUG: %s - invalid AST for printing\n", __func__);
         return PEGGY_SUCCESS;
     }
     if (!stream) {
@@ -800,10 +727,6 @@ err_type Parser_print_parse_status(Parser * parser, FILE * stream) {
  *      return NULL
  */
 ASTNode * skip_token(Production * production, Parser * parser, ASTNode * node) {
-    LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, 
-        "DEBUG: %s - skipping node at line %u, col %u of length %zu\n", __func__, 
-        node->token_start->coords.line, node->token_start->coords.col, 
-        node->str_length);
     node = make_skip_node(node);
     //DEBUG_ASSERT(is_skip_node(node), 
     //    "ASSERT FAILURE: %s - node made skip node not registering as skip node\n", 

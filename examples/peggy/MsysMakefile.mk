@@ -5,8 +5,6 @@ CC = gcc
 EXAMPLE_NAME = peggy
 BIN_DIR = ../../bin
 GRAMMAR = $(EXAMPLE_NAME).grmr
-BLD_LOG_LEVEL = LOG_LEVEL_WARN
-TEST_LOG_LEVEL = LOG_LEVEL_ERROR
 CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -DMAX_LOGGING_LEVEL=$(BLD_LOG_LEVEL) `if [ -n "$(SANITIZE)" ] ; then echo "-g -fsanitize=address,undefined"; else echo "-DNDEBUG"; fi` -fPIC
 IFLAGS = -I../../include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
@@ -26,13 +24,13 @@ all: $(BIN_DIR)/peggy.exe
 
 $(BIN_DIR)/peggy.exe: $(GRAMMAR)
 	@cp $(SRCS) $(INCS) .
-	@$(BIN_DIR)/peggy.exe $(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL)
+	@$(BIN_DIR)/peggy.exe $(GRAMMAR)
 	@$(CC) $(CFLAGS) $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 
 rebuild:
 	@cp $(SRCS) $(INCS) .
-	@(cd ../.. && bin/peggy.exe examples/peggy/$(GRAMMAR) $(GRAMMAR).log $(BLD_LOG_LEVEL) && mv peggy.* examples/peggy && \
-	rm -f bin/peggy.exe) || $(BIN_DIR)/peggy peggy.grmr $(GRAMMAR).log $(BLD_LOG_LEVEL) && rm -f $(BIN_DIR)/peggy
+	@(cd ../.. && bin/peggy.exe examples/peggy/$(GRAMMAR) && mv peggy.* examples/peggy && \
+	rm -f bin/peggy.exe) || $(BIN_DIR)/peggy peggy.grmr && rm -f $(BIN_DIR)/peggy
 	@(echo "\nbuilding peggy parser")
 	@(if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="-DNDEBUG"; fi ; \
 	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $(BIN_DIR)/peggy $(LFLAGS))
@@ -41,9 +39,9 @@ rebuild:
 test: rebuild
 	@mv peggy.c peggy_orig.c
 	@mv peggy.h peggy_orig.h
-	@$(BIN_DIR)/peggy.exe peggy.grmr $(GRAMMAR).log LOG_LEVEL_ERROR 
+	@$(BIN_DIR)/peggy.exe peggy.grmr
 	@(if [ -z "`comm -3 peggy_orig.h peggy.h`" ] && [ -z "`comm -3 peggy_orig.c peggy.c`" ] ; then echo "test peggy bootstrap...passed" ; else echo "test peggy bootstrap...failed" ; fi)
 
 # be carefule with this. will remove any version of peggy.exe that you have already built
 clean:
-	@rm -f *.c *.h $(BIN_DIR)/peggy.exe *.log *.o *.dll
+	@rm -f *.c *.h $(BIN_DIR)/peggy.exe *.o *.dll

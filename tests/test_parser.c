@@ -133,7 +133,6 @@ int test_tokenizer_single_char(void) {
 
     Parser parser;
     Parser_init(&parser, tprules, LETTER_TOKEN + 1, LETTER_TOKEN, -1, 0);
-    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, N, &cur, &end);
@@ -161,7 +160,6 @@ int test_tokenizer_alphanumeric(void) {
 
     Parser parser;
     Parser_init(&parser, tprules, ALPHANUMERIC_TOKEN + 1, ALPHANUMERIC_TOKEN, -1, 0);
-    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, N, &cur, &end);
@@ -189,7 +187,6 @@ int test_tokenizer_hexadecimal(void) {
 
     Parser parser;
     Parser_init(&parser, tprules, HEXADECIMAL_TOKEN + 1, HEXADECIMAL_TOKEN, -1, 0);
-    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, N, &cur, &end);
@@ -218,7 +215,6 @@ int test_tokenizer_test_parser_token(void) {
 
     Parser parser;
     Parser_init(&parser, tprules, TEST_PARSER_TOKEN + 1, TEST_PARSER_TOKEN, -1, 0);
-    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, nstring, &cur, &end);
@@ -358,7 +354,6 @@ int test_parser_doc(void) {
 
     Parser parser;
     Parser_init(&parser, tprules, DOC + 1, TEST_PARSER_TOKEN, DOC, 0);
-    Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t string_length = strlen(string);
     parser._class->parse(&parser, string, string_length);

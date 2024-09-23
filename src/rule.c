@@ -16,7 +16,6 @@
 #endif
 
 /* lib includes */
-#include "logger.h"
 #ifndef _GNU_SOURCE
 // basically anywhere that does not have _GNU_SOURCE, which is apparently everywhere other than non-Android Linux
 // regex alternative
@@ -97,8 +96,6 @@ void Rule_del(Rule * self) {
  * @brief dummy function. do not implement
  */
 ASTNode * Rule_check_rule_(Rule * self, Parser * parser) {
-    LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - abstract method "
-        "called.\n", __func__);
     return NULL;
 }
 
@@ -116,9 +113,6 @@ ASTNode * Rule_check(Rule * self, Parser * parser) {
     if (!tok) {
         return Parser_fail_node(parser);
     }
-    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %s "
-        "line: %hu, col: %hu\n", __func__, self->name, tok->coords.line, 
-        tok->coords.col);
     ASTNode * res = NULL;
 
     // if lexer is active disable cache checking...it will always fail
@@ -133,46 +127,19 @@ ASTNode * Rule_check(Rule * self, Parser * parser) {
             // seek ahead to the next unparsed Token
             Parser_seek(parser, res->token_end->next);
         }
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %s "
-            "with length %zu retrieved from cache, now at line: %u, col: %u!\n", 
-            __func__, self->name, res->str_length, 
-            Parser_tell(parser)->coords.line, Parser_tell(parser)->coords.col);
         return res;
     }
 
     // evaluate the current rule
     res = self->_class->check_rule_(self, parser);
 
-    // cache the result
-    if (!res) {
-        // TODO: change to LOG_EVENT
-        LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - storing a null"
-            " from rule id %s! Should not happen", self->name);
-    }
-
     // if rule failed..
-    if (Parser_is_fail_node(parser, res)) {
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %s "
-            "failed!\n", __func__, self->name);
-        
+    if (Parser_is_fail_node(parser, res)) {        
         // ensure we reset to the Token at the start of the evaluation
         Parser_seek(parser, tok);
 
         // log a failure to the parser
         Parser_fail(parser, self->id);
-    } else {
-
-        // log success. If MAX_LOGGING_LEVEL < LOG_LEVEL_TRACE, this should be 
-        // no-op
-        Token * tok = Parser_tell(parser);
-        if (tok) {
-            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %s"
-                " succeeded! Now at line: %hu, col: %hu\n", __func__, self->name, 
-                tok->coords.line, tok->coords.col);
-        } else {
-            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - rule id %s"
-                " succeeded! Done!\n", __func__, self->name);
-        }
     }
 
     // record the result in the cache
@@ -557,9 +524,6 @@ err_type LiteralRule_compile_regex(LiteralRule * self) {
     char const * err_message = re_compile_pattern(self->regex_s, 
         strlen(self->regex_s), &self->regex);
     if (err_message) {
-        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - regex compile error "
-            "message for pattern %s: %s\n", __func__, self->regex_s, 
-            err_message);
         return PEGGY_REGEX_FAILURE;
     }
 #else 
@@ -571,9 +535,6 @@ err_type LiteralRule_compile_regex(LiteralRule * self) {
         &pcre2_err_offset,  /* for error offset */
         NULL);              /* use default compile context */
     if (!self->regex) {
-        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - pcre2 regex compile "
-            "error code for pattern %s: %d\n", __func__, (char *)self->regex_s, 
-            pcre2_err_code);
         return PEGGY_REGEX_FAILURE;
     }
     // only include the first match
@@ -656,10 +617,6 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser) {
     }
     LiteralRule * self = (LiteralRule *)literal_rule;
     
-    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - checking literal "
-        "rule. id: %s, %s, cur: %.*s\n", __func__, literal_rule->name, 
-        self->regex_s, (int)tok->length > 10 ? 10 : (int)tok->length, 
-        tok->string);
     err_type status = PEGGY_SUCCESS;
 
     // compile the LiteralRule if it is not yet
@@ -699,10 +656,7 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser) {
 #endif
     if (length > 0 && (parser->tokenizing || (size_t)length == tok->length)) {
         Parser_seek(parser, tok->next);
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - literal rule "
-            "(id %s) regex %s matched with length %d! - %.*s\n", __func__, 
-            literal_rule->name, (char *)self->regex_s, length, (int)length, 
-            tok->string);
+
         return Parser_add_node(parser, literal_rule->id, tok, tok, length, 
             0, 0);
     }

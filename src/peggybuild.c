@@ -108,13 +108,10 @@ int PeggyProduction_define(void * parser_, PeggyString name, PeggyProduction pro
 
     fputc('(', parser->source_file);
     PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_NONE);
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building definition for production %.*s\n", __func__, (int)prod.identifier.len, prod.identifier.str);
     fputc(',', parser->source_file);
 
     unsigned int offset = 0;
-    //if (PeggyString_startswith(prod.identifier, parser->export) && parser->export.len < prod.identifier.len && *(prod.identifier.str + parser->export.len) == '_') {
-    //    offset = (unsigned int)(parser->export.len + 1);
-    //}
+    
     PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER | PSFO_LOFFSET(offset));
 
     prod.args._class->for_each(&prod.args, &PeggyProduction_write_arg, (void*)parser);
@@ -126,8 +123,6 @@ int PeggyProduction_define(void * parser_, PeggyString name, PeggyProduction pro
 
 int build_export_rules_resolved(void * parser_, PeggyString name, PeggyProduction prod) {
     PeggyParser * parser = (PeggyParser *) parser_;
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building export rules for %.*s\n", __func__, prod.name.len, prod.name.str);
-
 	fwrite("[", sizeof(char), 1, parser->source_file);
 	PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER);
 
@@ -139,13 +134,10 @@ int build_export_rules_resolved(void * parser_, PeggyString name, PeggyProductio
     char * buffer = ",\n\t";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->source_file);
 
-    //free(arg.str);
-
     return 0;
 }
 
 void build_export_rules(PeggyParser * parser) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - building export rules\n", __func__);
     char const * buffer = NULL;
     FILE * file = parser->source_file;
     buffer = "\n\nRule * ";
@@ -169,7 +161,6 @@ void build_export_rules(PeggyParser * parser) {
 }
 
 void build_destructor(PeggyParser * parser) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - building destructor\n", __func__);
     char const * buffer = NULL;
     FILE * file = parser->source_file;
     buffer = "void ";
@@ -213,7 +204,6 @@ PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, RuleTy
 }
 
 void PeggyProduction_declare(PeggyParser * parser, PeggyProduction prod) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - declaring type %.*s\n", __func__, prod.name.len, prod.name.str);
     //printf("declaring type: %s\n", prod.type_name);
 
     char const * main_type_end = get_type_name(prod.type);
@@ -225,9 +215,6 @@ void PeggyProduction_declare(PeggyParser * parser, PeggyProduction prod) {
     fwrite("; // ", 1, strlen("; // "), parser->source_file);
     
     unsigned int offset = 0;
-//    if (PeggyString_startswith(prod.identifier, parser->export) && parser->export.len < prod.identifier.len && *(prod.identifier.str + parser->export.len) == '_') {
-//        offset = (unsigned int)(parser->export.len + 1);
-//    }
 
     PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER | PSFO_LOFFSET(offset));
     fputc('\n', parser->source_file);
@@ -247,7 +234,6 @@ void production_init(PeggyParser * parser, PeggyString name, PeggyProduction * p
 
 #define PREP_OUTPUT_VAR_BUFFER_SIZE 256
 void prep_output_files(PeggyParser * parser) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - prepping output files\n", __func__);
     char var_buffer[PREP_OUTPUT_VAR_BUFFER_SIZE];
     char const * buffer = NULL;
     int nbytes = 0;
@@ -288,20 +274,15 @@ err_type open_output_files(PeggyParser * parser) {
     snprintf(parser->source_name, buf_len, "%.*s.c", (int)name_length, parser->export.str);
 
     if (!(parser->header_file = fopen(parser->header_name, "w"))) {
-        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to open header file %s\n", __func__, parser->header_name);
         return PEGGY_FILE_IO_ERROR;
     }
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - opened header file %s\n", __func__, parser->header_name);
     if (!(parser->source_file = fopen(parser->source_name, "w"))) {
-        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to open source file %s\n", __func__, parser->source_name);
         return PEGGY_FILE_IO_ERROR;
     }
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - opened source file %s\n", __func__, parser->source_name);
     return PEGGY_SUCCESS;
 }
 
 void cleanup_header_file(PeggyParser * parser) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - cleaning up header file %s\n", __func__, parser->header_name);
     PeggyString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
     char * buffer = "_NRULES\n} ";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
@@ -329,7 +310,6 @@ void cleanup_header_file(PeggyParser * parser) {
     buffer = "_H\n";
     fwrite(buffer, sizeof(char), strlen(buffer), parser->header_file);
 
-// extern Rule * peggyrules[PEGGY_NRULES + 1];
     fflush(parser->header_file);
 }
 

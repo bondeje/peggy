@@ -1,8 +1,8 @@
 #ifndef PEGGYPARSER_H
 #define PEGGYPARSER_H
 
-#include <peggy/parser.h>
-#include <peggystring.h>
+#include "peggy/parser.h"
+#include "peggystring.h"
 
 #define MAX_N_TRANSFORM_FUNCTIONS 1
 #define MAX_FUNCTION_NAME_LEN 255
@@ -24,7 +24,7 @@ typedef struct PeggyProduction {
 
 typedef struct PeggyParser PeggyParser;
 
-err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length, char const * log_file, unsigned char log_level);
+err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length);
 void PeggyParser_dest(PeggyParser * parser);
 
 extern struct PeggyParserType {

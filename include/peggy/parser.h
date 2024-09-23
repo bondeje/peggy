@@ -5,16 +5,16 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 /* lib includes */
-#include "logger.h"
-#include "mempool.h"
+#include "peggy/mempool.h"
 
 /* peggy include */
-#include <peggy/utils.h>
-#include <peggy/token.h>
-#include <peggy/rule.h>
-#include <peggy/packrat_cache.h>
+#include "peggy/utils.h"
+#include "peggy/token.h"
+#include "peggy/rule.h"
+#include "peggy/packrat_cache.h"
 
 #define PARSER_DEFAULT_NTOKENS 256
 #define PARSER_DEFAULT_NNODES 4096
@@ -40,8 +40,6 @@
 struct Parser {
     struct ParserType * _class; //!< the Parser vtable
     PackratCache cache;         //!< the memoization cache for packrat parsing
-    Logger logger;              //!< a logger instance for tracking progress
-                                //!<    or debugging
     MemPoolManager * node_mgr;      //!< a memory pool manager for the ASTNode
                                     //!<    instances
     MemPoolManager * token_mgr;     //!< a memory pool manager for the Token
@@ -60,7 +58,6 @@ struct Parser {
     Rule * token_rule;      //!< the "Rule *" applied iteratively to generate
                             //!<    the token stream
     Rule * root_rule;       //!< the "Rule *"" instance that initiates parsing
-    char const * log_file;  //!< a null-terimated string to locate the log file
     bool tokenizing;        //!< a flag used during tokenization to control
                             //!<    cache handling. DO NOT MODIFY unless you
                             //!<    are overriding "tokenize"
@@ -111,19 +108,6 @@ Parser * Parser_new(Rule * rules[], rule_id_type nrules, rule_id_type token_rule
  */
 err_type Parser_init(Parser * parser, Rule * rules[], rule_id_type nrules, 
     rule_id_type token_rule, rule_id_type root_rule, unsigned int flags);
-
-/**
- * @brief set a logger file for the Parser. Defaults to disabled
- * @param[in] self the Parser instance that is called to initiate the 
- *      the tokenizer/lexer to split input string into tokens
- * @param[in] log_file the file at which to place LOG_EVENT calls. If NULL
- *      defaults to "stdout"
- * @param[in] log_level the log level to use. If greater than 
- *      MAX_LOGGING_LEVEL used at compile time, reduces to MAX_LOGGING_LEVEL 
- *      LOG_EVENTS greater than this level are not set to log
- */
-void Parser_set_log_file(Parser * self, char const * log_file, 
-    unsigned char log_level);
 
 /**
  * @brief destroy and reclaim memory in parser. Use directly if initialized 
