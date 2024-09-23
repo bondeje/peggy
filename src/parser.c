@@ -121,10 +121,17 @@ err_type Parser_init(Parser * self, Rule * rules[], rule_id_type nrules,
  */
 void Parser_dest(Parser * self) {
     /* clear out the ASTNodes */
+<<<<<<< ours
 	if (self->node_mgr) {
 	    MemPoolManager_del(self->node_mgr);
     	self->node_mgr = NULL;
 	}
+=======
+    if (self->node_mgr) {
+        MemPoolManager_del(self->node_mgr);
+        self->node_mgr = NULL;
+    }
+>>>>>>> theirs
     self->ast = NULL;
     
     // clear the cache
@@ -133,6 +140,7 @@ void Parser_dest(Parser * self) {
     /* clear the token list */
     self->token_head = NULL;
     self->token_cur = NULL;
+<<<<<<< ours
 	if (self->token_mgr) {
 	    MemPoolManager_del(self->token_mgr);
     	self->token_mgr = NULL;
@@ -143,7 +151,18 @@ void Parser_dest(Parser * self) {
 	    MemPoolManager_del(self->childarr_mgr);
     	self->childarr_mgr = NULL;
 	}
+=======
+    if (self->token_mgr) {
+        MemPoolManager_del(self->token_mgr);
+        self->token_mgr = NULL;
+    }
+>>>>>>> theirs
 
+    if (self->childarr_mgr) {
+        /* clear the child array manager */
+        MemPoolManager_del(self->childarr_mgr);
+        self->childarr_mgr = NULL;
+    }
 }
 
 /**
