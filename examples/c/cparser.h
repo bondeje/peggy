@@ -1,9 +1,9 @@
 #ifndef CPARSER_H
 #define CPARSER_H 
 
-#include <peggy/astnode.h>
-#include <peggy/parser.h>
-#include <peggy/rule.h>
+#include "peggy/astnode.h"
+#include "peggy/parser.h"
+#include "peggy/rule.h"
 
 
 #include "cparser.h"

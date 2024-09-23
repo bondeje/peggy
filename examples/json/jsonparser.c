@@ -9,10 +9,10 @@
 #include <sys/types.h>
 
 /* peggy includes */
-#include <peggy/hash_map.h>
-#include <peggy/parser.h> // should remove this
-#include <peggy/astnode.h>
-#include <peggy/token.h>
+#include "peggy/hash_map.h"
+#include "peggy/parser.h" // should remove this
+#include "peggy/astnode.h"
+#include "peggy/token.h"
 
 /* local includes */
 #include "jsonparser.h"
@@ -26,7 +26,6 @@
 JSONParser json = {
     .Parser = {
         ._class = &Parser_class,
-        .logger = DEFAULT_LOGGER_INIT,
     }
 };
 
@@ -69,7 +68,6 @@ JSONString JSONParser_get_next_JSONString(JSONParser * parser, ASTNode * node) {
     }
     char * result = parser->json.data.strings + parser->json.data.string_used;
     memcpy(result, tok->string + 1, tok->length - 2); // copy value into allocated string
-    //result[tok->length] = '\0'; // set null-teriminator. This should be handled by the calloc for the dest
     parser->json.data.string_used += tok->length - 2; // + 1 for null-terminator
     return (JSONString){.str = result, .len = tok->length - 2};
 }
@@ -78,7 +76,6 @@ ASTNode * build_string(Production * prod, Parser * parser_, ASTNode * node) {
     Token * tok = node->token_start;
     ((JSONParser *)parser_)->json.data.string_size += tok->length + 1; // add one for a null-terminator
     // not sure why this doesn't work. This would speed things up a little bit. The call to get_tokens is not cheap
-    //((JSONParser *)parser_)->json.data.string_size += node->str_length + 1; // add one for a null-terminator
     return build_action_default(prod, parser_, node);
 }
 
@@ -92,7 +89,6 @@ JSONValue * handle_integer(JSONParser * parser, ASTNode * node) {
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
     Token * tok = node->token_start;
     if (tok->length >= MAX_LLONG_STR_LENGTH) {
-        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - integer value at line %u, col %u has too many digits to fit in long long. cannot convert\n", __func__, tok->coords.line, tok->coords.col);
         return NULL;
     }
     memcpy(integer_buffer, tok->string, tok->length);
@@ -108,7 +104,6 @@ JSONValue * handle_decimal(JSONParser * parser, ASTNode * node) {
     Token * tok = node->token_start;
     if (tok->length >= MAX_DBL_STR_LENGTH) {
         /* this is technically correctable if the exponent is in range [0-2047] which means fraction bit is too long...trim it*/
-        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - decimal value at line %u, col %u has too many digits to fit in double. cannot convert\n", __func__, tok->coords.line, tok->coords.col);
         return NULL;
     }
     memcpy(decimal_buffer, tok->string, tok->length);
@@ -120,7 +115,7 @@ JSONValue * handle_decimal(JSONParser * parser, ASTNode * node) {
 
 JSONValue *  handle_number(JSONParser * parser, ASTNode * node) {
     ASTNode * child = node->children[0];
-    switch (child->rule->id) {
+    switch (child->rule) {
         case JASON_INT_CONSTANT: {
             return handle_integer(parser, child);
         }
@@ -143,7 +138,7 @@ JSONValue * handle_string(JSONParser * parser, ASTNode * node) {
 
 JSONValue * handle_keyword(JSONParser * parser, ASTNode * node) {
     JSONValue * jval = JSONParser_get_next_JSONValue(parser);
-    switch (node->children[0]->rule->id) {
+    switch (node->children[0]->rule) {
         case JASON_NULL_KW: {
             jval->value.null = NULL_VALUE;
             jval->type = JSON_NULL;
@@ -213,7 +208,7 @@ JSONValue * handle_object(JSONParser * parser, ASTNode * node) {
 
 JSONValue * handle_value(JSONParser * parser, ASTNode * node) {
     ASTNode * child = node->children[0];
-    switch (child->rule->id) {
+    switch (child->rule) {
         case JASON_OBJECT: {
             return handle_object(parser, child);
         }
@@ -230,7 +225,7 @@ JSONValue * handle_value(JSONParser * parser, ASTNode * node) {
             return handle_number(parser, child);
         }
         default: {
-            printf("error in handle_value: %d %s\n", child->rule->id, child->rule->name);
+            printf("error in handle_value: %d %s\n", child->rule, jasonrules[child->rule]->name);
         }
     }
     return NULL;
@@ -267,8 +262,7 @@ void JSONDoc_dest(JSONDoc * json) {
 
 void JSONParser_init(JSONParser * parser, char * log_file, unsigned char log_level) {
     parser->json = (JSONDoc) {0};
-    Parser_init((Parser *)parser, jasonrules[JASON_TOKEN], jasonrules[JASON_JSON], JASON_NRULES, 0);
-    Parser_set_log_file((Parser *)parser, log_file, log_level);
+    Parser_init((Parser *)parser, jasonrules, JASON_NRULES, JASON_TOKEN, JASON_JSON, 0);
 }
 
 void JSONParser_dest(JSONParser * parser) {
@@ -356,7 +350,6 @@ JSONDoc * from_string(char * string, size_t string_length) {
 JSONDoc * from_file(char * filename) {
     FILE * pfile = fopen(filename, "rb");
     if (!pfile) {
-        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - failed to open file %s\n", __func__, filename);
         return &empty_json;
     }
     fseek(pfile, 0, SEEK_END);
@@ -369,7 +362,6 @@ JSONDoc * from_file(char * filename) {
     }
     size_t nbytes = fread(string, 1, file_size, pfile);
     if (ferror(pfile)) {
-        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - failed to read file: %s\n", __func__, filename);
         free(string);
         return &empty_json;
     }
@@ -570,9 +562,6 @@ void JSON_print_value(JSONDoc * json_data, JSONValue * value, char const * index
 }
 
 int main(int narg, char ** args) {
-    //printf("built!\n");
-    char * log_file = NULL;
-    unsigned char log_level = LOG_LEVEL_INFO;
     int iarg = 1;
     char const * index = NULL;
     while (iarg < narg) {
@@ -581,10 +570,6 @@ int main(int narg, char ** args) {
             timeit = true;
         } else if (!strncmp(args[iarg], "-i=", 3)) {
             index = args[iarg] + 3;
-        } else if (!strncmp(args[iarg], "--log=", 6)) {
-            log_file = args[iarg] + 6;
-        } else if (!strncmp(args[iarg], "--log_level=", 12)) {
-            log_level = Logger_level_to_uchar(args[iarg] + 12, strlen(args[iarg] + 12));
         } else {
             printf("processing file %s\n", args[iarg]);
             JSONDoc * json_data = from_file(args[iarg]);
@@ -600,7 +585,6 @@ int main(int narg, char ** args) {
         iarg++;
     }
     jason_dest();
-    Logger_tear_down();
     return 0;
 }
 

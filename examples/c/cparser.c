@@ -106,17 +106,15 @@ typedef struct CParser {
 
 void CParser_init(CParser * self) {
     self->scope = Scope_new(NULL); // a file-level scope
-    Parser_init((Parser *)self, crules[C_TOKEN], crules[C_C], C_NRULES, 0);
-    Parser_set_log_file((Parser *)self, "cparser.log", DEFAULT_LOG_LEVEL);
+    Parser_init((Parser *)self, crules, C_NRULES, C_TOKEN, C_C, 0);
 
     // add built-in types to file scope
-    ASTNode * builtin_type_node = Parser_add_node((Parser *)self, crules[C_TOKEN], ((Parser *)self)->token_head, NULL, 1, 0, 0);
+    ASTNode * builtin_type_node = Parser_add_node((Parser *)self, C_TOKEN, ((Parser *)self)->token_head, NULL, 1, 0, 0);
     size_t i = 0;
     while (BUILTIN_TYPES[i].len) {
         Scope_add_typedef(self->scope, BUILTIN_TYPES[i], builtin_type_node);
         i++;
     }
-    //printf("logger set to %d (tried %d)\n", self->parser.logger.max_logging_level, LOG_LEVEL_WARN);
 }
 void CParser_dest(CParser * self) {
     Parser_dest(&self->parser);
@@ -127,7 +125,6 @@ void CParser_dest(CParser * self) {
 
 ASTNode * nc1_pass0(Production * rule, Parser * parser, ASTNode * node) {
     if (node->nchildren == 1) { // there is no binary operator. reduce to left-hand operand type
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - simplify rule id %d to rule id %d from line %u, col %u\n", __func__, node->rule->id, node->children[0]->rule->id, node->token_start->coords.line, node->token_start->coords.col);
         return node->children[0];
     }
     return build_action_default(rule, parser, node);
@@ -135,7 +132,6 @@ ASTNode * nc1_pass0(Production * rule, Parser * parser, ASTNode * node) {
 
 ASTNode * c0nc0_pass1(Production * rule, Parser * parser, ASTNode * node) {
     if (!node->children[0]->nchildren) {
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - simplify rule id %d to rule id %d from line %u, col %u\n", __func__, node->rule->id, node->children[0]->rule->id, node->token_start->coords.line, node->token_start->coords.col);
         return node->children[1];
     }
     return build_action_default(rule, parser, node);
@@ -144,7 +140,6 @@ ASTNode * c0nc0_pass1(Production * rule, Parser * parser, ASTNode * node) {
 // identical to nc1_pass0 but want a little more clarity
 ASTNode * simplify_binary_op(Production * binary_op, Parser * parser, ASTNode * node) {
     if (node->nchildren == 1) { // there is no binary operator. reduce to left-hand operand type
-        LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - simplify rule id %d to rule id %d from line %u, col %u\n", __func__, node->rule->id, node->children[0]->rule->id, node->token_start->coords.line, node->token_start->coords.col);
         return node->children[0];
     }
     return build_action_default(binary_op, parser, node);
@@ -152,13 +147,11 @@ ASTNode * simplify_binary_op(Production * binary_op, Parser * parser, ASTNode * 
 
 // open and close scopes in compound statement
 ASTNode * _open_scope(Production * rule, Parser * parser, ASTNode * node) {
-    LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - opening a new block scope at line: %u, col: %u\n", __func__, node->token_start->coords.line, node->token_start->coords.col);
     CParser * self = (CParser *)parser;
     self->scope = Scope_new(self->scope);
     return node; // return node because it's just a punctuator that is unused
 }
 ASTNode * _close_scope(Production * rule, Parser * parser, ASTNode * node) {
-    LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - closing a block scope at line: %u, col: %u\n", __func__, node->token_start->coords.line, node->token_start->coords.col);
     CParser * self = (CParser *)parser;
     self->scope = Scope_dest(self->scope);
     return node; // return node because it's just a punctuator that is unused
@@ -167,7 +160,7 @@ ASTNode * _close_scope(Production * rule, Parser * parser, ASTNode * node) {
 // extracts the identifier from the declarator
 CString get_declarator_identifier(ASTNode * declrtr) {
     ASTNode * possible_id = declrtr->children[1]->children[0]->children[0];
-    if (possible_id->rule->id == C_IDENTIFIER) {
+    if (possible_id->rule == C_IDENTIFIER) {
         return (CString) {.str = possible_id->token_start->string, .len = possible_id->str_length};
     }
     return get_declarator_identifier(declrtr->children[1]->children[0]->children[1]);
@@ -177,16 +170,15 @@ CString get_declarator_identifier(ASTNode * declrtr) {
 ASTNode * c_process_declaration_specifiers(Production * decl_specs, Parser * parser, ASTNode * node) {
     _Bool has_type_spec = false;
 
-    assert((node->children[0]->rule->id == C_DECLARATION_SPECIFIER) || !printf("%.*s is not a declaration specifier\n", (int)node->children[0]->token_start->length, node->children[0]->token_start->string));
+    assert((node->children[0]->rule == C_DECLARATION_SPECIFIER) || !printf("%.*s is not a declaration specifier\n", (int)node->children[0]->token_start->length, node->children[0]->token_start->string));
     size_t nchildren = 0;
     for (size_t i = 0; i < node->nchildren; i++) {
         ASTNode * decl_spec = node->children[i];
-        if (decl_spec->children[0]->rule->id == C_TYPE_SPECIFIER) {
+        if (decl_spec->children[0]->rule == C_TYPE_SPECIFIER) {
             ASTNode * type_spec = decl_spec->children[0];
-            if (type_spec->children[0]->rule->id == C_TYPEDEF_NAME && has_type_spec) {
+            if (type_spec->children[0]->rule == C_TYPEDEF_NAME && has_type_spec) {
                 // strip declaration specifiers at this point
                 ASTNode * decl_specs_end = node->children[i - 1];
-                LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - removing typedef name at line: %u, col: %u\n", __func__, decl_spec->token_start->coords.line, decl_spec->token_start->coords.col);            
                 node->nchildren = nchildren;
                 node->token_end = decl_specs_end->token_end;
                 node->str_length = (size_t)(decl_specs_end->token_end->string - node->token_start->string) + decl_specs_end->token_end->length;
@@ -201,27 +193,25 @@ ASTNode * c_process_declaration_specifiers(Production * decl_specs, Parser * par
 
 // takes a declaration and if it detects a typedef, registers it in the current scope
 ASTNode * c_process_declaration(Production * decl, Parser * parser, ASTNode * node) {
-    LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - checking for typedef in %.*s\n", __func__, (int)node->str_length, node->token_start->string);
-    if (node->children[0]->rule->id == C_STATIC_ASSERT_DECLARATION || node->children[0]->children[0]->rule->id == C_ATTRIBUTE_SPECIFIER) {
+    if (node->children[0]->rule == C_STATIC_ASSERT_DECLARATION || node->children[0]->children[0]->rule == C_ATTRIBUTE_SPECIFIER) {
         return build_action_default(decl, parser, node);
     }
     ASTNode * decl_specs = node->children[0]->children[0];
     ASTNode * init_declarators = node->children[0]->children[1]->nchildren ? node->children[0]->children[1]->children[0] : NULL;
     // check declaration specifiers for typedef_kw
-    if (decl_specs->rule->id != C_DECLARATION_SPECIFIERS) {
+    if (decl_specs->rule != C_DECLARATION_SPECIFIERS) {
         decl_specs = node->children[0]->children[1];
         init_declarators = node->children[0]->children[2];
     }
-    assert((decl_specs->rule->id == C_DECLARATION_SPECIFIERS) || !printf("c_process_declaration failed to find the declaration_specifiers: %s\n", decl_specs->rule->name));
-    assert((init_declarators == NULL) || (init_declarators->children[0]->rule->id == C_INIT_DECLARATOR));
+    assert((decl_specs->rule == C_DECLARATION_SPECIFIERS) || !printf("c_process_declaration failed to find the declaration_specifiers: %s\n", decl_specs->rule->name));
+    assert((init_declarators == NULL) || (init_declarators->children[0]->rule == C_INIT_DECLARATOR));
     for (size_t i = 0; i < decl_specs->nchildren; i++) {
         ASTNode * child = decl_specs->children[i];
         ASTNode * gchild = child->children[0];
-        if (gchild->rule->id == C_STORAGE_CLASS_SPECIFIER && gchild->children[0]->rule->id == C_TYPEDEF_KW) {
+        if (gchild->rule == C_STORAGE_CLASS_SPECIFIER && gchild->children[0]->rule == C_TYPEDEF_KW) {
             for (size_t i = 0; i < init_declarators->nchildren; i += 2) {
                 ASTNode * init_declarator = init_declarators->children[i];
                 CString new_typedef = get_declarator_identifier(init_declarator->children[0]);
-                LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - found new typedef: %.*s\n", __func__, (int)new_typedef.len, new_typedef.str);
                 Scope_add_typedef(((CParser *)parser)->scope, new_typedef, node);
             }
             return build_action_default(decl, parser, node);
@@ -234,10 +224,8 @@ ASTNode * c_process_declaration(Production * decl, Parser * parser, ASTNode * no
 ASTNode * c_check_typedef(Production * decl_specs, Parser * parser, ASTNode * node) {
     ASTNode * identifier = node->children[0];
     if (Scope_is_typedef(((CParser *)parser)->scope, (CString) {.str = identifier->token_start->string, .len = identifier->str_length})) {
-        LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - typedef accepted %.*s\n", __func__, (int)identifier->str_length, identifier->token_start->string);
         return build_action_default(decl_specs, parser, node); // ignore the negative lookahead from now on
     }
-    LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - typedef of length %zu rejected %.*s\n", __func__, identifier->str_length, (int)identifier->str_length, identifier->token_start->string);
     return Parser_fail_node(parser);
 }
 
@@ -316,9 +304,6 @@ int main(int narg, char ** args) {
         Parser_print_tokens((Parser *)&parser, stdout);
         if (!parser.parser.ast || Parser_is_fail_node((Parser *)&parser, parser.parser.ast) || parser.parser.token_cur->length) {
             err_type status = Parser_print_parse_status((Parser *)&parser, stdout);
-            if (status) {
-                LOG_EVENT(&((Parser *)&parser)->logger, LOG_LEVEL_ERROR, "ERROR: %s - %s failed for input file: <%s>, at token: %.*s\n", __func__, status == PEGGY_PARSE_FAILURE ? "parser" : "lexer", args[1], (int)parser.parser.token_cur->length, parser.parser.token_cur->string);
-            }
         }
         Parser_print_ast((Parser *)&parser, stdout);
         CParser_dest(&parser);

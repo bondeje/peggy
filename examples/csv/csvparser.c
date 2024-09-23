@@ -9,9 +9,6 @@
 #include <time.h>
 #include <sys/types.h>
 
-/* external lib includes */
-#include <logger.h>
-
 /* local includes */
 #include "csvparser.h"
 #include "csv.h"
@@ -33,15 +30,14 @@ typedef struct CSVParser {
     CSVData csv;
 } CSVParser;
 
-err_type CSVParser_init(CSVParser * parser, char const * string, size_t string_length, char * log_file, unsigned char log_level) {
+err_type CSVParser_init(CSVParser * parser, char const * string, size_t string_length) {
     parser->csv.data = string;
     parser->csv.offsets = NULL;
     parser->csv.ncols = 0;
     parser->csv.nrows = 0;
     parser->csv.noffsets = 0;
     parser->csv.nbytes = string_length;
-    Parser_init((Parser *)parser, csvrules[CSV_TOKEN], csvrules[CSV_CSV], CSV_NRULES, 0);
-    Parser_set_log_file((Parser *)parser, log_file, log_level);
+    Parser_init((Parser *)parser, csvrules, CSV_NRULES, CSV_TOKEN, CSV_CSV, 0);
     Parser_parse((Parser *)parser, string, string_length);
     return 0;
 }
@@ -58,7 +54,6 @@ ASTNode * process_record(Production * record_prod, Parser * parser, ASTNode * no
     if (!csv->csv.ncols) {
         csv->csv.ncols = ncols;
     } else if (csv->csv.ncols != ncols) {
-        LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - csv parsing error: found a different number of columns in row %zu compared to prior rows - found %zu, expected %zu\n", __func__, csv->csv.nrows, ncols, csv->csv.ncols);
         return Parser_fail_node(parser);
     }
 
@@ -70,7 +65,7 @@ void handle_field(CSVParser * csv_parser, ASTNode * node, size_t index) {
     Token * tok = node->token_start;
     size_t N = 0;
     CSVData * data = &csv_parser->csv;
-    if (node->children[0]->rule->id == CSV_NONSTRING_FIELD) {
+    if (node->children[0]->rule == CSV_NONSTRING_FIELD) {
         data->offsets[index] = tok->string - data->data;
         data->offsets[index + data->noffsets] = data->offsets[index] + node->str_length;
     } else { // STRING
@@ -111,7 +106,6 @@ ASTNode * handle_csv(Production * csv_prod, Parser * parser, ASTNode * node) {
 CSVParser csv = {
     .Parser = {
         ._class = &Parser_class,
-        .logger = DEFAULT_LOGGER_INIT,
     }, 
     .csv = {0}
 };
@@ -121,7 +115,7 @@ bool timeit = false;
 CSVData from_string(char * string, size_t string_length) {
     err_type status = PEGGY_SUCCESS;
     if (!timeit) {
-        if ((status = CSVParser_init(&csv, string, string_length, NULL, LOG_LEVEL_DISABLE))) {
+        if ((status = CSVParser_init(&csv, string, string_length))) {
             return empty_csv;
         }
         return csv.csv;
@@ -137,7 +131,7 @@ CSVData from_string(char * string, size_t string_length) {
     clockid_t clk = CLOCK_MONOTONIC;
     //double clock_conversion = 1.0e-6;
     clock_gettime(clk, &t0);
-    status = CSVParser_init(&csv, string, string_length, NULL, LOG_LEVEL_DISABLE);
+    status = CSVParser_init(&csv, string, string_length);
     clock_gettime(clk, &t1);
 
     if (t1.tv_nsec < t0.tv_nsec) {
@@ -156,9 +150,6 @@ CSVData from_string(char * string, size_t string_length) {
 
 CSVData from_file(char * filename) {
     FILE * pfile = fopen(filename, "rb");
-    if (!pfile) {
-        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - failed to open file %s\n", __func__, filename);
-    }
     fseek(pfile, 0, SEEK_END);
     long file_size = ftell(pfile);
     fseek(pfile, 0, SEEK_SET);
@@ -169,7 +160,6 @@ CSVData from_file(char * filename) {
     }
     size_t nbytes = fread(string, 1, file_size, pfile);
     if (ferror(pfile)) {
-        LOG_EVENT(NULL, LOG_LEVEL_ERROR, "ERROR: %s - failed to read file: %s\n", __func__, filename);
         free(string);
         return empty_csv;
     }
@@ -211,8 +201,6 @@ void print_first_last_row(CSVData * data) {
 }
 
 int main(int narg, char ** args) {
-    char * log_file = NULL;
-    unsigned char log_level = LOG_LEVEL_INFO;
     long long int row = -1;
     long long int col = -1;
     int iarg = 1;
@@ -224,10 +212,6 @@ int main(int narg, char ** args) {
             row = atoll(args[iarg] + 3);
         } else if (!strncmp(args[iarg], "-c=", 3)) {
             col = atoll(args[iarg] + 3);
-        } else if (!strncmp(args[iarg], "--log=", 6)) {
-            log_file = args[iarg] + 6;
-        } else if (!strncmp(args[iarg], "--log_level=", 12)) {
-            log_level = Logger_level_to_uchar(args[iarg] + 12, strlen(args[iarg] + 12));
         } else {
             csv.csv.isalloc = false;
             printf("processing file %s\n", args[iarg]);
@@ -255,7 +239,6 @@ int main(int narg, char ** args) {
         iarg++;
     }
     csv_dest();
-    Logger_tear_down();
     return 0;
 }
 

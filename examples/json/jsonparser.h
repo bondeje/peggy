@@ -3,10 +3,10 @@
 
 #include <stddef.h>
 
-#include <peggy/hash_map.h>
-#include <peggy/parser.h> // should remove this
-#include <peggy/astnode.h>
-#include <peggy/token.h>
+#include "peggy/hash_map.h"
+#include "peggy/parser.h" // should remove this
+#include "peggy/astnode.h"
+#include "peggy/token.h"
 
 #include "jason.h"
 
