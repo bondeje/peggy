@@ -21,7 +21,7 @@ PeggyString get_rule_pointer(PeggyParser * parser, PeggyString name) {
 }
 
 void handle_terminal(PeggyParser * parser, ASTNode * node, const PeggyString parent_id) {
-    if (node->rule->id == PEGGY_STRING_LITERAL) {
+    if (node->rule == PEGGY_STRING_LITERAL) {
         handle_string_literal(parser, node->children[0], parent_id);
     } else {
         handle_regex_literal(parser, node->children[0], parent_id);
@@ -29,45 +29,27 @@ void handle_terminal(PeggyParser * parser, ASTNode * node, const PeggyString par
 }
 
 
-void handle_lookahead_rule(PeggyParser * parser, ASTNode * node, PeggyString name) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling lookahead rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
-    
+void handle_lookahead_rule(PeggyParser * parser, ASTNode * node, PeggyString name) {    
     PeggyProduction prod;
     production_init(parser, name, &prod);
 
     ASTNode * lookahead_type = node->children[0]->children[0];
-    switch (lookahead_type->rule->id) {
-        case PEGGY_AMPERSAND: {
+    switch (lookahead_type->rule) {
+        case PEGGY_AMPERSAND: { // positive lookahead
             prod.type = PEG_POSITIVELOOKAHEAD;
             size_t buf_len = sizeof(char) * (parser->export.len + strlen("pos") + size_t_strlen(parser->productions.fill) + 3);
             prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
             prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_pos_%zu", (int)parser->export.len, parser->export.str, parser->productions.fill);
-            /*
-            char * buffer = copy_export(parser, prod.identifier.str);
-            size_t written = (size_t)(buffer - prod.identifier.str);
-            written += sprintf(buffer, "_pos_%zu", parser->productions.fill);
-            prod.identifier.str[written] = '\0';
-            */
             // add arguments
             break;
         }
-        case PEGGY_EXCLAIM: { // repeat 0 or more
+        case PEGGY_EXCLAIM: { // negative lookahead
             prod.type = PEG_NEGATIVELOOKAHEAD;
             size_t buf_len = sizeof(char) * (parser->export.len + strlen("neg") + size_t_strlen(parser->productions.fill) + 3);
             prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
             prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_neg_%zu", (int)parser->export.len, parser->export.str, parser->productions.fill);
-            /*
-            char * buffer = copy_export(parser, prod.identifier.str);
-            size_t written = (size_t)(buffer - prod.identifier.str);
-            written += sprintf(buffer, "_neg_%zu", parser->productions.fill);
-            prod.identifier.str[written] = '\0';
-            */
             // add arguments
             break;
-        }
-        default: { // repeat m to n
-            LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - syntax error. lookahead rule with leading rule %s not understood\n", __func__, lookahead_type->rule->name);
-            return ;
         }
     }
 
@@ -84,7 +66,6 @@ void handle_lookahead_rule(PeggyParser * parser, ASTNode * node, PeggyString nam
 } 
 
 void handle_list_rule(PeggyParser * parser, ASTNode * node, PeggyString name) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling list rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
     PeggyProduction prod;
     production_init(parser, name, &prod);
     size_t nchildren = (node->nchildren + 1) / 2;
@@ -113,7 +94,6 @@ void handle_list_rule(PeggyParser * parser, ASTNode * node, PeggyString name) {
 
 // This is a pretty garbage function that needs to get re-written
 void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling repeated rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
 
     PeggyProduction prod;  
     production_init(parser, name, &prod);
@@ -123,7 +103,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
 
     PeggyString m = {0}, n = {0};
     
-    switch (repeat_type->rule->id) {
+    switch (repeat_type->rule) {
         case PEGGY_PLUS: { // repeat 1 or more
             //printf("one or more\n");
             m.str = MemPoolManager_malloc(parser->str_mgr, sizeof(char));
@@ -148,12 +128,7 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
             size_t buf_len = sizeof(char) * (parser->export.len + size_t_strlen(parser->productions.fill) + 10);
             prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
             prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_rep_0_0_%zu", (int)parser->export.len, parser->export.str, parser->productions.fill);
-            /*
-            char * buffer = copy_export(parser, prod.identifier.str);
-            size_t written = (size_t)(buffer - prod.identifier.str);
-            written += sprintf(buffer, "_rep_0_0_%zu", parser->productions.fill);
-            prod.identifier.str[written] = '\0';
-            */
+
             // add arguments
             break;
         }
@@ -171,12 +146,6 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
             size_t buf_len = sizeof(char) * (parser->export.len + size_t_strlen(parser->productions.fill) + 10);
             prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
             prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_rep_0_1_%zu", (int)parser->export.len, parser->export.str, parser->productions.fill);
-            /*
-            char * buffer = copy_export(parser, prod.identifier.str);
-            size_t written = (size_t)(buffer - prod.identifier.str);
-            written += sprintf(buffer, "_rep_0_1_%zu", parser->productions.fill);
-            prod.identifier.str[written] = '\0';
-            */
             break;
         }
         default: { // repeat m to n // TODO: assess whether m and n are really necessary since get_string_from_parser now makes a new copy
@@ -222,22 +191,6 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
             size_t buf_len = sizeof(char) * (parser->export.len + m.len + n.len + size_t_strlen(parser->productions.fill) + 8);
             prod.identifier.str = MemPoolManager_malloc(parser->str_mgr, buf_len);
             prod.identifier.len = snprintf(prod.identifier.str, buf_len, "%.*s_rep_%.*s_%.*s_%zu", (int)parser->export.len, parser->export.str, (int)m.len, m.str, (int)n.len, n.str, parser->productions.fill);
-            /*
-            char * buffer = copy_export(parser, prod.identifier.str);
-            size_t written = (size_t)(buffer - prod.identifier.str);
-            written += sprintf(buffer, "_rep_");
-            if (m.len) {
-                memcpy((void*)(prod.identifier.str + written), (void*)m.str, m.len);
-            }
-            written += m.len;
-            prod.identifier.str[written++] = '_';
-            if (n.len) {
-                memcpy((void*)(prod.identifier.str + written), (void*)n.str, n.len);
-            }
-            written += n.len;
-            written += sprintf((prod.identifier.str + written), "_%zu", parser->productions.fill);
-            prod.identifier.str[written] = '\0';
-            */
             // add arguments
         }
     }
@@ -259,7 +212,6 @@ void handle_repeated_rule(PeggyParser * parser, ASTNode * node, PeggyString name
 }
 
 void handle_sequence(PeggyParser * parser, ASTNode * node, PeggyString name) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling sequence rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
     PeggyProduction prod;
     production_init(parser, name, &prod);
     size_t nchildren = (node->nchildren + 1) / 2;
@@ -288,7 +240,6 @@ void handle_sequence(PeggyParser * parser, ASTNode * node, PeggyString name) {
 }
 
 void handle_choice(PeggyParser * parser, ASTNode * node, PeggyString name) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling choice rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
     PeggyProduction prod;
     production_init(parser, name, &prod);
     size_t nchildren = (node->nchildren + 1) / 2;
@@ -317,8 +268,7 @@ void handle_choice(PeggyParser * parser, ASTNode * node, PeggyString name) {
 }
 
 void handle_base_rule(PeggyParser * parser, ASTNode * node, const PeggyString parent_id, PeggyString name) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling base rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
-    switch (node->children[0]->rule->id) {
+    switch (node->children[0]->rule) {
         case PEGGY_TERMINAL: {
             // terminals are only built if parent_id is not empty
             if (parent_id.len) {
@@ -353,12 +303,10 @@ void handle_simplified_rules(PeggyParser * parser, ASTNode * node, const PeggySt
     // this will leak memory, cause double-frees and all sorts of havoc that is hard to troubleshoot
     PeggyProduction prod; // may not be used
     if (!parser->productions._class->get(&parser->productions, name, &prod)) {
-        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - repeated rule id %s with name %.*s already exists, skipping\n", __func__, node->rule->name, (int)name.len, name.str);
         return;
     }
 
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling simplified rule rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
-    switch (node->rule->id) {
+    switch (node->rule) {
         case PEGGY_CHOICE: {
             handle_choice(parser, node, name);
             break;
@@ -382,9 +330,6 @@ void handle_simplified_rules(PeggyParser * parser, ASTNode * node, const PeggySt
         case PEGGY_BASE_RULE: { // BASE_RULE
             handle_base_rule(parser, node, parent_id, name);
             break;
-        }
-        default: {
-            LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - trying to simplify an unknown rule id %s with type %s from line %u, col %u\n", __func__, node->rule->name, get_type_name(node->rule->_class->type), node->token_start->coords.line, node->token_start->coords.col);
         }
     }
     
@@ -424,12 +369,10 @@ void handle_production_(PeggyParser * parser, ASTNode * id, ASTNode * transforms
     }
 
     // since productions are not allocated objects on the hash map, have to push to map again
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding production rule id %s from line %u, col %u to production map\n", __func__, id->rule->name, id->token_start->coords.line, id->token_start->coords.col);
     parser->productions._class->set(&parser->productions, prod.name, prod);
 }
 
 void handle_production(PeggyParser * parser, ASTNode * node) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling production rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
     handle_production_(parser, node->children[0], node->children[1]->nchildren ? node->children[1]->children[0]->children[1] : NULL, node->children[3], HANDLE_PRODUCTION_NONE);
 }
 
@@ -592,7 +535,7 @@ void handle_regex_literal(PeggyParser * parser, ASTNode * node, const PeggyStrin
 void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
     PeggyProduction prod;
     STACK_INIT(PeggyString)(&prod.args, 0);
-    PeggyString parent_id = {.str = (node->children[0]->rule->id == PEGGY_PUNCTUATOR_KW) ? "punctuator" : "keyword"};
+    PeggyString parent_id = {.str = (node->children[0]->rule == PEGGY_PUNCTUATOR_KW) ? "punctuator" : "keyword"};
     parent_id.len = strlen(parent_id.str);
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling %s from line %u, col %u\n", __func__, parent_id.str, node->token_start->coords.line, node->token_start->coords.col);
 
@@ -659,7 +602,7 @@ void handle_punctuator_keyword(PeggyParser * parser, ASTNode * node) {
 }
 
 void handle_special_production(PeggyParser * parser, ASTNode * node) {
-    switch (node->children[0]->rule->id) {
+    switch (node->children[0]->rule) {
         case PEGGY_TOKEN_KW: {
             handle_production_(parser, node->children[0], NULL, node->children[2], HANDLE_PRODUCTION_TOKEN);
             break;
@@ -669,9 +612,6 @@ void handle_special_production(PeggyParser * parser, ASTNode * node) {
         case PEGGY_KEYWORD_KW: {
             handle_punctuator_keyword(parser, node);
             break;
-        }
-        default: {
-            printf("special prodution case of %s not yet implemented\n", node->children[0]->rule->name);
         }
     }
 }
@@ -721,15 +661,10 @@ Should probably include a hash map of handlers mapping PeggyString identifier ->
 void handle_config(PeggyParser * parser, ASTNode * node) {
     LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - handling config at line %u, col %u\n", __func__, node->token_start->coords.line, node->token_start->coords.col);
     Token * tok = node->children[0]->token_start;
-    if (!tok) {
-        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - failed to retrieve config name for rule id: %s\n", __func__, node->rule->name);
-    }
     if (!strncmp("import", tok->string, tok->length)) {
         handle_import(parser, node->children[2]);
     } else if (!strncmp("export", tok->string, tok->length)) {
         handle_export(parser, node->children[2]);
-    } else {
-        LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - config type not understood with rule id: %s\n", __func__, node->rule->name);
     }
 }
 
@@ -740,7 +675,7 @@ ASTNode * handle_peggy(Production * peggy_prod, Parser * parser_, ASTNode * node
     
     // node is a peggy document production
     for (size_t i = 0; i < node->nchildren; i++) {
-        switch (node->children[i]->rule->id) {
+        switch (node->children[i]->rule) {
             case PEGGY_CONFIG: {
                 handle_config(parser, node->children[i]);
                 break;
@@ -753,16 +688,12 @@ ASTNode * handle_peggy(Production * peggy_prod, Parser * parser_, ASTNode * node
                 handle_production(parser, node->children[i]);
                 break;
             }
-            default: {
-                LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_ERROR, "ERROR: %s - document element not understood: %s. Expected a config or production.\n", __func__, node->children[i]->rule->name);
-            }
         }
         
     }
 
     cleanup_header_file(parser);
 
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_INFO, "INFO: %s - building definitions\n", __func__);
     parser->productions._class->for_each(&parser->productions, &PeggyProduction_define, (void*)parser);
 
     build_export_rules(parser);
@@ -773,7 +704,6 @@ ASTNode * handle_peggy(Production * peggy_prod, Parser * parser_, ASTNode * node
 }
 
 ASTNode * simplify_rule(Production * simplifiable_rule, Parser * parser, ASTNode * node) {
-    LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - trying to simplifying rule id %s from line %u, col %u\n", __func__, node->rule->name, node->token_start->coords.line, node->token_start->coords.col);
     rule_id_type cur_rule = ((Rule *)simplifiable_rule)->id;
     switch (cur_rule) {
         case PEGGY_LOOKAHEAD_RULE: {
@@ -803,13 +733,11 @@ ASTNode * simplify_rule(Production * simplifiable_rule, Parser * parser, ASTNode
             break;
         }
         default: {
-            LOG_EVENT(&parser->logger, LOG_LEVEL_DEBUG, "DEBUG: %s - rule id %s was not simplified\n", __func__, node->rule->name);
             return node;
         }
     }    
 
-    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - re-initializing node rule from id %s to id %s; no node generated\n", __func__, node->rule->name, ((Rule *)simplifiable_rule)->name);
-    node->rule = (Rule *)simplifiable_rule;
+    node->rule = ((Rule *)simplifiable_rule)->id;
     //node->_class->init(node, (Rule *)simplifiable_rule, node->token_key, node->ntokens, node->str_length, node->nchildren, node->children);
     return node;
 

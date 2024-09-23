@@ -22,11 +22,12 @@ struct ASTNode {
     ASTNode * parent;           //!< parent reference in ASTNode
 #endif
     ASTNode ** children;        //!< Child node references. Note the array's memory is NOT owned by the node
-    Rule * rule;                //!< Pointer to the rule that succeeded in creation of the ASTNode
+    //Rule * rule;                //!< Pointer to the rule that succeeded in creation of the ASTNode
     Token * token_start;        //!< Initial token encompassed by the ASTNode and its children
     Token * token_end;          //!< Final token encompassed by the ASTNode and its children
     size_t nchildren;           //!< Number of child nodes
     size_t str_length;          //!< This is not what you think it is. Internal use only. DO NOT USE
+    rule_id_type rule;                   //!< integer for the rule id enum
 };
 
 #define ASTNode_NAME "ASTNode"
@@ -40,7 +41,7 @@ extern struct ASTNodeType {
  * @brief initialize an ASTnode. This is no different than setting each member 
  * in the struct
  */
-void ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end, 
+void ASTNode_init(ASTNode * self, rule_id_type rule, Token * start, Token * end, 
     size_t str_length, size_t nchildren, ASTNode ** children);
 
 /************************* general node utilities ****************************/

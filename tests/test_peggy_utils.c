@@ -21,10 +21,10 @@ int check_tokens(Token * cur, size_t ntokens, char const ** result_tokens, char 
 
 int check_ASTNodes(ASTNode * uut, TestASTNode * ref, char const * file, char const * func, size_t line) {
     int nerrors = 0;
-    nerrors += check(uut->rule->id == ref->rule_id, "%s-%s-%zu: rules do not match in node. expected: %d, found: %d\n", file, func, line, uut->rule->id, ref->rule_id);
+    nerrors += check(uut->rule == ref->rule_id, "%s-%s-%zu: rules do not match in node. expected: %d, found: %d\n", file, func, line, uut->rule, ref->rule_id);
     nerrors += check(!strncmp(uut->token_start->string, ref->start_str, strlen(ref->start_str)), "%s-%s-%zu: start strings do not match in node. expected: %s, found: %.*s\n", file, func, line, ref->start_str, (int)uut->token_start->length, uut->token_start->string);
     nerrors += check(!strncmp(uut->token_end->string, ref->end_str, strlen(ref->end_str)), "%s-%s-%zu: end strings do not match in node. expected: %s, found: %.*s\n", file, func, line, ref->end_str, (int)uut->token_end->length, uut->token_end->string);
-    nerrors += check(uut->nchildren == ref->nchildren, "%s-%s-%zu: nchildren do not match in node with rule %d/%d (type: %d). expected: %d, found: %d\n", file, func, line, uut->rule->id, ref->rule_id, uut->rule->_class->type, uut->nchildren, ref->nchildren);
+    nerrors += check(uut->nchildren == ref->nchildren, "%s-%s-%zu: nchildren do not match in node with rule %d/%d. expected: %d, found: %d\n", file, func, line, uut->rule, ref->rule_id, uut->nchildren, ref->nchildren);
     for (size_t i = 0; i < ref->nchildren; i++) {
         ASTNode * child = uut->children[i];
 #if ASTNODE_ADD_PARENT > 0
@@ -32,7 +32,7 @@ int check_ASTNodes(ASTNode * uut, TestASTNode * ref, char const * file, char con
 #endif
         TestASTNode * test_child = ref->children[i];
         assert(test_child != NULL || !printf("TestASTNode malformed with null child %zu in node with rule: %d, nchildren: %zu, start_str: %s\n", i, ref->rule_id, ref->nchildren, ref->start_str));
-        int valid = check(child != NULL, "%s-%s-%zu: invalid ASTNode in child %zu in node with rule: %d, nchildren: %zu, start_str: %.*s\n", i, uut->rule->id, uut->nchildren, (int)uut->token_start->length, uut->token_start->string);
+        int valid = check(child != NULL, "%s-%s-%zu: invalid ASTNode in child %zu in node with rule: %d, nchildren: %zu, start_str: %.*s\n", i, uut->rule, uut->nchildren, (int)uut->token_start->length, uut->token_start->string);
         if (!valid) {
             nerrors += check_ASTNodes(child, test_child, file, func, line);
         } else {

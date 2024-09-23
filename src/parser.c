@@ -19,8 +19,6 @@
 void Parser_generate_new_token(Parser * self, size_t token_length, Token * cur);
 
 struct ParserType Parser_class = {
-    .add_token = &Parser_add_token,
-    .add_node = &Parser_add_node,
     .parse = &Parser_parse,
     .tokenize = &Parser_tokenize,
 };
@@ -33,14 +31,14 @@ struct ParserType Parser_class = {
  *      its success stores the final node in ast
  * @param[in] flags to be used to control parsing
  */
-Parser * Parser_new(Rule * token_rule, Rule * root_rule, size_t nrules, 
-    unsigned int flags) {
+Parser * Parser_new(Rule * rules[], rule_id_type nrules, rule_id_type token_rule, 
+    rule_id_type root_rule, unsigned int flags) {
         
     Parser * parser = malloc(sizeof(Parser));
     if (!parser) {
         return NULL;
     }
-    if (Parser_init(parser, token_rule, root_rule, nrules, flags)) {
+    if (Parser_init(parser, rules, nrules, token_rule, root_rule, flags)) {
         free(parser);
         return NULL;
     }
@@ -55,12 +53,22 @@ Parser * Parser_new(Rule * token_rule, Rule * root_rule, size_t nrules,
  *      its success stores the final node in ast
  * @param[in] flags to be used to control parsing
  */
-err_type Parser_init(Parser * self, Rule * token_rule, Rule * root_rule, 
-    size_t nrules, unsigned int flags) {
+err_type Parser_init(Parser * self, Rule * rules[], rule_id_type nrules, 
+    rule_id_type token_rule, rule_id_type root_rule, unsigned int flags) {
 
     self->_class = &Parser_class;
-    self->token_rule = token_rule;
-    self->root_rule = root_rule;
+    self->rules = rules;
+    if (-1 < token_rule && token_rule < nrules) {
+        self->token_rule = rules[token_rule];
+    } else {
+        self->token_rule = NULL;
+    }
+    if (-1 < root_rule && root_rule < nrules) {
+        self->root_rule = rules[root_rule];
+    } else {
+        self->root_rule = NULL;
+    }
+    
 
     // set a default logger to disabled
     self->log_file = "stdout";
@@ -539,13 +547,9 @@ void Parser_parse(Parser * self, char const * string, size_t string_length) {
  *      must be done after this function call
  * @returns a new pointer to an ASTNode *.
  */
-ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start, 
+ASTNode * Parser_add_node(Parser * self, rule_id_type rule, Token * start, 
     Token * end, size_t str_length, size_t nchildren, size_t size) {
 
-    LOG_EVENT(&self->logger, LOG_LEVEL_TRACE, 
-        "TRACE: %s - adding node for rule id %s with str_length %zu, nchildren "
-        "%zu at line: %hu, col: %hu", __func__, rule->name, str_length, 
-        nchildren, start->coords.line, start->coords.col);
     if (!size) {
         size = sizeof(ASTNode);
     }
@@ -561,12 +565,12 @@ ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start,
         if (!children) {
             return NULL;
         }
-        switch (rule->_class->type) {
+        switch (self->rules[rule]->_class->type) {
 
             // build child array for ListRule
             case PEG_LIST: {
-                rule_id_type id = ((DerivedRule *)rule)->rule->id;
-                rule_id_type delim_id = ((ListRule *)rule)->delim->id;
+                rule_id_type id = ((DerivedRule *)self->rules[rule])->rule->id;
+                rule_id_type delim_id = ((ListRule *)self->rules[rule])->delim->id;
                 for (size_t i = 0; i < nchildren; i++) {
                     children[i] = Parser_check_cache(self, i & 1 ? delim_id : id, tok);
                     tok = children[i]->token_end->next;
@@ -576,7 +580,7 @@ ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start,
 
             // build child array for SequenceRule
             case PEG_SEQUENCE: {
-                Rule ** deps = ((ChainRule *)rule)->deps;
+                Rule ** deps = ((ChainRule *)self->rules[rule])->deps;
                 //assert(((ChainRule *)rule)->deps_size == nchildren);
                 for (size_t i = 0; i < nchildren; i++) {
                     children[i] = Parser_check_cache(self, deps[i]->id, tok);
@@ -589,7 +593,7 @@ ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start,
             // PositiveLookahead, and RepeatRules (those that solely derive 
             // from DerivedRule)
             default: {
-                rule_id_type id = ((DerivedRule *)rule)->rule->id;
+                rule_id_type id = ((DerivedRule *)self->rules[rule])->rule->id;
                 for (size_t i = 0; i < nchildren; i++) {
                     children[i] = Parser_check_cache(self, id, tok);
                     tok = children[i]->token_end->next;
@@ -690,12 +694,12 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
             Token * tok = pair.node->token_start;
             fprintf(stream, "%*s%s: rule id: %s, nchildren: %zu, token: %.*s\n", 
                 (int)(st.fill - 1) * PARSER_PRINT_TAB_SIZE, "", 
-                pair.node->_class->type_name, pair.node->rule->name, 
+                pair.node->_class->type_name, self->rules[pair.node->rule]->name, 
                 pair.node->nchildren, (int)tok->length, tok->string);
         } else { // the node is not a leaf. Print the node into the buffer
             fprintf(stream, "%*s%s: rule id: %s, nchildren: %zu\n", 
                 (int)(st.fill - 1) * PARSER_PRINT_TAB_SIZE, "", 
-                pair.node->_class->type_name, pair.node->rule->name, 
+                pair.node->_class->type_name, self->rules[pair.node->rule]->name, 
                 pair.node->nchildren);
         }
 
@@ -774,7 +778,7 @@ err_type Parser_print_parse_status(Parser * parser, FILE * stream) {
         if (stream) {
             fprintf(stream, 
                 "Furthest failed rule %s starting at token: %.*s, line: %u, col: %u\n",
-                Parser_fail_node(parser)->rule->name,
+                parser->rules[Parser_fail_node(parser)->rule]->name,
                 (int)final->length, final->string, final->coords.line, 
                 final->coords.col);
         }
@@ -821,17 +825,9 @@ ASTNode * token_action(Production * token, Parser * parser, ASTNode * node) {
     if (!Parser_is_fail_node(parser, node)) {
         // if the token is a "skip node" skip the token
         if (is_skip_node(node)) {
-            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, 
-                "TRACE: %s - skipping token generated at line %u, col %u of "
-                "length %zu\n", __func__, node->token_start->coords.line, 
-                node->token_start->coords.col, node->str_length);
             Parser_skip_token(parser, node);
         } else { // node is valid, create a new token in linked list
-            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, 
-                "TRACE: %s - adding token generated at line %u, col %u of "
-                "length %zu\n", __func__, node->token_start->coords.line, 
-                node->token_start->coords.col, node->str_length);
-            parser->_class->add_token(parser, node);
+            Parser_add_token(parser, node);
         }        
     }
     return node; // return node as is

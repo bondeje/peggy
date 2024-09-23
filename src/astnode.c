@@ -13,7 +13,7 @@ struct ASTNodeType ASTNode_class = {
  * @brief initialize an ASTnode. This is no different than setting each member 
  * in the struct
  */
-void ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end, 
+void ASTNode_init(ASTNode * self, rule_id_type rule, Token * start, Token * end, 
     size_t str_length, size_t nchildren, ASTNode ** children) {
         
     self->_class = &ASTNode_class;
@@ -39,7 +39,7 @@ void ASTNode_init(ASTNode * self, Rule * rule, Token * start, Token * end,
  * anything else after it is marked for skipping
  */
 ASTNode * make_skip_node(ASTNode * node) {
-    node->rule = NULL;
+    node->rule = -1;
     node->str_length = node->str_length ? node->str_length : 1;
     return node;
 }
@@ -48,7 +48,7 @@ ASTNode * make_skip_node(ASTNode * node) {
  * @brief check if a node has been marked for skipping
  */
 _Bool is_skip_node(ASTNode * node) {
-    return node->str_length > 0 && !(node->rule);
+    return node->str_length > 0 && -1 == node->rule;
 }
 
 /**

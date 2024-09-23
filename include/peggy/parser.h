@@ -29,9 +29,9 @@
 #define Parser_tell(pparser) (((Parser *)pparser)->token_cur)
 #define Parser_seek(pparser, ptoken) (((Parser *)pparser)->token_cur = ptoken)
 #define Parser_fail_node(pparser) (((Parser *)pparser)->fail_node)
-#define Parser_fail(pparser, prule) do { \
+#define Parser_fail(pparser, irule) do { \
     if (Parser_tell(pparser) && (Parser_tell(pparser)->id >= Parser_fail_node(pparser)->token_start->id)) {\
-        Parser_fail_node(pparser)->rule = prule;\
+        Parser_fail_node(pparser)->rule = irule;\
         Parser_fail_node(pparser)->token_start = Parser_tell(pparser);\
     } } while (0)
 //#define Parser_fail(pparser, prule) Parser_fail_node(pparser)
@@ -56,6 +56,7 @@ struct Parser {
                             //!<    overriding "add_token" or "tokenize"
     Token * token_tail;     //!< the sentinel final Token in the linked list.
                             //!<    It is never a valid Token for parsing
+    Rule ** rules;          //!< the rules in the parser
     Rule * token_rule;      //!< the "Rule *" applied iteratively to generate
                             //!<    the token stream
     Rule * root_rule;       //!< the "Rule *"" instance that initiates parsing
@@ -82,12 +83,9 @@ typedef struct ParserType ParserType;
  */
 extern struct ParserType {
     // tokenizer interface
-    err_type (*add_token)(Parser * parser, ASTNode * node);
     size_t (*tokenize)(Parser * self, char const * string, size_t string_length, 
         Token ** start, Token ** end);
     // parser interface
-    ASTNode * (*add_node)(Parser * self, Rule * rule, Token * start, 
-        Token * end, size_t str_length, size_t nchildren, size_t size);
     void (*parse)(Parser * parser, char const * string, size_t string_length);
     
 } Parser_class;
@@ -100,8 +98,8 @@ extern struct ParserType {
  *      its success stores the final node in ast
  * @param[in] flags to be used to control parsing
  */
-Parser * Parser_new(Rule * token_rule, Rule * root_rule, size_t nrules, 
-    unsigned int flags);
+Parser * Parser_new(Rule * rules[], rule_id_type nrules, rule_id_type token_rule, 
+    rule_id_type root_rule, unsigned int flags);
 
 /**
  * @brief initialize a Parser instance. Only call once per instance
@@ -111,8 +109,8 @@ Parser * Parser_new(Rule * token_rule, Rule * root_rule, size_t nrules,
  *      its success stores the final node in ast
  * @param[in] flags to be used to control parsing
  */
-err_type Parser_init(Parser * parser, Rule * token_rule, Rule * root_rule, 
-    size_t nrules, unsigned int flags);
+err_type Parser_init(Parser * parser, Rule * rules[], rule_id_type nrules, 
+    rule_id_type token_rule, rule_id_type root_rule, unsigned int flags);
 
 /**
  * @brief set a logger file for the Parser. Defaults to disabled
@@ -208,7 +206,7 @@ void Parser_parse(Parser * parser, char const * string, size_t string_length);
  *      must be done after this function call
  * @returns a new pointer to an ASTNode *.
  */
-ASTNode * Parser_add_node(Parser * self, Rule * rule, Token * start, Token * end, size_t str_length, size_t nchildren, size_t size);
+ASTNode * Parser_add_node(Parser * self, rule_id_type rule, Token * start, Token * end, size_t str_length, size_t nchildren, size_t size);
 
 /**
  * @brief check for a (Rule, Token) pair in the Parser's PackratCache

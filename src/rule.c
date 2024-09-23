@@ -159,7 +159,7 @@ ASTNode * Rule_check(Rule * self, Parser * parser) {
         Parser_seek(parser, tok);
 
         // log a failure to the parser
-        Parser_fail(parser, self);
+        Parser_fail(parser, self->id);
     } else {
 
         // log success. If MAX_LOGGING_LEVEL < LOG_LEVEL_TRACE, this should be 
@@ -384,7 +384,7 @@ ASTNode * SequenceRule_check_rule_(Rule * sequence_rule, Parser * parser) {
     Token * end = Parser_tell(parser);
 
     // create a successful new node
-    return parser->_class->add_node(parser, sequence_rule, start, end->prev, 
+    return Parser_add_node(parser, sequence_rule->id, start, end->prev, 
         (size_t)((char *)end->string - (char *)start->string), i, 0);
 }
 
@@ -703,7 +703,7 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser) {
             "(id %s) regex %s matched with length %d! - %.*s\n", __func__, 
             literal_rule->name, (char *)self->regex_s, length, (int)length, 
             tok->string);
-        return parser->_class->add_node(parser, literal_rule, tok, tok, length, 
+        return Parser_add_node(parser, literal_rule->id, tok, tok, length, 
             0, 0);
     }
     return Parser_fail_node(parser);
@@ -935,7 +935,7 @@ ASTNode * ListRule_check_rule_(Rule * list_rule, Parser * parser) {
     }
 
     Token * end = Parser_tell(parser);
-    return parser->_class->add_node(parser, list_rule, start, end->prev, 
+    return Parser_add_node(parser, list_rule->id, start, end->prev, 
         (size_t)((char *)end->string - (char *)start->string), nchildren, 0);
 }
 
@@ -1053,7 +1053,7 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser) {
         if (self->min_rep) {
             return Parser_fail_node(parser);
         } else {
-            return parser->_class->add_node(parser, repeat_rule, start, 
+            return Parser_add_node(parser, repeat_rule->id, start, 
                 start->prev, 0, 0, 0);
         }
     }
@@ -1084,7 +1084,7 @@ ASTNode * RepeatRule_check_rule_(Rule * repeat_rule, Parser * parser) {
 
     Token * end = Parser_tell(parser);
     // Success! create a new node
-    return parser->_class->add_node(parser, repeat_rule, start, end->prev, 
+    return Parser_add_node(parser, repeat_rule->id, start, end->prev, 
         (size_t)((char *)end->string - (char *)start->string), nchildren, 0);
 }
 
@@ -1195,7 +1195,7 @@ ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead,
     
     // if no string in Token, succeed
     if (!tok->length) {
-        return Parser_add_node(parser, negative_lookahead, tok, tok->prev, 0, 
+        return Parser_add_node(parser, negative_lookahead->id, tok, tok->prev, 0, 
             0, 0);
     }
     
@@ -1203,7 +1203,7 @@ ASTNode * NegativeLookahead_check_rule_(Rule * negative_lookahead,
     // if node fails, reset and create new node
     if (Parser_is_fail_node(parser, node)) {
         Parser_seek(parser, tok);
-        return Parser_add_node(parser, negative_lookahead, tok, tok->prev, 0, 
+        return Parser_add_node(parser, negative_lookahead->id, tok, tok->prev, 0, 
             0, 0);
     }
 
@@ -1321,7 +1321,7 @@ ASTNode * PositiveLookahead_check_rule_(Rule * positive_lookahead,
     if (!Parser_is_fail_node(parser, node)) {
         // if node is success, reset the parser to tok and create a node
         Parser_seek(parser, tok);
-        return Parser_add_node(parser, positive_lookahead, tok->prev, tok->prev, 
+        return Parser_add_node(parser, positive_lookahead->id, tok->prev, tok->prev, 
             0, 0, 0);
     }
     return node;
@@ -1343,29 +1343,11 @@ ASTNode * build_action_default(Production * production, Parser * parser,
     // check for skip node (do nothing)
     if (!is_skip_node(node)) {
          
-        if (!isinstance(node->rule->_class->type, PRODUCTION_UNESCAPED_RULES)) {
-            /*
-            if node is not a Production or LiteralRule, reclassify node as the 
-            production. This saves on ASTNode memory somewhat but ensures the 
-            children of the production are accessible as you one might expect
-            from reading the grammar
-            */
-            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - "
-                "re-initializing node rule from id %s to id %s; no node "
-                "generated\n", __func__, node->rule->name, 
-                ((Rule *)production)->name);
-            node->rule = (Rule *)production;
+        if (!isinstance(parser->rules[node->rule]->_class->type, PRODUCTION_UNESCAPED_RULES)) {
+            node->rule = ((Rule *)production)->id;
         } else {
-            /*
-            Production and LiteralRules are conserved. generate a new node copy
-            and return
-            */
-            LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - creating "
-                "new rule from production %s to id %s\n", __func__, 
-                node->rule->name, ((Rule *)production)->name);
-            
             ASTNode * child = node;
-            node = parser->_class->add_node(parser, (Rule *)production, node->token_start, node->token_end, node->str_length, 1, 0);
+            node = Parser_add_node(parser, ((Rule *)production)->id, node->token_start, node->token_end, node->str_length, 1, 0);
             // assign original node as child. This should be unnecessary and might be a bug
             node->children[0] = child;
         }
@@ -1478,15 +1460,9 @@ void Production_as_Rule_del(Rule * production) {
  *      than the subrule does
  */
 ASTNode * Production_check_rule_(Rule * production, Parser * parser) {
-    LOG_EVENT(&parser->logger, LOG_LEVEL_TRACE, "TRACE: %s - checking production rule. id: %s\n", __func__, production->name);
     Production * self = (Production *)production;
-    
     // check subrule
     ASTNode * node = Rule_check(self->DerivedRule.rule, parser);
-    if (node == NULL) {
-        LOG_EVENT(&parser->logger, LOG_LEVEL_ERROR, "ERROR: %s - found NULL in call to Rule_check for production id %s\n", __func__, production->name);
-    }
-
     if (!Parser_is_fail_node(parser, node)) {
         /*
         only execute build_action if non-failure

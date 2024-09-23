@@ -179,6 +179,44 @@ REPEATRULE(la_rep, LA_REP,
 PRODUCTION(la_parser, LA_PARSER,
     (Rule *)&la_rep);
 
+Rule * trrules[] = {
+    [A] = (Rule *)&a,
+    [B] = (Rule *)&b,
+    [AB_LETTER] = (Rule *)&ab_letter,
+    [AB_LETTER_TOKEN] = (Rule *)&ab_letter_token,
+    [A2_SEQ] = (Rule *)&a2_seq,
+    [B2_SEQ] = (Rule *)&b2_seq,
+    [AB_SEQ] = (Rule *)&ab_seq,
+    [SEQ_PARSER_CHOICE] = (Rule *)&seq_parser_choice,
+    [SEQ_PARSER_REP] = (Rule *)&seq_parser_rep,
+    [SEQ_PARSER] = (Rule *)&seq_parser,
+    [A_REP_ANY] = (Rule *)&a_rep_any,
+    [B_REP_ANY] = (Rule *)&b_rep_any,
+    [A_REP_GT1] = (Rule *)&a_rep_gt1,
+    [B_REP_GT1] = (Rule *)&b_rep_gt1,
+    [A_REP_OPT] = (Rule *)&a_rep_opt,
+    [B_REP_OPT] = (Rule *)&b_rep_opt,
+    [REP_SEQ_BA] = (Rule *)&rep_seq_ba,
+    [REP_SEQ_AA] = (Rule *)&rep_seq_aa,
+    [REP_CHOICE] = (Rule *)&rep_choice,
+    [REP_REP] = (Rule *)&rep_rep,
+    [REP_PARSER] = (Rule *)&rep_parser,
+    [AB_LIST] = (Rule *)&ab_list,
+    [BA_LIST] = (Rule *)&ba_list,
+    [LIST_CHOICE] = (Rule *)&list_choice,
+    [LIST_REP] = (Rule *)&list_rep,
+    [LIST_PARSER] = (Rule *)&list_parser,
+    [NLA_A] = (Rule *)&nla_a,
+    [NLA_B] = (Rule *)&nla_b,
+    [PLA_A] = (Rule *)&pla_a,
+    [PLA_B] = (Rule *)&pla_b,
+    [NLA_SEQ] = (Rule *)&nla_seq,
+    [PLA_SEQ] = (Rule *)&pla_seq,
+    [LA_CHOICE] = (Rule *)&la_choice,
+    [LA_REP] = (Rule *)&la_rep,
+    [LA_PARSER] = (Rule *)&la_parser
+};
+
 void test_rule_cleanup(void) {
     a._class->dest(&a);
     b._class->dest(&b);
@@ -223,7 +261,7 @@ int test_sequence(void) {
     );
 
     Parser parser;
-    Parser_init(&parser, (Rule *)&ab_letter_token, (Rule *)&seq_parser, SEQ_PARSER+1, 0);
+    Parser_init(&parser, trrules, SEQ_PARSER + 1, AB_LETTER_TOKEN, SEQ_PARSER, 0);
     Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     parser._class->parse(&parser, string, strlen(string));
@@ -285,7 +323,7 @@ int test_repeat(void) {
     );
 
     Parser parser;
-    Parser_init(&parser, (Rule *)&ab_letter_token, (Rule *)&rep_parser, REP_PARSER+1, 0);
+    Parser_init(&parser, trrules, REP_PARSER + 1, AB_LETTER_TOKEN, REP_PARSER, 0);
     Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);
@@ -356,7 +394,7 @@ int test_list(void) {
     );
 
     Parser parser;
-    Parser_init(&parser, (Rule *)&ab_letter_token, (Rule *)&list_parser, LIST_PARSER+1, 0);
+    Parser_init(&parser, trrules, LIST_PARSER + 1, AB_LETTER_TOKEN, LIST_PARSER, 0);
     Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);
@@ -409,7 +447,7 @@ int test_lookahead(void) {
     );
 
     Parser parser;
-    Parser_init(&parser, (Rule *)&ab_letter_token, (Rule *)&la_parser, LA_PARSER+1, 0);
+    Parser_init(&parser, trrules, LA_PARSER + 1, AB_LETTER_TOKEN, LA_PARSER, 0);
     Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t Nstring = strlen(string);

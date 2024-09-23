@@ -193,7 +193,6 @@ void build_destructor(PeggyParser * parser) {
 }
 
 PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, RuleTypeID type) {
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - building PeggyProduction rule id %s from line %u, col %u\n", __func__, id->rule->name, id->token_start->coords.line, id->token_start->coords.col);
     PeggyProduction prod;
     STACK_INIT(PeggyString)(&prod.args, 0);
 
@@ -208,7 +207,6 @@ PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, RuleTy
         prod.type = PEG_PRODUCTION;
     }    
 
-    LOG_EVENT(&parser->Parser.logger, LOG_LEVEL_DEBUG, "DEBUG: %s - adding build of production rule id %s with name %.*s from line %u, col %u to production map\n", __func__, id->rule->name, prod.name.len, prod.name.str, id->token_start->coords.line, id->token_start->coords.col);
     parser->productions._class->set(&parser->productions, prod.name, prod);
 
     return prod;

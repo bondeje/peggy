@@ -93,6 +93,25 @@ REPEATRULE(words, WORDS,
 PRODUCTION(doc, DOC,
     (Rule *)&words);
 
+Rule * tprules[] = {
+    [LETTER] = (Rule *)&letter,
+    [LETTER_TOKEN] = (Rule *)&letter_token, 
+    [DIGIT] = (Rule *)&digit, 
+    [HEXADECIMAL_DIGIT] = (Rule *)&hexadecimal_digit, 
+    [HEXADECIMAL_TOKEN] = (Rule *)&hexadecimal_token, 
+    [ALPHANUMERIC] = (Rule *)&alphanumeric,
+    [ALPHANUMERIC_TOKEN] = (Rule *)&alphanumeric_token,
+    [WHITESPACE_RE] = (Rule *)&whitespace_re,
+    [WHITESPACE] = (Rule *)&whitespace,
+    [HEX_ALPHANUM_OR_WS] = (Rule *)&hex_alphanum_or_ws,
+    [TEST_PARSER_TOKEN] = (Rule *)&test_parser_token,
+    [HEX_WORD] = (Rule *)&hex_word,
+    [ALPHA_WORD] = (Rule *)&alpha_word,
+    [WORD] = (Rule *)&word,
+    [WORDS] = (Rule *)&words,
+    [DOC] = (Rule *)&doc
+};
+
 void test_parser_cleanup(void) {
     // should only have to destroy the LiteralRules to clean up regex allocations
     // if tests require additional LiteralRules or other Rules require cleanup...add them
@@ -113,7 +132,7 @@ int test_tokenizer_single_char(void) {
         "o","c","o","n","i","o","s","i","s", NULL};
 
     Parser parser;
-    Parser_init(&parser, (Rule *)&letter_token, NULL, LETTER_TOKEN+1, 0);
+    Parser_init(&parser, tprules, LETTER_TOKEN + 1, LETTER_TOKEN, -1, 0);
     Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
@@ -141,7 +160,7 @@ int test_tokenizer_alphanumeric(void) {
         "Y","Z", NULL};
 
     Parser parser;
-    Parser_init(&parser, (Rule *)&alphanumeric_token, NULL, ALPHANUMERIC_TOKEN+1, 0);
+    Parser_init(&parser, tprules, ALPHANUMERIC_TOKEN + 1, ALPHANUMERIC_TOKEN, -1, 0);
     Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
@@ -169,7 +188,7 @@ int test_tokenizer_hexadecimal(void) {
         "C1","d1","E1","f1", NULL};
 
     Parser parser;
-    Parser_init(&parser, (Rule *)&hexadecimal_token, NULL, HEXADECIMAL_TOKEN+1, 0);
+    Parser_init(&parser, tprules, HEXADECIMAL_TOKEN + 1, HEXADECIMAL_TOKEN, -1, 0);
     Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
@@ -198,7 +217,7 @@ int test_tokenizer_test_parser_token(void) {
     size_t N = sizeof(result_tokens)/sizeof(result_tokens[0]) - 1;
 
     Parser parser;
-    Parser_init(&parser, (Rule *)&test_parser_token, NULL, TEST_PARSER_TOKEN+1, 0);
+    Parser_init(&parser, tprules, TEST_PARSER_TOKEN + 1, TEST_PARSER_TOKEN, -1, 0);
     Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     Token * cur, * end;
@@ -338,7 +357,7 @@ int test_parser_doc(void) {
     );
 
     Parser parser;
-    Parser_init(&parser, (Rule *)&test_parser_token, (Rule *)&doc, DOC+1, 0);
+    Parser_init(&parser, tprules, DOC + 1, TEST_PARSER_TOKEN, DOC, 0);
     Parser_set_log_file(&parser, test_log_file, LOG_LEVEL_ERROR);
     
     size_t string_length = strlen(string);
