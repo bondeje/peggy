@@ -217,7 +217,7 @@ generic_selection:
 	'_Generic', '(', assignment_expression, ',', ','.generic_association, ')'
 
 generic_association:
-	(type_name | 'default'), ':', assignment_expression
+	('default' | type_name), ':', assignment_expression
 
 // compound_literal must come first else () will be captured as parenthesized expression
 postfix_expression:
@@ -520,7 +520,7 @@ parameter_declaration: // NEEDS TO BE TESTED. try line 52 of declarations.c
 	| attribute_specifier*, declaration_specifiers
 
 /*
-ince abstract_declarator does not have an identifier, this should not pose an ambiguity 
+since abstract_declarator does not have an identifier, this should not pose an ambiguity 
 issue for typedef_name & identifier
 */
 type_name: 
@@ -640,6 +640,7 @@ checked as typedef first
 block_item:
 	declaration | statement | label
 	
+// an earlier version put attribute_specifier first
 expression_statement:
 	  expression?, ';'
 	| attribute_specifier+, expression, ';'
