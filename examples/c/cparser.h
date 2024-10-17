@@ -6,8 +6,10 @@
 #include "peggy/rule.h"
 
 
-#include "cparser.h"
 #include "c.h"
+
+size_t CParser_tokenize(Parser * self_, char const * string, size_t string_length, 
+    Token ** start, Token ** end);
 
 ASTNode * nc1_pass0(Production * rule, Parser * parser, ASTNode * node);
 ASTNode * c0nc0_pass1(Production * rule, Parser * parser, ASTNode * node);
@@ -18,5 +20,9 @@ ASTNode * _close_scope(Production * rule, Parser * parser, ASTNode * node);
 ASTNode * c_process_declaration(Production * decl, Parser * parser, ASTNode * node);
 ASTNode * c_process_declaration_specifiers(Production * decl_specs, Parser * parser, ASTNode * node);
 ASTNode * c_check_typedef(Production * decl_specs, Parser * parser, ASTNode * node);
+ASTNode * c_pp_lparen(Production * prod, Parser * parser, ASTNode * node);
+ASTNode * c_pp_line_expand(Production * prod, Parser * parser, ASTNode * node);
+ASTNode * c_pp_identifier(Production * prod, Parser * parser, ASTNode * node);
+
 #endif
 

@@ -49,6 +49,7 @@ ASTNode * make_skip_node(ASTNode * node) {
  */
 _Bool is_skip_node(ASTNode * node) {
     return node->str_length > 0 && -1 == node->rule;
+    //return -1 == node->rule;
 }
 
 /**

@@ -23,18 +23,30 @@ keyword:
     | 'const'
     | 'continue' 
     | 'default'
+	| 'defined'
+	| 'define'
     | 'double'
 	| 'do' 
-    | 'else' 
-    | 'enum' 
+	| 'elifndef'
+	| 'elifdef'
+	| 'elif'
+    | 'else'
+	| 'embed'
+	| 'endif' 
+    | 'enum'
+	| 'error'
     | 'extern'
 	| 'false' 
     | 'float'
 	| 'for' 
-    | 'goto' 
-    | 'if' 
+    | 'goto'
+	| 'ifndef'
+	| 'ifdef'
+    | 'if'
+	| 'include'
     | 'inline' 
 	| 'int'
+	| 'line'
 	| 'long' 
 	| 'macro'
 	| 'nullptr'			// C23
@@ -54,10 +66,12 @@ keyword:
 	| 'typedef'
 	| 'typeof_unqual'
 	| 'typeof' 			// gcc extension for pre-C23
+	| 'undef'
     | 'union' 
     | 'unsigned'
     | 'void'
 	| 'volatile'
+	| 'warning'
     | 'while'
 	| '_Alignas'
     | '_Alignof'
@@ -73,6 +87,7 @@ keyword:
 	| '_Nonnull'		// clang extension
     | '_Noreturn' 
 	| '_Nullable'		// clang extension
+	| '_Pragma'
     | '_Static_assert'
     | '_Thread_local'
 	| '__asm__' 		// gcc extension
@@ -87,6 +102,9 @@ keyword:
 	// apparently clang as well
 	| '__extension__' 	
 	| '__fastcall' 		// msvc extension
+	| '__has_c_attribute'	// C23
+	| '__has_embed'		// C23
+	| '__has_include'	// C23
 	| '__inline__'		// gcc extension
 	| '__inline' 		// msvc extension
 	| '__int8' 			// msvc extension
@@ -104,17 +122,18 @@ keyword:
 	| '__volatile__'    // gcc extension
     | '__attribute__'
 
+pp_line(c_pp_line_expand): // breaks line and executes the preprocessor
+	"#(\\\\\n|[^\n])*\n"
+
 token:
-    whitespace | constant | punctuator | string_literal | identifier | keyword  
+    pp_line | whitespace | constant | punctuator | string_literal | identifier | keyword  
 	// keyword is basically unreachable. whitespace is added to remove comments. 
-	// It is skipped anyway
-
+	
 whitespace(skip_token):
-    "([ \t\r\n\v\f]+|(\\\\\n)|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/)|(#[^\n]*\n))+"
-	// ascii ws      line cont line comment multi-line comment         pragmas and 
-	// diagnostic lines (must be removed once preprocess is built)
+    "([ \t\r\n\v\f]+|(\\\\\n)|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+"
+	// ascii ws      line cont line comment multi-line comment
 
-identifier:
+identifier(c_pp_identifier): // build action checks for presence of a preprocessing macro and executes preprocessor appropriately
 	"([a-zA-Z_]|\\\\[uU]([0-9a-fA-F]{4}){1,2})(([a-zA-Z_0-9]|\\\\[uU]([0-9a-fA-F]{4}){1,2}))*"
 	// normalstart   unicode hex-quads          normal       unicode hex-quads
 
@@ -662,8 +681,6 @@ jump_statement:
 	 | 'return', expression?), ';'
 
 external_declaration:
-	//  pragma_directive 	// see note at production at end of c.grmr
-	//| diagnostic_line 	// see note at production at end of c.grmr
 	  function_definition
 	| declaration
 	| ';' 
@@ -671,16 +688,98 @@ external_declaration:
 	// standard as an external_declaration, but it is there as an expression_statement, but
     // that can only exist in function scope. string.h in Mingw64-gcc has it.
 
+pp_directive:
+	group
+
+group:
+	group_part+
+
+group_part:
+	  if_section
+	| control_line
+	| text_line
+	| '#', non_directive
+
+if_section:
+	if_group, elif_group*, else_group?, endif_line
+
+if_group:
+	  '#', 'if', constant_expression, newline, group_part*
+	| '#', 'ifdef', identifier, newline, group_part*
+	| '#', 'ifndef', identifier, newline, group_part
+
+elif_group:
+	  '#', 'elif', constant_expression, newline, group_part*
+	| '#', 'elifdef', identifier, newline, group_part*
+	| '#', 'elifndef', identifier, newline, group_part*
+
+else_group:
+	'#', 'else', newline, group_part*
+
+endif_line:
+	'#', 'endif', newline
+
+control_line:
+	  '#', 'include', pp_token+, newline
+	| '#', 'embed', pp_token+, newline
+	| '#', 'define', identifier, replacement_list, newline
+	| '#', 'define', identifier, clparen, ','.identifier?, ')', replacement_list, newline
+	| '#', 'define', identifier, clparen, '...', ')', replacement_list, newline
+	| '#', 'define', identifier, clparen, ','.identifier, '...', ')', replacement_list, newline
+	| '#', 'undef', identifier, newline
+	| '#', 'line', pp_token+, newline
+	| '#', 'error', pp_token*, newline
+	| '#', 'warning', pp_token*, newline
+	| '#', 'pragma', pp_token*, newline
+	| '#', newline
+
+text_line:
+	pp_token*, newline
+
+non_directive:
+	pp_token+, newline
+
+// need a build action because negative lookbehind is not generally available. 
+// PCRE2 has it, but I don't want to depend on that library. Eventually move 
+// to mine (probably won't have it) or Re2, which definitely doesn't
+clparen(c_pp_lparen): 
+	'('
+
+replacement_list:
+	pp_token*
+
+defined_macro_expansion:
+	 'defined', identifier
+	| 'defined', '(', identifier, ')'
+
+non_rangle:
+	"[^>]+" 
+
+header_name_tokens:
+	  string_literal
+	| '<', non_rangle+, '>'
+
+has_include_expression:
+	'__has_include', '(', header_name_tokens, ')'
+
+has_embed_expression:
+	'__has_embed', '(', header_name_tokens, pp_token*, ')' // this is not C23 compliant
+
+has_c_attribute_expression:
+	'__has_c_attribute', '(', pp_token+, ')'
+
+// unlike 'token' there is no whitespace here because we need to capture the inserted newline token
+// but all other whitespace and comments have already been removed
+pp_token: // pp_token_exand checks for identifiers and replaces the tokens if a match is found
+	  header_name_tokens
+	| constant // not bothering with the idiosyncracies of constants in C23 within the grammar
+	| punctuator 
+	| string_literal
+	| identifier
+
+newline: 
+	"\n"
+
 function_definition:
 	attribute_specifier*, declaration_specifiers, declarator, compound_statement
 
-/* // not used. until a preprocessor is built, all lines starting with '#' during parse will be treated as whitespace and excluded from tokenization
-pragma_directive:
-	'#', 'pragma', to_end_of_line
-
-diagnostic_line:
-	'#', to_end_of_line
-
-to_end_of_line(b_to_end_of_line):
-	".+"
-*/

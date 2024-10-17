@@ -7,11 +7,11 @@ BIN_DIR = ../../bin
 STDC_DIALECT = -std=c99
 GRAMMAR = $(EXAMPLE_NAME).grmr
 DEFAULT_LOG_LEVEL = LOG_LEVEL_WARN
-CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter $(STDC_DIALECT) -O2 -g -fPIC
+CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter $(STDC_DIALECT) -O0 -g -fPIC
 IFLAGS = -I../../include -I../../lib/TypeMemPools/include
 LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
 
-EXE_SRCS = cparser.c c.c
+EXE_SRCS = cparser.c c.c cpp.c cstring.c token_.c
 
 all: $(BIN_DIR)/c
 

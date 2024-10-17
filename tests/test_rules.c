@@ -264,7 +264,8 @@ int test_sequence(void) {
     Parser_init(&parser, trrules, SEQ_PARSER + 1, AB_LETTER_TOKEN, SEQ_PARSER, 0);
     
     parser._class->parse(&parser, string, strlen(string));
-    nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
+    size_t ntokens = Parser_get_ntokens(&parser);
+    nerrors += check_tokens(parser.token_head->next, ntokens, result_tokens, __FILE__, __func__, __LINE__);
     nerrors += check_ASTNodes(parser.ast, result_nodes, __FILE__, __func__, __LINE__);
     /* // for print debugging
     FILE * ast_out = fopen("test_sequence_ast.txt", "w");
@@ -326,7 +327,8 @@ int test_repeat(void) {
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);
-    nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
+    size_t ntokens = Parser_get_ntokens(&parser);
+    nerrors += check_tokens(parser.token_head->next, ntokens, result_tokens, __FILE__, __func__, __LINE__);
     nerrors += check_ASTNodes(parser.ast, result_nodes, __FILE__, __func__, __LINE__);
     /*// for print debugging
     FILE * ast_out = fopen("test_repeat_ast.txt", "w");
@@ -396,7 +398,8 @@ int test_list(void) {
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);
-    nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
+    size_t ntokens = Parser_get_ntokens(&parser);
+    nerrors += check_tokens(parser.token_head->next, ntokens, result_tokens, __FILE__, __func__, __LINE__);
     nerrors += check_ASTNodes(parser.ast, result_nodes, __FILE__, __func__, __LINE__);
     /*// for print debugging
     FILE * ast_out = fopen("test_repeat_ast.txt", "w");
@@ -448,7 +451,8 @@ int test_lookahead(void) {
     
     size_t Nstring = strlen(string);
     parser._class->parse(&parser, string, Nstring);
-    nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
+    size_t ntokens = Parser_get_ntokens(&parser);
+    nerrors += check_tokens(parser.token_head->next, ntokens, result_tokens, __FILE__, __func__, __LINE__);
     nerrors += check_ASTNodes(parser.ast, result_nodes, __FILE__, __func__, __LINE__);
     /*// for print debugging
     FILE * ast_out = fopen("test_repeat_ast.txt", "w");

@@ -80,10 +80,10 @@ typedef struct ParserType ParserType;
  */
 extern struct ParserType {
     // tokenizer interface
-    size_t (*tokenize)(Parser * self, char const * string, size_t string_length, 
+    int (*tokenize)(Parser * self, char const * string, size_t string_length, 
         Token ** start, Token ** end);
     // parser interface
-    void (*parse)(Parser * parser, char const * string, size_t string_length);
+    int (*parse)(Parser * parser, char const * string, size_t string_length);
     
 } Parser_class;
 
@@ -128,9 +128,9 @@ void Parser_del(Parser * parser);
  * @param[in] string_length the length of the input string
  * @param[out] start the resulting starting token
  * @param[out] end the resulting ending token.
- * @returns the number of tokens created
+ * @returns 0 on success, 1 on failure
  */
-size_t Parser_tokenize(Parser * self, char const * string, size_t string_length, Token ** start, Token ** end);
+int Parser_tokenize(Parser * self, char const * string, size_t string_length, Token ** start, Token ** end);
 
 /**
  * @brief add a token for the given node. Only used during tokenization
@@ -139,6 +139,14 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
  * @returns non-zero on error, else 0
  */
 err_type Parser_add_token(Parser * self, ASTNode * node);
+
+/**
+ * @brief skip a token for the given node. Only used during tokenization
+ * @param[in] self Parser instance
+ * @param[in] node node encapsulating the token to be skipped in the stream
+ * @returns non-zero on error, else 0
+ */
+err_type Parser_skip_token(Parser * self, ASTNode * node);
 
 /**
  * @brief wrapper to retrieve number of tokens in parser. This is a more 
@@ -158,8 +166,9 @@ void Parser_print_tokens(Parser * self, FILE * stream);
  * @param[in] self Parser instance
  * @param[in] string the input string to parser
  * @param[in] string_length the length of the input string
+ * @returns 0 on success, 1 on failure
  */
-void Parser_parse(Parser * parser, char const * string, size_t string_length);
+int Parser_parse(Parser * parser, char const * string, size_t string_length);
 
 /**
  * @brief create a new node and add its chidlren to parse tree. For internal

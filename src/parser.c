@@ -161,17 +161,19 @@ void Parser_del(Parser * self) {
  * @param[in] string the input string to tokenize
  * @param[in] string_length the length of the input string
  * @param[out] start the resulting starting token
- * @param[out] end the resulting ending token.
- * @returns the number of tokens created
+ * @param[out] end the resulting ending token (inclusive)
+ * @returns 0 on success, 1 on failure
  */
-size_t Parser_tokenize(Parser * self, char const * string, size_t string_length, 
+int Parser_tokenize(Parser * self, char const * string, size_t string_length, 
     Token ** start, Token ** end) {
 
     static const unsigned int REMAINING_TOKEN_MAX_SIZE = 16;
     if (!string_length) {
         return 0;
     }
-    self->tokenizing = true;
+
+    bool tokenizing_orig = self->tokenizing;
+    self->tokenizing = true; // assert in tokenizing start regardless of current state
 
     /*
     to try to separate concerns of the tokenizer and parser but use the 
@@ -212,14 +214,14 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
 
         // check for failed node and handle
         if (Parser_is_fail_node(self, node)) {
-            return 0;
+            return 1;
         }
 
         // check for skip node. Still should increment ntokens
         if (!is_skip_node(node)) {
             ntokens++;
-        }
-        *end = cur;
+            *end = cur; // only update *end if the token is being saved
+        }        
 
         // update current node for loop
         cur = Parser_tell(self);
@@ -236,16 +238,18 @@ size_t Parser_tokenize(Parser * self, char const * string, size_t string_length,
     if (insert_right) {
         insert_right->prev = insert_left;
     }
-    self->tokenizing = false;
+    // return to original state. Originally this was false, but it prevented 
+    // re-entrant tokenization needed for preprocessing, e.g. C
+    self->tokenizing = tokenizing_orig; 
     if (cur == insert_right) {
         *start = NULL;
         *end = NULL;
-        return 0;
+        return 1;
     }
     cur->prev = NULL;
     *start = cur;
     (*end)->next = NULL;
-    return ntokens;
+    return 0;
 }
 
 /**
@@ -367,19 +371,21 @@ void Parser_generate_new_token(Parser * self, size_t token_length, Token * cur) 
  *      encompass one token.
  */
 err_type Parser_skip_token(Parser * self, ASTNode * node) {
-    Token * skipped = node->token_start;
-    Parser_generate_new_token(self, node->str_length, skipped);
+    //if (node->str_length) {
+        Token * skipped = node->token_start;
+        Parser_generate_new_token(self, node->str_length, skipped);
 
-    // extract the skipped token from the linked list of tokens
-    if (skipped->prev) {
-        skipped->prev->next = skipped->next;
-    }    
-    if (skipped->next) {
-        skipped->next->prev = skipped->prev;
-    }
+        // extract the skipped token from the linked list of tokens
+        if (skipped->prev) {
+            skipped->prev->next = skipped->next;
+        }    
+        if (skipped->next) {
+            skipped->next->prev = skipped->prev;
+        }
 
-    // reset parse to token after skipped
-    Parser_seek(self, skipped->next);
+        // reset parse to token after skipped
+        Parser_seek(self, skipped->next);
+    //}
     return PEGGY_SUCCESS;
 }
 
@@ -388,7 +394,7 @@ err_type Parser_skip_token(Parser * self, ASTNode * node) {
  */
 void Parser_print_tokens(Parser * self, FILE * stream) {
     Token * tok = self->token_head->next;
-    fprintf(stream, "ntokens: %zu - ", self->ntokens);
+    fprintf(stream, "ntokens: %zu - ", Parser_get_ntokens(self)/*self->ntokens*/);
     while (tok && tok->length) {
         // should replace with a print function
         fprintf(stream, "\"%.*s\" ", (int)tok->length, tok->string);
@@ -419,18 +425,19 @@ ASTNode ** Parser_make_child_array(Parser * self, size_t nchildren) {
  * @param[in] self Parser instance
  * @param[in] string the input string to parser
  * @param[in] string_length the length of the input string
+ * @returns 0 on success, 1 on failure
  */
-void Parser_parse(Parser * self, char const * string, size_t string_length) {
+int Parser_parse(Parser * self, char const * string, size_t string_length) {
     // storage for start and end tokens
     Token * start;
     Token * end;
 
     // tokenize the input string
-    size_t ntokens = self->_class->tokenize(self, string, string_length, 
+    int error = self->_class->tokenize(self, string, string_length, 
         &start, &end);
 
-    // if tokenizer succeeded (at least one token found)
-    if (ntokens) {
+    // if tokenizer succeeded (at least one token found), no error
+    if (!error) {
 
         // reset fail node
         Parser_fail_node(self)->token_start = self->token_head;
@@ -449,9 +456,14 @@ void Parser_parse(Parser * self, char const * string, size_t string_length) {
         if (self->root_rule) {
             // initiae parse of the Token list
             self->ast = Rule_check(self->root_rule, self);
+            if (!self->ast || Parser_is_fail_node(self, self->ast)) {
+                return 1;
+            }
         }
+    } else {
+        return error;
     }
-    
+    return error;
 }
 
 /**

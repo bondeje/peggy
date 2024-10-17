@@ -136,6 +136,11 @@ int test_tokenizer_single_char(void) {
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, N, &cur, &end);
+    parser.token_head->next = cur;
+    cur->prev = parser.token_head;
+    parser.token_tail->prev = end;
+    parser.token_tail->prev->next = parser.token_tail;
+    ntokens = Parser_get_ntokens(&parser);
     check_tokens(cur, ntokens, result_tokens, __FILE__, __func__, __LINE__);
     Parser_dest(&parser);
 
@@ -163,6 +168,11 @@ int test_tokenizer_alphanumeric(void) {
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, N, &cur, &end);
+    parser.token_head->next = cur;
+    cur->prev = parser.token_head;
+    parser.token_tail->prev = end;
+    parser.token_tail->prev->next = parser.token_tail;
+    ntokens = Parser_get_ntokens(&parser);
     check_tokens(cur, ntokens, result_tokens, __FILE__, __func__, __LINE__);
     Parser_dest(&parser);
 
@@ -190,6 +200,11 @@ int test_tokenizer_hexadecimal(void) {
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, N, &cur, &end);
+    parser.token_head->next = cur;
+    cur->prev = parser.token_head;
+    parser.token_tail->prev = end;
+    parser.token_tail->prev->next = parser.token_tail;
+    ntokens = Parser_get_ntokens(&parser);
     check_tokens(cur, ntokens, result_tokens, __FILE__, __func__, __LINE__);
     Parser_dest(&parser);
 
@@ -218,6 +233,12 @@ int test_tokenizer_test_parser_token(void) {
     
     Token * cur, * end;
     size_t ntokens = parser._class->tokenize(&parser, string, nstring, &cur, &end);
+    parser.token_head->next = cur;
+    cur->prev = parser.token_head;
+    parser.token_tail->prev = end;
+    parser.token_tail->prev->next = parser.token_tail;
+    // should check return of tokenize
+    ntokens = Parser_get_ntokens(&parser);
     check_tokens(cur, ntokens, result_tokens, __FILE__, __func__, __LINE__);
     Parser_dest(&parser);
 
@@ -357,7 +378,8 @@ int test_parser_doc(void) {
     
     size_t string_length = strlen(string);
     parser._class->parse(&parser, string, string_length);
-    nerrors += check_tokens(parser.token_head->next, Parser_get_ntokens(&parser), result_tokens, __FILE__, __func__, __LINE__);
+    size_t ntokens = Parser_get_ntokens(&parser);
+    nerrors += check_tokens(parser.token_head->next, ntokens, result_tokens, __FILE__, __func__, __LINE__);
     nerrors += check_ASTNodes(parser.ast, result_nodes, __FILE__, __func__, __LINE__);
     /* // for print debugging
     FILE * ast_out = fopen("test_parser_doc_ast.txt", "w");

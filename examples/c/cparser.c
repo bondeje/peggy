@@ -8,6 +8,7 @@
 
 #include "cparser.h"
 #include "c.h"
+#include "cstring.h"
 
 #define BUFFER_SIZE 4096
 #define BUFFER_SIZE_SCALE 2
@@ -16,43 +17,16 @@
 	#define DEFAULT_LOG_LEVEL LOG_LEVEL_WARN
 #endif
 
-typedef struct CString {
-    char const * str;
-    size_t len;
-} CString;
-
 // add builtin types here so that the parsers work. The first two below are needed to parse the stand library with gcc and clang
 CString BUILTIN_TYPES[] = {
     {.str = "__builtin_va_list", .len = 17},    // gcc and clang
     {.str = "_Float32", .len = 8},              // gcc
-    {.str = "_Float32x", .len = 9},              // gcc
+    {.str = "_Float32x", .len = 9},             // gcc
     {.str = "_Float64", .len = 8},              // gcc
-    {.str = "_Float64x", .len = 9},              // gcc
+    {.str = "_Float64x", .len = 9},             // gcc
     {.str = "_Float128", .len = 9},             // gcc
     {.str = NULL, .len = 0}                     // sentinel that must be last
 };
-
-int CString_comp(CString a, CString b) {
-    if (a.len < b.len) {
-        return 1;
-    } else if (a.len > b.len) {
-        return -1;
-    }
-    return strncmp(a.str, b.str, a.len);
-}
-
-size_t CString_hash(CString a, size_t bin_size) {
-    unsigned long long hash = 5381;
-    size_t i = 0;
-    unsigned char * str = (unsigned char *) a.str;
-
-    while (i < a.len) {
-        hash = ((hash << 5) + hash) + *str; /* hash * 33 + c */
-        str++;
-        i++;
-    }
-    return hash % bin_size;
-}
 
 #define KEY_TYPE CString
 #define VALUE_TYPE pASTNode
@@ -121,6 +95,15 @@ void CParser_dest(CParser * self) {
     while (self->scope) {
         self->scope = Scope_dest(self->scope);
     }
+}
+
+size_t CParser_tokenize(Parser * self_, char const * string, size_t string_length, 
+    Token ** start, Token ** end) {
+
+    CParser * self = (CParser *)self_;
+
+    // TODO: overload Parser_tokenize
+    return 0;
 }
 
 ASTNode * nc1_pass0(Production * rule, Parser * parser, ASTNode * node) {
@@ -229,29 +212,58 @@ ASTNode * c_check_typedef(Production * decl_specs, Parser * parser, ASTNode * no
     return Parser_fail_node(parser);
 }
 
-/* // this will be used when a preprocessor is added
-ASTNode * b_to_end_of_line(Production * rule, Parser * parser, ASTNode * node) {
-    /// *
-    node at this point represents a single token that is on a given line. consume the tokens until a new line is found.
-    Since tokens already track line coordinates, consume tokens until a new line is identified or token_tail is found
-    This is a very hacky way to do it that I don't otherwise recommend, but it is very difficult to track preprocessor
-    lines during lexing stage or diagnostic/pragma lines during parsing a preprocessed file without it
-    // * /
+// this is a hack to allow negative lookbehind in preprocessing
+ASTNode * c_pp_lparen(Production * prod, Parser * parser, ASTNode * node) {
     Token * tok = node->token_start;
-    unsigned int start_line = tok->coords.line;
-    size_t str_length = node->str_length;
-    tok = tok->next;
-    while (tok && tok != parser->token_tail && tok->coords.line == start_line) {
-        str_length += tok->length;
-        tok = tok->next;
+    static char const * whitespace = " \t\r\n\f\v";
+    // technically this could be UB if tok->string - 1 is not within the object, 
+    // but the use of lparen should guarantee that the production is never 
+    // checked/succeeds at the beginning of a string
+    if (strchr(whitespace, *(tok->string -1))) { // if preceded by a whitespace, fail
+        return Parser_fail_node(parser);
     }
-    node->str_length = str_length;
-    node->token_end = tok->prev;
-    Parser_seek(parser, tok);
-    node->rule = (Rule *)rule;
-    return node;
+    return build_action_default(prod, parser, node);
 }
-*/
+
+ASTNode * c_pp_line_expand(Production * prod, Parser * parser, ASTNode * node) {
+    // this is pre-tokenization, so pull the 
+    // most if not all of this should be delagated to CPP_directive
+    size_t length = node->str_length;
+    Token * line = node->token_start;
+
+    Token * start = NULL, * end = NULL;
+    // tokenize the pp_line, but this time, remove the final \n so that it does not register as a pp_line on 2nd pass but gets broken up into separate tokens
+    size_t ntokens = parser->_class->tokenize(parser, line->string, length - 1, &start, &end);
+    // error condition if 0 == ntokens
+
+    // insert tokenized directive into token list
+    start->prev = line->prev;
+    line->prev->next = start;
+    
+    line->prev = end;
+    line->prev->next = line;
+
+    // re-arrange node so that it points to a newline production
+    node->str_length--; // skip everything in the current node->token_start except for \n
+    Parser_skip_token(parser, node);
+    // build a NEWLINE_RE to allow for proper caching 
+    ASTNode * newline_ = Rule_check(crules[C_NEWLINE], parser);
+    Parser_add_token(parser, newline_);
+
+    // handle the pp directive
+
+    // terminate by triggering a recursive to generate a token
+    line = Parser_tell(parser);
+    if (line && line->length) {
+        return Rule_check(((DerivedRule *)parser->token_rule)->rule, parser);
+    }
+    node->str_length = 0;
+    return make_skip_node(node);
+}
+
+ASTNode * c_pp_identifier(Production * prod, Parser * parser, ASTNode * node) {
+    return build_action_default(prod, parser, node);
+}
 
 int main(int narg, char ** args) {
     char * string = NULL;

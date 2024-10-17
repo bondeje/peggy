@@ -15,7 +15,8 @@ int check_tokens(Token * cur, size_t ntokens, char const ** result_tokens, char 
         cur = cur->next;
         i++;
     }
-    nerrors += check(ntokens == i, "%s-%s-%zu: failed to find all the tokens in the target string: expected %zu, found %zu\n", file, func, line, i, ntokens);
+    // TODO: need to find the actual number of tokens
+    nerrors += check(ntokens == i, "%s-%s-%zu: failed to find all the tokens in the target string: expected: %zu, found: %zu\n", file, func, line, i, ntokens);
     return 0;
 }
 
