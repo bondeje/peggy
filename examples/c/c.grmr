@@ -728,10 +728,10 @@ endif_line:
 control_line:
 	  '#', 'include', pp_token+, newline
 	| '#', 'embed', pp_token+, newline
-	| '#', 'define', identifier, replacement_list, newline
 	| '#', 'define', identifier, clparen, ','.identifier?, ')', replacement_list, newline
 	| '#', 'define', identifier, clparen, '...', ')', replacement_list, newline
 	| '#', 'define', identifier, clparen, ','.identifier, '...', ')', replacement_list, newline
+	| '#', 'define', identifier, replacement_list, newline
 	| '#', 'undef', identifier, newline
 	| '#', 'line', pp_token+, newline
 	| '#', 'error', pp_token*, newline

@@ -31,5 +31,7 @@ void Token_insert_before(Token * tok, Token * sstart, Token * send);
 
 void Token_remove_tokens(Token * start, Token * end);
 
+void Token_append(Token * tail, Token * next);
+
 #endif // P4C_TOKEN_H
 

@@ -256,14 +256,10 @@ ASTNode * c_pp_line_expand(Production * prod, Parser * parser, ASTNode * node) {
 
     // parse and apply preprocessing directive
     Parser_seek(parser, start);
-    bool tokenizing_ref = parser->tokenizing;
-    parser->tokenizing = false; // turn of tokenizing as the directive needs to parse
     if (CPP_directive(parser, ((CParser *)parser)->cpp)) {
         fprintf(stderr, "c_pp_line_expand: pp directive expect but not found\n");
         exit(1);
     }
-    // reset tokenizing
-    parser->tokenizing = tokenizing_ref;
 
     // terminate by triggering a recursive to generate a token
     line = Parser_tell(parser);

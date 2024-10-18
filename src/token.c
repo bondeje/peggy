@@ -52,3 +52,8 @@ void Token_remove_tokens(Token * start, Token * end) {
         end->next->prev = start->prev;
     }    
 }
+
+void Token_append(Token * tail, Token * next) {
+    tail->next = next;
+    next->prev = tail;
+}
