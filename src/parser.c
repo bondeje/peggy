@@ -3,8 +3,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "peggy/parser.h"
-#include "peggy/packrat_cache.h"
+#include "peg4c/parser.h"
+#include "peg4c/packrat_cache.h"
 
 #define PARSER_NONE 0
 #ifndef PARSER_LOGGER_BUFFER_SIZE
@@ -112,7 +112,7 @@ err_type Parser_init(Parser * self, Rule * rules[], rule_id_type nrules,
     self->tokenizing = false;
     self->flags = flags;
 
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -262,7 +262,7 @@ err_type Parser_add_token(Parser * self, ASTNode * node) {
     Parser_generate_new_token(self, node->str_length, node->token_start);
     Parser_seek(self, node->token_end->next);
     //self->token_tail->id = self->token_tail->prev->id + 1;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -422,7 +422,7 @@ err_type Parser_skip_token(Parser * self, ASTNode * node) {
         // reset parse to token after skipped
         Parser_seek(self, skipped->next);
     }
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -531,7 +531,7 @@ int Parser_parse(Parser * self, char const * string, size_t string_length) {
  *      parameters above
  * @param[in] size This is used for the allocation size of the node. This 
  *      allows for the creation and memory management of custom nodes. To
- *      use the default ASTNode provided by peggy, this value may be 0 or
+ *      use the default ASTNode provided by peg4c, this value may be 0 or
  *      sizeof(ASTNode). For creating a custom node, the custom node MUST
  *      have an ASTNode instance as its firts member and pass the value
  *      sizeof(MyCustomASTNode). Any initializtion or overriding of variables
@@ -634,7 +634,7 @@ void Parser_cache_check(Parser * self, rule_id_type rule_id, Token * tok,
 err_type Parser_traverse(Parser * self, 
     void (*traverse_action)(void * ctxt, ASTNode * node), void * ctxt) {
 
-    return PEGGY_NOT_IMPLEMENTED;
+    return P4C_NOT_IMPLEMENTED;
 }
 typedef struct ASTNodeSize {
     ASTNode * node;
@@ -642,14 +642,14 @@ typedef struct ASTNodeSize {
 } ASTNodeSize;
 
 #define ELEMENT_TYPE ASTNodeSize
-#include <peggy/stack.h>
+#include "peg4c/stack.h"
 
 /**
  * @brief print the available Abstract Syntax Tree to stream
  */
 err_type Parser_print_ast(Parser * self, FILE * stream) {
     if (Parser_is_fail_node(self, self->ast)) {
-        return PEGGY_SUCCESS;
+        return P4C_SUCCESS;
     }
     if (!stream) {
         stream = stdout;
@@ -663,7 +663,7 @@ err_type Parser_print_ast(Parser * self, FILE * stream) {
     STACK_INIT(ASTNodeSize)(&st, 32);
 
     st._class->push(&st, (ASTNodeSize){.node = self->ast, .index = 0});
-    err_type status = PEGGY_SUCCESS;
+    err_type status = P4C_SUCCESS;
     while (st.fill) {  
         // pair is always the latest node put on the stack, unprocessed
         ASTNodeSize pair; 
@@ -708,8 +708,8 @@ print_ast_fail:
 
 /**
  * @brief get the status of a call to Parser_parse
- * @returns PEGGY_TOKENIZE_FAILURE, PEGGY_PARSER_FAILURE on corresponding errors
- *      or 0/PEGGY_SUCCESS on success
+ * @returns P4C_TOKENIZE_FAILURE, P4C_PARSER_FAILURE on corresponding errors
+ *      or 0/P4C_SUCCESS on success
  */
 err_type Parser_parse_status(Parser * parser) {
     return Parser_print_parse_status(parser, NULL);
@@ -726,7 +726,7 @@ err_type Parser_print_parse_status(Parser * parser, FILE * stream) {
     ASTNode * root = parser->ast;
     if (!root) {
         fprintf(stream, "parser not run\n");
-        return PEGGY_TOKENIZE_FAILURE;
+        return P4C_TOKENIZE_FAILURE;
     }
     // token at start of AST
     Token * start = root->token_start;
@@ -763,9 +763,9 @@ err_type Parser_print_parse_status(Parser * parser, FILE * stream) {
                 (int)final->length, final->string, final->coords.line, 
                 final->coords.col);
         }
-        return PEGGY_PARSE_FAILURE;
+        return P4C_PARSE_FAILURE;
     }
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**

@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <peggy/utils.h>
+#include "peg4c/utils.h"
 
 /**
  * @brief utility to get a string from the enum identifiers for RuleTypeID above

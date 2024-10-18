@@ -1,13 +1,13 @@
 #include <ctype.h>
 
-#include <peggystring.h>
+#include "peg4cstring.h"
 
 #define ELEMENT_TYPE char
-#include <peggy/stack.h>
+#include "peg4c/stack.h"
 
 typedef struct STACK(char) StringBuilder;
 
-const PeggyString NULL_STRING = {.str = NULL, .len = 0};
+const P4CString NULL_STRING = {.str = NULL, .len = 0};
 
 int StringBuilder_comp(StringBuilder a, StringBuilder b) {
     if (b.fill != a.fill) {
@@ -16,7 +16,7 @@ int StringBuilder_comp(StringBuilder a, StringBuilder b) {
     return strncmp(a.bins, b.bins, a.fill);
 }
 
-_Bool PeggyString_startswith(PeggyString a, PeggyString prefix) {
+_Bool P4CString_startswith(P4CString a, P4CString prefix) {
     if (a.len < prefix.len) {
         return false;
     }
@@ -30,7 +30,7 @@ _Bool PeggyString_startswith(PeggyString a, PeggyString prefix) {
     return true;
 }
 
-void PeggyString_fwrite(PeggyString a, FILE * output, unsigned int flags) {
+void P4CString_fwrite(P4CString a, FILE * output, unsigned int flags) {
     if (!flags) {
         fwrite(a.str, 1, a.len, output);
         return;
@@ -44,7 +44,7 @@ void PeggyString_fwrite(PeggyString a, FILE * output, unsigned int flags) {
         while (end > start && isspace((unsigned char)a.str[end-1])) {
             end--;
         }
-        PeggyString_fwrite((PeggyString) {.str = a.str + start, .len = end-start}, output, (flags & ~PSFO_STRIP));
+        P4CString_fwrite((P4CString) {.str = a.str + start, .len = end-start}, output, (flags & ~PSFO_STRIP));
         return;
     }
     if (end <= start) {
@@ -62,7 +62,7 @@ void PeggyString_fwrite(PeggyString a, FILE * output, unsigned int flags) {
     
 }
 
-int PeggyString_comp(PeggyString a, PeggyString b) {
+int P4CString_comp(P4CString a, P4CString b) {
     if (a.len != b.len) {
         return 1;
     }
@@ -70,7 +70,7 @@ int PeggyString_comp(PeggyString a, PeggyString b) {
     return res;
 }
 
-size_t PeggyString_hash(PeggyString a, size_t bin_size) {
+size_t P4CString_hash(P4CString a, size_t bin_size) {
     unsigned long long hash = 5381;
     size_t i = 0;
     unsigned char * str = (unsigned char *) a.str;

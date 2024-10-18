@@ -1,5 +1,5 @@
-#ifndef PEGGY_RULE_H
-#define PEGGY_RULE_H
+#ifndef P4C_RULE_H
+#define P4C_RULE_H
 
 #ifdef __linux__
 #define _GNU_SOURCE
@@ -22,11 +22,11 @@
 #else
 #endif
 
-/* peggy includes */
-#include <peggy/utils.h>
-#include <peggy/parser_gen.h>
-#include <peggy/astnode.h>
-#include <peggy/token.h>
+/* peg4c includes */
+#include "peg4c/utils.h"
+#include "peg4c/parser_gen.h"
+#include "peg4c/astnode.h"
+#include "peg4c/token.h"
 
 /* Rule definitions and declarations */
 
@@ -844,4 +844,4 @@ void Production_as_Rule_del(Rule * production);
  */
 ASTNode * Production_check_rule_(Rule * production, Parser * parser);
 
-#endif // PEGGY_RULE_H
+#endif // P4C_RULE_H

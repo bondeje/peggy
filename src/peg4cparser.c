@@ -8,44 +8,44 @@
 #include <ctype.h>
 
 /* lib includes */
-#include "peggy/mempool.h"
+#include "peg4c/mempool.h"
 
-/* peggy includes */
-#include "peggy/token.h"
-#include "peggy/rule.h"
-#include "peggy/stack.h"
+/* peg4c includes */
+#include "peg4c/token.h"
+#include "peg4c/rule.h"
+#include "peg4c/stack.h"
 
 /* local includes */
-#include "peggybuild.h"
-#include "peggyparser.h"
-#include "peggy.h"
-#include "peggytransform.h"
+#include "peg4cbuild.h"
+#include "peg4cparser.h"
+#include "peg4c.h"
+#include "peg4ctransform.h"
 
 #define REGEX_SYMBOLS 128
 
 
-struct PeggyParserType PeggyParser_class = {
+struct P4CParserType P4CParser_class = {
     .Parser_class = {
         .parse = &Parser_parse,
         .tokenize = &Parser_tokenize
     }
 };
 
-struct PeggyParser peggy = {
-    .Parser = {._class = &(PeggyParser_class.Parser_class),
+struct P4CParser peg4c = {
+    .Parser = {._class = &(P4CParser_class.Parser_class),
         .token_rule = NULL,
         .root_rule = NULL,
         .tokenizing = false,
         .ast = NULL
     },
-    ._class = &PeggyParser_class,
+    ._class = &P4CParser_class,
     .header_file = NULL,
     .source_file = NULL,
     .header_name = NULL,
     .source_name = NULL,
 };
 
-PeggyString get_string_from_parser(PeggyParser * parser, ASTNode * node) {
+P4CString get_string_from_parser(P4CParser * parser, ASTNode * node) {
     Token * cur = node->token_start;
     Token * end = node->token_end;
     size_t length = 1 + cur->length;
@@ -54,10 +54,10 @@ PeggyString get_string_from_parser(PeggyParser * parser, ASTNode * node) {
         length += cur->length;
     }
     if (!length) { // don't malloc if no length
-        return (PeggyString) {0};
+        return (P4CString) {0};
     }
     char * str = MemPoolManager_malloc(parser->str_mgr, length);
-    PeggyString out = {.str = str, .len = length - 1};
+    P4CString out = {.str = str, .len = length - 1};
     length = 0;
     cur = node->token_start;
     length += snprintf(str + length, out.len + 1 - length, "%.*s", (int)cur->length, cur->string);
@@ -148,30 +148,30 @@ char * punctuator_lookup(char * punctuation, size_t len) {
     return NULL;
 }
 
-err_type PeggyParser_init(PeggyParser * parser, char const * name, size_t name_length) {
-    err_type err_status = Parser_init((Parser *)parser, peggyrules, PEGGY_NRULES, PEGGY_TOKEN, PEGGY_PEGGY, 0);
+err_type P4CParser_init(P4CParser * parser, char const * name, size_t name_length) {
+    err_type err_status = Parser_init((Parser *)parser, peg4crules, PEG4C_NRULES, PEG4C_TOKEN, PEG4C_PEG4C, 0);
     if (err_status) {
         return err_status;
     }
-    parser->str_mgr = MemPoolManager_new(PEGGYSTRING_MEMPOOL_COUNT, PEGGYSTRING_BUFFER_SIZE, 1);
+    parser->str_mgr = MemPoolManager_new(P4CSTRING_MEMPOOL_COUNT, P4CSTRING_BUFFER_SIZE, 1);
     hash_map_err status = HM_SUCCESS;
-    if ((STACK_INIT(PeggyString)(&parser->imports, 0))) {
+    if ((STACK_INIT(P4CString)(&parser->imports, 0))) {
         status = HM_MALLOC_PAIR_FAILURE;
         goto parser_import_stack_fail;
     }
-    if ((status = HASH_MAP_INIT(PeggyString, PeggyProduction)(&parser->productions, 0))) {
+    if ((status = HASH_MAP_INIT(P4CString, P4CProduction)(&parser->productions, 0))) {
         goto parser_productions_map_fail;
     }
     parser->export.str = (char *)name;
     parser->export.len = name_length;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 parser_productions_map_fail:
     parser->imports._class->dest(&parser->imports);
 parser_import_stack_fail:
-	return PEGGY_INIT_FAILURE;
+	return P4C_INIT_FAILURE;
 }
 
-void PeggyParser_dest(PeggyParser * parser) {
+void P4CParser_dest(P4CParser * parser) {
     if (parser->header_file) {
         fclose(parser->header_file);
         parser->header_file = NULL;
@@ -185,7 +185,7 @@ void PeggyParser_dest(PeggyParser * parser) {
         parser->header_name = NULL;
     }
     
-    parser->productions._class->for_each(&parser->productions, &PeggyProduction_cleanup, NULL);
+    parser->productions._class->for_each(&parser->productions, &P4CProduction_cleanup, NULL);
 	parser->productions._class->dest(&(parser->productions));
     parser->imports._class->dest(&parser->imports);
     //parser->symbol_map._class->dest(&parser->symbol_map);
@@ -194,14 +194,14 @@ void PeggyParser_dest(PeggyParser * parser) {
 }
 
 err_type from_string(char const * string, size_t string_length, char const * name, size_t name_length) {
-    err_type status = PeggyParser_init(&peggy, name, name_length);
+    err_type status = P4CParser_init(&peg4c, name, name_length);
     if (status) {
         return status;
     }
-    Parser * parser = (Parser *)&peggy;
+    Parser * parser = (Parser *)&peg4c;
     Parser_parse(parser, string, string_length);
     if (Parser_is_fail_node(parser, parser->ast)) {
-        status = PEGGY_FAILURE;
+        status = P4C_FAILURE;
     }
     return status;
 }
@@ -214,12 +214,12 @@ err_type from_file(char const * filename) {
 
     char * string = malloc(file_size + 1);
     if (!string) {
-        return PEGGY_MALLOC_FAILURE;
+        return P4C_MALLOC_FAILURE;
     }
     size_t nbytes = fread(string, 1, file_size, pfile);
     if (ferror(pfile)) {
         free(string);
-        return PEGGY_FILE_IO_ERROR;
+        return P4C_FILE_IO_ERROR;
     }
     string[file_size] = '\0';
 
@@ -244,7 +244,7 @@ err_type from_file(char const * filename) {
     }
 
     free(string);
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 
@@ -259,8 +259,8 @@ int main(int narg, char ** args) {
     }
     from_file(input_file);
 
-    PeggyParser_dest(&peggy);
-    peggy_dest();
+    P4CParser_dest(&peg4c);
+    peg4c_dest();
     
     return 0;
 }

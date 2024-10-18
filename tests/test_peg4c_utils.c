@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #include "test_utils.h"
-#include "test_peggy_utils.h"
+#include "test_peg4c_utils.h"
 
 int check_tokens(Token * cur, size_t ntokens, char const ** result_tokens, char const * file, char const * func, size_t line) {
     int nerrors = 0;

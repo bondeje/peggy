@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 #include "token_.h"
-#include "peggy/parser.h"
+#include "peg4c/parser.h"
 
 typedef struct CPreProcessor CPP;
 

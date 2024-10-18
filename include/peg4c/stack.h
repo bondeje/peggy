@@ -46,7 +46,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <peggy/utils.h>
+#include "peg4c/utils.h"
 
 #define STACK_INIT(k) CAT(k, Stack_init)
 
@@ -157,7 +157,7 @@ static err_type CAT(STACK_TYPE, _pop)(STACK_TYPE * stack, ELEMENT_TYPE * value) 
         return status;
     }
     stack->fill--;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -169,12 +169,12 @@ static err_type CAT(STACK_TYPE, _pop)(STACK_TYPE * stack, ELEMENT_TYPE * value) 
  */
 static err_type CAT(STACK_TYPE, _peek)(STACK_TYPE * stack, ELEMENT_TYPE * value) {
     if (!stack->fill) {
-        return PEGGY_EMPTY_STACK;
+        return P4C_EMPTY_STACK;
     }
     if (value) {
         memcpy((void *)value, (void *)(stack->bins + stack->fill - 1), sizeof(ELEMENT_TYPE));
     }
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -185,7 +185,7 @@ static err_type CAT(STACK_TYPE, _peek)(STACK_TYPE * stack, ELEMENT_TYPE * value)
  * @returns a non-zero value if element cannot be added else 0
  */
 static err_type CAT(STACK_TYPE, _push)(STACK_TYPE * stack, ELEMENT_TYPE value) {
-    err_type status = PEGGY_SUCCESS;
+    err_type status = P4C_SUCCESS;
     if (stack->fill == stack->capacity) {
         if ((status = CAT(STACK_TYPE, _resize)(stack, stack->capacity * STACK_DEFAULT_SCALE))) {
             return status;
@@ -205,9 +205,9 @@ static err_type CAT(STACK_TYPE, _push)(STACK_TYPE * stack, ELEMENT_TYPE value) {
 static err_type CAT(STACK_TYPE, _get)(STACK_TYPE const * stack, size_t key, ELEMENT_TYPE * value) {
     if (key < stack->fill) {
         memcpy((void *)value, (void *)(stack->bins + key), sizeof(ELEMENT_TYPE));
-        return PEGGY_SUCCESS;
+        return P4C_SUCCESS;
     }
-    return PEGGY_INDEX_OUT_OF_BOUNDS;
+    return P4C_INDEX_OUT_OF_BOUNDS;
 }
 
 /**
@@ -244,9 +244,9 @@ static size_t CAT(STACK_TYPE, _len)(STACK_TYPE * stack) {
 static err_type CAT(STACK_TYPE, _set)(STACK_TYPE * stack, size_t key, ELEMENT_TYPE value) {
     if (key < stack->fill) {
         memcpy((void *)(stack->bins + key), (void *)&value, sizeof(ELEMENT_TYPE));
-        return PEGGY_SUCCESS;
+        return P4C_SUCCESS;
     }
-    return PEGGY_INDEX_OUT_OF_BOUNDS;
+    return P4C_INDEX_OUT_OF_BOUNDS;
 }
 
 /**
@@ -290,11 +290,11 @@ static void CAT(STACK_TYPE, _for_each)(STACK_TYPE * stack, int (*handle_item)(vo
 static err_type CAT(STACK_TYPE, _resize)(STACK_TYPE * stack, size_t new_capacity) {
     ELEMENT_TYPE * new_bins = realloc(stack->bins, new_capacity *sizeof(*stack->bins));
     if (!new_bins) {
-        return PEGGY_MALLOC_FAILURE;
+        return P4C_MALLOC_FAILURE;
     }
     stack->bins = new_bins;
     stack->capacity = new_capacity;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**

@@ -24,6 +24,7 @@ examples/shh
 test_results/
 ast/
 *.do
+*.grmrc
 
 # to remove
 Makefile_old

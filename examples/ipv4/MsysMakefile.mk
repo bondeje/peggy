@@ -7,7 +7,7 @@ BIN_DIR = ../../bin
 GRAMMAR = $(EXAMPLE_NAME).grmr
 CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter -std=gnu99 -O2 -g -fPIC
 IFLAGS = -I../../include -I../../lib/TypeMemPools/include
-LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
+LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeg4c
 
 EXE_SRCS = ipv4parser.c ipv4.c
 
@@ -16,7 +16,7 @@ all: $(BIN_DIR)/ipv4.exe
 .MAIN: all
 
 $(BIN_DIR)/ipv4.exe: $(GRAMMAR)
-	$(BIN_DIR)/peggy.exe $(GRAMMAR)
+	$(BIN_DIR)/peg4c.exe $(GRAMMAR)
 	if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="-DNDEBUG"; fi ; \
 	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 

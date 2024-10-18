@@ -22,15 +22,15 @@
 #ifndef PCRE2_CODE_UNIT_WIDTH
 #define PCRE2_CODE_UNIT_WIDTH 8
 #endif
-#include <pcre2.h>
+#include "pcre2.h"
 #endif
 
-/* peggy includes */
-#include <peggy/utils.h>
-#include <peggy/rule.h>
-#include <peggy/parser.h>
-#include <peggy/token.h>
-#include <peggy/hash_map.h>
+/* peg4c includes */
+#include "peg4c/utils.h"
+#include "peg4c/rule.h"
+#include "peg4c/parser.h"
+#include "peg4c/token.h"
+#include "peg4c/hash_map.h"
 
 #define DEFAULT_RE_SYNTAX RE_SYNTAX_POSIX_EXTENDED | RE_BACKSLASH_ESCAPE_IN_LISTS | RE_DOT_NEWLINE
 
@@ -74,7 +74,7 @@ err_type Rule_init(Rule * self, rule_id_type id, char const * name) {
     self->_class = &Rule_class;
     self->id = id;
     self->name = name;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -207,7 +207,7 @@ err_type ChainRule_init(ChainRule * self, rule_id_type id, char const * name,
     self->_class = &ChainRule_class;
     self->deps_size = deps_size;
     self->deps = deps;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -295,7 +295,7 @@ err_type SequenceRule_init(SequenceRule * self, rule_id_type id,
     ChainRule_init((ChainRule *)self, id, name, deps_size, deps);
     ((Rule *)self)->_class = (RuleType *)&SequenceRule_class;
     self->_class = &SequenceRule_class;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -419,7 +419,7 @@ err_type ChoiceRule_init(ChoiceRule * self, rule_id_type id, char const * name,
     ChainRule_init((ChainRule *)self, id, name, deps_size, deps);
     ((Rule *)self)->_class = (RuleType *)&ChoiceRule_class;
     self->_class = &ChoiceRule_class;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -524,7 +524,7 @@ err_type LiteralRule_compile_regex(LiteralRule * self) {
     char const * err_message = re_compile_pattern(self->regex_s, 
         strlen(self->regex_s), &self->regex);
     if (err_message) {
-        return PEGGY_REGEX_FAILURE;
+        return P4C_REGEX_FAILURE;
     }
 #else 
     self->regex = pcre2_compile(self->regex_s, 
@@ -535,13 +535,13 @@ err_type LiteralRule_compile_regex(LiteralRule * self) {
         &pcre2_err_offset,  /* for error offset */
         NULL);              /* use default compile context */
     if (!self->regex) {
-        return PEGGY_REGEX_FAILURE;
+        return P4C_REGEX_FAILURE;
     }
     // only include the first match
     self->match = pcre2_match_data_create(1, NULL); 
 #endif    
     self->compiled = true;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -568,7 +568,7 @@ err_type LiteralRule_init(LiteralRule * self, rule_id_type id,
     if (regex_s) {
         LiteralRule_compile_regex(self);
     }
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -617,7 +617,7 @@ ASTNode * LiteralRule_check_rule_(Rule * literal_rule, Parser * parser) {
     }
     LiteralRule * self = (LiteralRule *)literal_rule;
     
-    err_type status = PEGGY_SUCCESS;
+    err_type status = P4C_SUCCESS;
 
     // compile the LiteralRule if it is not yet
     if (!self->compiled) {
@@ -716,7 +716,7 @@ err_type DerivedRule_init(DerivedRule * self, rule_id_type id, char const * name
     ((Rule *)self)->_class = (RuleType *)&ListRule_class;
     self->_class = &DerivedRule_class;
     self->rule = rule;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -806,7 +806,7 @@ err_type ListRule_init(ListRule * self, rule_id_type id, char const * name,
     ((DerivedRule *)self)->_class = (DerivedRuleType *)&ListRule_class;
     self->_class = &ListRule_class;
     self->delim = delim;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -961,7 +961,7 @@ err_type RepeatRule_init(RepeatRule * self, rule_id_type id, char const * name,
     self->_class = &RepeatRule_class;
     self->min_rep = min_rep;
     self->max_rep = max_rep;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -1105,7 +1105,7 @@ err_type NegativeLookahead_init(NegativeLookahead * self, rule_id_type id,
     ((Rule *)self)->_class = (RuleType *)&NegativeLookahead_class;
     ((DerivedRule *)self)->_class = (DerivedRuleType *)&NegativeLookahead_class;
     self->_class = &NegativeLookahead_class;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -1228,7 +1228,7 @@ err_type PositiveLookahead_init(PositiveLookahead * self, rule_id_type id,
     ((Rule *)self)->_class = (RuleType *)&PositiveLookahead_class;
     ((DerivedRule *)self)->_class = (DerivedRuleType *)&PositiveLookahead_class;
     self->_class = &PositiveLookahead_class;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -1377,7 +1377,7 @@ err_type Production_init(Production * self, rule_id_type id, char const * name, 
     ((DerivedRule *)self)->_class = (DerivedRuleType *)&Production_class;
     self->_class = &Production_class;
     self->build_action = build_action;
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**

@@ -8,11 +8,11 @@
 #include <time.h>
 #include <sys/types.h>
 
-/* peggy includes */
-#include "peggy/hash_map.h"
-#include "peggy/parser.h" // should remove this
-#include "peggy/astnode.h"
-#include "peggy/token.h"
+/* peg4c includes */
+#include "peg4c/hash_map.h"
+#include "peg4c/parser.h" // should remove this
+#include "peg4c/astnode.h"
+#include "peg4c/token.h"
 
 /* local includes */
 #include "jsonparser.h"

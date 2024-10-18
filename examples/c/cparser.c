@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "peggy/astnode.h"
-#include "peggy/parser.h"
-#include "peggy/rule.h"
+#include "peg4c/astnode.h"
+#include "peg4c/parser.h"
+#include "peg4c/rule.h"
 
 #include "cparser.h"
 #include "c.h"
@@ -33,7 +33,7 @@ CString BUILTIN_TYPES[] = {
 #define VALUE_TYPE pASTNode
 #define KEY_COMP CString_comp
 #define HASH_FUNC CString_hash
-#include <peggy/hash_map.h>
+#include "peg4c/hash_map.h"
 
 /* Scope definitions and handlers */
 typedef struct Scope Scope;

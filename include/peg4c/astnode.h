@@ -1,10 +1,10 @@
-#ifndef PEGGY_ASTNODE_H
-#define PEGGY_ASTNODE_H
+#ifndef P4C_ASTNODE_H
+#define P4C_ASTNODE_H
 
 #include <stddef.h>
 
-#include <peggy/utils.h>
-#include <peggy/token.h>
+#include "peg4c/utils.h"
+#include "peg4c/token.h"
 
 // default initializer for ASTNode to ensure the vtable is available
 #define ASTNode_DEFAULT_INIT { \
@@ -66,5 +66,5 @@ _Bool is_skip_node(ASTNode * node);
  */
 size_t ASTNode_string_length(ASTNode * node);
 
-#endif // PEGGY_ASTNODE_H
+#endif // P4C_ASTNODE_H
 

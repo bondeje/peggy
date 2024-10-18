@@ -1,4 +1,4 @@
-#include <peggy/rule.h>
+#include "peg4c/rule.h"
 
 // maybe can eliminate this if pcre2 accepts the PCRE2_ANCHORED option as I expect
 #define REGEX_LEFT 

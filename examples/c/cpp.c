@@ -22,7 +22,7 @@ BUILD_ALIGNMENT_STRUCT(Macro)
 #define VALUE_TYPE pMacro
 #define KEY_COMP Token_scomp
 #define HASH_FUNC Token_shash
-#include <peggy/hash_map.h>
+#include "peg4c/hash_map.h"
 
 struct CPreProcessor {
     HASH_MAP(pToken, pMacro) defines;

@@ -1,11 +1,11 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#include <peggy/utils.h>
-#include <peggy/stack.h>
-#include <peggy/astnode.h>
-#include <peggy/packrat_cache.h>
-#include <peggy/parser.h>
+#include "peg4c/utils.h"
+#include "peg4c/stack.h"
+#include "peg4c/astnode.h"
+#include "peg4c/packrat_cache.h"
+#include "peg4c/parser.h"
 
 #ifdef PACKRAT_HASH
 #define PACKRAT_CACHE_INIT_CAP 127
@@ -31,7 +31,7 @@ err_type PackratCache_init(PackratCache * cache, size_t nrules, size_t init_cap)
 #ifdef PACKRAT_HASH
     cache->map = malloc(sizeof(*cache->map) * nrules);
     if (!cache->map) {
-        return PEGGY_MALLOC_FAILURE;
+        return P4C_MALLOC_FAILURE;
     }
     hash_map_err status = HM_SUCCESS;
     size_t i = 0;
@@ -45,26 +45,26 @@ err_type PackratCache_init(PackratCache * cache, size_t nrules, size_t init_cap)
             cache->map[i]._class->dest(cache->map + i);
         }
         free(cache->map);
-        return PEGGY_FAILURE;
+        return P4C_FAILURE;
     }
     if (status) {
-        return PEGGY_FAILURE;
+        return P4C_FAILURE;
     }
 #else
-    err_type status = PEGGY_SUCCESS;
+    err_type status = P4C_SUCCESS;
     cache->map = calloc(nrules, sizeof(*cache->map));
     if (!cache->map) {
-        return PEGGY_MALLOC_FAILURE;
+        return P4C_MALLOC_FAILURE;
     }
     cache->caps = calloc(nrules, sizeof(*cache->caps));
     if (!cache->caps) {
         free(cache->map);
-        return PEGGY_MALLOC_FAILURE;
+        return P4C_MALLOC_FAILURE;
     }
     size_t i = 0;
     for (; i < nrules; i++) {
         if (!(cache->map[i] = calloc(init_cap, sizeof(*cache->map[i])))) {
-            status = PEGGY_MALLOC_FAILURE;
+            status = P4C_MALLOC_FAILURE;
             break;
         }
         cache->caps[i] = init_cap;
@@ -78,7 +78,7 @@ err_type PackratCache_init(PackratCache * cache, size_t nrules, size_t init_cap)
     }
 #endif
     
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
 /**
@@ -138,17 +138,17 @@ err_type PackratCache_set(PackratCache * cache, Parser * parser, rule_id_type ru
 #ifdef PACKRAT_HASH
     HASH_MAP(size_t, pASTNode) * map = cache->map + rule_id;
     if (map->_class->set(map, tok->id, node)) {
-        return PEGGY_FAILURE;
+        return P4C_FAILURE;
     }
 #else
     if ((size_t)rule_id >= cache->nrules) {
-        return PEGGY_FAILURE;
+        return P4C_FAILURE;
     }
     if (tok->id >= cache->caps[rule_id]) {
         size_t new_cap = 2 * (tok->id > 2 * cache->caps[rule_id] ? tok->id : cache->caps[rule_id]);
         ASTNode ** new_row = calloc(new_cap, sizeof(*new_row));
         if (!new_row) {
-            return PEGGY_MALLOC_FAILURE;
+            return P4C_MALLOC_FAILURE;
         }
         memcpy(new_row, cache->map[rule_id], cache->caps[rule_id] * sizeof(*new_row));
         free(cache->map[rule_id]);
@@ -160,6 +160,6 @@ err_type PackratCache_set(PackratCache * cache, Parser * parser, rule_id_type ru
     }
     
 #endif
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 

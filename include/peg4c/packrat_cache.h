@@ -4,7 +4,7 @@
  * The keys into the cache are the integer for the rule being executed and the 
  * pointer to the token at which it began its evaluation. Within a single 
  * "Parser_parse" call, both of these values should be unique. Compiled 
- * grammars from peggy guarantee that the rule values are unique per grammar
+ * grammars from peg4c guarantee that the rule values are unique per grammar
  * and any single Parse will ensure that the token metadata is unique enough.
  * This cache is one of the reasons Parser structs are definitely not thread-
  * safe.
@@ -25,8 +25,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <peggy/token.h>
-#include <peggy/astnode.h>
+#include "peg4c/token.h"
+#include "peg4c/astnode.h"
 
 /**
  * compile with PACKRAT_HASH defined to switch the underlying representation to
@@ -38,7 +38,7 @@
 #define KEY_COMP size_t_comp
 #define HASH_FUNC size_t_hash
 #define VALUE_TYPE pASTNode
-#include <peggy/hash_map.h>
+#include "peg4c/hash_map.h"
 #endif
 
 typedef struct PackratCache PackratCache;

@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 #include "common.h"
-#include "peggy/token.h"
+#include "peg4c/token.h"
 
 BUILD_ALIGNMENT_STRUCT(Token)
 

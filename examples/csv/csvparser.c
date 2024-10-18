@@ -113,7 +113,7 @@ struct CSVData empty_csv = {0};
 bool timeit = false;
 
 CSVData from_string(char * string, size_t string_length) {
-    err_type status = PEGGY_SUCCESS;
+    err_type status = P4C_SUCCESS;
     if (!timeit) {
         if ((status = CSVParser_init(&csv, string, string_length))) {
             return empty_csv;

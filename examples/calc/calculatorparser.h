@@ -3,7 +3,7 @@
 
 #include <complex.h>
 
-#include "peggy/parser.h"
+#include "peg4c/parser.h"
 
 //#include "calculator.h"
 

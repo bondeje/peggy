@@ -1,11 +1,11 @@
 #include <string.h>
 
-#include <peggy/rule.h>
-#include <peggy/parser.h>
-#include <peggy/parser_gen.h>
+#include "peg4c/rule.h"
+#include "peg4c/parser.h"
+#include "peg4c/parser_gen.h"
 
 #include "test_utils.h"
-#include "test_peggy_utils.h"
+#include "test_peg4c_utils.h"
 #include "test_rules.h"
 
 enum rules {

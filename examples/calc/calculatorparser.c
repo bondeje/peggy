@@ -3,9 +3,9 @@
 #include <math.h>
 #include <string.h>
 
-#include "peggy/rule.h"
-#include "peggy/astnode.h"
-#include "peggy/parser.h"
+#include "peg4c/rule.h"
+#include "peg4c/astnode.h"
+#include "peg4c/parser.h"
 
 #include "calculatorparser.h"
 #include "calctr.h"

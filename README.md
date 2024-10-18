@@ -1,10 +1,10 @@
 <!-- need to warn users that build actions on productions used in the tokenizer should not access token->length. It will be invalid. instead use node->str_length or I should just make a parser API to get the string and deal with it in the parser -->
 
-# <b>peggy</b>
+# <b>peg4c</b>
 
 A packrat PEG parser generator that aids in rapid development of customizable parsers given a grammar with a format similar to EBNF. 
 
-<b>peggy</b> is designed to be as simple as possible to use--once the grammar specification is understood--while being as flexible as possible to allow the user compile-time and run-time customization and navigation.
+<b>peg4c</b> is designed to be as simple as possible to use--once the grammar specification is understood--while being as flexible as possible to allow the user compile-time and run-time customization and navigation.
 
 Since it is packrat, parsers generated have run-time complexity O(n) where n is the number of tokens in the file to be parsed. The memory consumption is also O(n), but with an extremely large constant that is several times the number of all *rules* used in the grammar, not just productions. This could easily be 10^2 - 10^3. 
 
@@ -24,7 +24,7 @@ Provided Makefiles require a POSIX-like build environment but binaries are cross
 - make
     - all makefiles are targeting the POSIX make specification so there is no dependence on GNU make extensions. The makefiles themselves try to account for some minor make differences on the target OSes. 
 
-Goal is that for all target OSes, build is the usual `make` with optional `make install` (which simply copies shared libraries to `/usr/local/lib`) if there are linking issues. Without installation, all Makefiles build binaries to be run from the `/path/to/peggy` directory.
+Goal is that for all target OSes, build is the usual `make` with optional `make install` (which simply copies shared libraries to `/usr/local/lib`) if there are linking issues. Without installation, all Makefiles build binaries to be run from the `/path/to/peg4c` directory.
 
 ### External dependencies
 
@@ -41,10 +41,10 @@ All other OSes: [pcre2](https://www.pcre.org/), specifically the build for 8-bit
 - libpcre2-8.so.* must be put or linked into /usr/lib for ld or additionally -rpath-link must be specified at compile time to the proper directory.
 
 <b>MacOS</b>
-- I make no attempt to make `.dylib` files nor a proper installation, which MacOS treats very fragilely with .so files apparently. Linking might be an issue and you are restricted as to whence the executables are run. I have found I can only run from `/path/to/peggy` and not `/path/to/peggy/bin`. This makes running the examples very difficult only the Makefiles for the root build and tests currently work as expected
+- I make no attempt to make `.dylib` files nor a proper installation, which MacOS treats very fragilely with .so files apparently. Linking might be an issue and you are restricted as to whence the executables are run. I have found I can only run from `/path/to/peg4c` and not `/path/to/peg4c/bin`. This makes running the examples very difficult only the Makefiles for the root build and tests currently work as expected
 
 <b>OpenBSD</b>
-- before attempting to run `make` from the top-level directory, add the to-be-created `/path/to/peggy/bin` directory to `LD_LIBRARY_PATH` or add that path to the linker search path.
+- before attempting to run `make` from the top-level directory, add the to-be-created `/path/to/peg4c/bin` directory to `LD_LIBRARY_PATH` or add that path to the linker search path.
 
 </details>
 
@@ -53,28 +53,28 @@ All other OSes: [pcre2](https://www.pcre.org/), specifically the build for 8-bit
 - Left recursion is not yet implemented!
 - Better decoupling of the grammar parser from the executable so that parsers can be built from grammars at runtime
 - Right now `ASTNode`s are heavily wasted by the `PackratCache` objects, making the usefulness of parsing data files quite limited, e.g. my 16 GB RAM computer OOMs trying to parser a 32 MB `csv` file. It is possible to recover the "lost" `ASTNode`s that go unused during the parse stage reducing both allocation time and memory consumption.
-- Roll my own regex using peggy to perhaps replace the GNU regex & PCRE2
+- Roll my own regex using peg4c to perhaps replace the GNU regex & PCRE2
 - Automatic AST traversal functions so that the user doesn't necessarily have to know the specific AST architecture during traversal
 
 </details>
 
-## Who should use <b>peggy</b>
+## Who should use <b>peg4c</b>
 
 If you have a (complicated) grammar for a DSL, config file, log file, or many other types of structured text files for which you want to quickly generate a compiled parser. See especially though <b>When NOT to use</b>
 
 ## When to use
 
-If your grammar has a lot of recursive structure. Ambiguous and even some non-context free structures welcome. <b>peggy</b> has ways to extend the built-in parser and node structure to allow context to be captured in order to change the parser on the fly or ensure the unambiguous parser result is as intended.
+If your grammar has a lot of recursive structure. Ambiguous and even some non-context free structures welcome. <b>peg4c</b> has ways to extend the built-in parser and node structure to allow context to be captured in order to change the parser on the fly or ensure the unambiguous parser result is as intended.
 
 ### When NOT to use
 
-PEG parsers, especially implemented with packrat parsers, are very memory hungry algorithms. Additionally, I have not done much to optimize for speed other than setting the `-O2` compilation flag in my makefiles. As such, parsing of very regularly* structured or large data files are NOT recommended. There are significantly better (read: simpler, faster, and memory efficient) parsers optimized for your data needs. I include examples for csv and JSON because their grammars are simple to understand and implement as exercises, but they are not necessarily targets of <b>peggy</b>. JSON use as configuration is OK, but not data heavy. For these cases, I would just recommend a good regex library like pcre2.
+PEG parsers, especially implemented with packrat parsers, are very memory hungry algorithms. Additionally, I have not done much to optimize for speed other than setting the `-O2` compilation flag in my makefiles. As such, parsing of very regularly* structured or large data files are NOT recommended. There are significantly better (read: simpler, faster, and memory efficient) parsers optimized for your data needs. I include examples for csv and JSON because their grammars are simple to understand and implement as exercises, but they are not necessarily targets of <b>peg4c</b>. JSON use as configuration is OK, but not data heavy. For these cases, I would just recommend a good regex library like pcre2.
 
 *by regularly, I mean (1) iterative structures of very simple data types like tabular data, e.g. csv, or (2) the data has very well-defined and unambiguous structure in its type system, e.g. JSON when used for large dataset serialization.
 
 ## How to build
 ```
-peggy (in other parts of the documentation, this is /path/to/peggy)
+peg4c (in other parts of the documentation, this is /path/to/peg4c)
     |--examples             // each example has its own Makefiles for building
     |----c                  // C parser example
     |------sample_files
@@ -84,10 +84,10 @@ peggy (in other parts of the documentation, this is /path/to/peggy)
     |----ipv4               // ipv4 simple grammar
     |----json               // json deserializer
     |------sample_files
-    |----peggy              // peggy reference grammar
+    |----peg4c              // peg4c reference grammar
     |--images               // for README.md
     |--include              // all header files
-    |----peggy              // include files for shared library
+    |----peg4c              // include files for shared library
     |--lib                  // submodules I shared with other repos
     |--src                  // all source files
     |--tests                // test directory
@@ -98,8 +98,8 @@ peggy (in other parts of the documentation, this is /path/to/peggy)
 
 <b>*nix</b>
 ```
-git clone --recurse-submodules https://github.com/bondeje/peggy.git
-cd peggy
+git clone --recurse-submodules https://github.com/bondeje/peg4c.git
+cd peg4c
 make
 # to optionally build with address and undefined sanitizers
 make SANITIZE="any non-empty value"
@@ -107,8 +107,8 @@ make SANITIZE="any non-empty value"
 
 <b> Windows (via Msys)</b>
 ```
-git clone --recurse-submodules https://github.com/bondeje/peggy.git
-cd peggy
+git clone --recurse-submodules https://github.com/bondeje/peg4c.git
+cd peg4c
 make -f MsysMakefile.mk
 ```
 
@@ -126,10 +126,10 @@ All `LOG_EVENTS` in the code that are lower on this list will be ommitted (in co
 
 ## Examples
 
-I have included a couple toy parsers generated with <b>peggy</b> in `examples/`. These are not intended to be stand alone project as they are not in the best of condition and of limited practical use--the possible exception being the C parser. They are meant to show different ways to use <b>peggy</b>. If you have any interesting use cases or ideas, let me know.
+I have included a couple toy parsers generated with <b>peg4c</b> in `examples/`. These are not intended to be stand alone project as they are not in the best of condition and of limited practical use--the possible exception being the C parser. They are meant to show different ways to use <b>peg4c</b>. If you have any interesting use cases or ideas, let me know.
 
 ### ipv4
-This validates a string in dotted decimal notation as ipv4. This is only included because it is the simplest possible grammar I could think of to show how to build a parser with <b>peggy</b>. It is of no other use.
+This validates a string in dotted decimal notation as ipv4. This is only included because it is the simplest possible grammar I could think of to show how to build a parser with <b>peg4c</b>. It is of no other use.
 
 ### csv 
 A simple csv parser. Generates a `CSVData` struct from an input file. Data is not converted to any data types but kept as strings. This example is more to demonstrate the linearity of the parser. The build command `make test_all` will parse the files in `examples/csv/sample_files` and time the results.
@@ -139,8 +139,8 @@ Note: watch out for line endings. I followed [RFC-4180](ietf.org/rfc/rfc4180.txt
 ### json 
 A simple json parser (deserialization only). Generates a `JSONData` struct from an input file. Data are converted to a tagged union `JSONValue` of the different datatypes that appear in JSON documents. This example shows how to create custom AST nodes.
 
-### peggy 
-The defining reference grammar for <b>peggy</b>. Running `make` under this directory will parse the `peggy.grmr` file and rebuild <b>peggy</b>. This is run from the top level as the "bootstrap test" to show that <b>peggy</b> can build itself.
+### peg4c 
+The defining reference grammar for <b>peg4c</b>. Running `make` under this directory will parse the `peg4c.grmr` file and rebuild <b>peg4c</b>. This is run from the top level as the "bootstrap test" to show that <b>peg4c</b> can build itself.
 
 ### calc
 This is a basic calculator application that provides a REPL to the `math.h` library, but also supports vector-based calculations. Unfortunately, I have not implemented a history or memory yet so the typing is tedious.
@@ -151,10 +151,10 @@ This example is not yet complete. It works, but I left in a small memory leak, w
 ### c
 This is a C parser (of pre-processed files) in ~300 LOC; almost all of which is just loading the file and handling the well-known [typedef-identifier ambiguity](https://eli.thegreenplace.net/2007/11/24/the-context-sensitivity-of-cs-grammar/) (Note: I do not implement the lexer hack so that there is more de-coupling between lexer and parser). It should be almost fully C11 and mostly C23 compliant including properly parsing type inference. It is definitely missing the new character and constant additions of C23 and I have removed K&R function definition identifier lists. Additionally, it includes a bunch of the standard keywords and structures of compiler extensions so that you can parse the C standard library headers without modifications to the source files. Try it out and let me know if anything is wrong:
 ```
-$ echo -e "#include <stdio.h>" | gcc -E -xc - | /path/to/peggy/bin/c > stdio.ast
+$ echo -e "#include <stdio.h>" | gcc -E -xc - | /path/to/peg4c/bin/c > stdio.ast
 ```
 
-## How to use <b>peggy</b> with your grammar
+## How to use <b>peg4c</b> with your grammar
 
 ### Basic usage
 
@@ -166,9 +166,9 @@ Once you have a grammar `mydsl.grmr` exported as `mydsl` with `token` and `root`
 
 ```
 #include <string.h>
-// mydsl.h is autogenerated by the call `./peggy mydsl.grmr`
+// mydsl.h is autogenerated by the call `./peg4c mydsl.grmr`
 #include "mydsl.h"
-#include "peggy/parser.h"
+#include "peg4c/parser.h"
 int main(int narg, char ** args) {
     if (narg > 1) {
         Parser parser;
@@ -291,20 +291,20 @@ Every entry in the grammar either is or resembles a `<key>` : or = `<value>` pai
 1. config options - These are `<key>` = `<value>` pairs that configuration attributes of the generated parser. The supported key list is limited to 2:
     - import - specify external modules (headers that you wrote) to import into the generated parser. If you customize transforms functions for productions, point this to the headers that declare those functions. This can be specified multiple times per grammar
     - export - specify the parser output name and entry point for AST generation. This can only be specified once within a grammar file. If not specified, the default will be the name of the grammar file with the outermost extension removed. Whatever the export name, a production with a corresponding name must be defined in the grammar.
-      - Ex. `import = csvparser export = csv` This will cause <b>peggy</b> to generate `csv.h` and `csv.c`. `csv.c` will have `#include "csvparser.h"` for inclusion of external customization code. A production `csv: <some definition>` must exist in the grammar file as an entry point
+      - Ex. `import = csvparser export = csv` This will cause <b>peg4c</b> to generate `csv.h` and `csv.c`. `csv.c` will have `#include "csvparser.h"` for inclusion of external customization code. A production `csv: <some definition>` must exist in the grammar file as an entry point
 2. productions - These are grammar productions that mostly follow common EBNF syntax. Only 1 production is required and its name must either be set by the grammar file name or the `export` config option. The syntax of the productions and grammar operators have two main differences with EBNF:
     - instead of whitespace separated terminals and nonterminals for the sequence operation, I use a comma `,`. I find that whitespace too often creates unnecessary ambiguities in parsing that require annoying, special handling.
     - productions are annotated with attributes by a comma-separated list enclosed in parentheses. e.g. `A(a): 'key', ':', B` indicates a production named `A` annotated with an attribute (in this case a build action `a`) that is defined as a sequence of the string literal `key` followed by string literal `:` followed by the production `B`.
 
     <b>WARNING</b> if the production is referenced at all on the tokenizer ([export name]_token production), the build action must not use Token.length. The value is invalid within the tokenizer. A more appropriate API will be built.
 3. Special productions - These are identical to productions but with restrictions on attributes and specifically defined behavior and rules. None of these may have actions.
-    - punctuator - optional - This is a production that must be defined as a choice rule of string literals. For each string literal a separate rule will be made for the tokenizer/parser to use. The enums corresponding to the punctuation will be generated based on a predefined table `PUNCTUATION_LOOKUP` in `peggyparser.c` or with a generated named with format: `PUNC` + `_`-separated list of conversions to int of the punctuator characters. 
+    - punctuator - optional - This is a production that must be defined as a choice rule of string literals. For each string literal a separate rule will be made for the tokenizer/parser to use. The enums corresponding to the punctuation will be generated based on a predefined table `PUNCTUATION_LOOKUP` in `peg4cparser.c` or with a generated named with format: `PUNC` + `_`-separated list of conversions to int of the punctuator characters. 
     - keyword - optional - This is similar to the punctuator production but string literals must be valid identifiers and the generated name will be of the format "[capitalized keyword]_KW". E.x. `'unsigned'` becomes `UNSIGNED_KW`.
     - token - required - This is a special production that defines how tokens are generated. No attributes can be applied and can only comprise ChoiceRule and LiteralRule subrule types.
 
 #### A note on whitespace
 
-A common production used in tokenization is `whitespace`, which is generally ignored. This is not the behavior of <b>peggy</b>, which does not have any special productions for whitespace. Instead, there is a built-in action `skip_token` that can be used on any productions used in the `token` production to tell the parser to skip over that part of the string entirely. Example usage, which excludes all ASCII whitespace and C/C++ style comments (this is used by <b>peggy</b>)
+A common production used in tokenization is `whitespace`, which is generally ignored. This is not the behavior of <b>peg4c</b>, which does not have any special productions for whitespace. Instead, there is a built-in action `skip_token` that can be used on any productions used in the `token` production to tell the parser to skip over that part of the string entirely. Example usage, which excludes all ASCII whitespace and C/C++ style comments (this is used by <b>peg4c</b>)
 
 ```
 whitespace(skip_token):
@@ -362,8 +362,8 @@ The appropriate results will be substituted for the strings written in `A`.
 | `,`                  | `SequenceRule`s                    |
 | `\|`                 | `ChoiceRule`s                      |
 
-## Testing <b>peggy</b>
+## Testing <b>peg4c</b>
 
-Basic tests of the logic of the different types of operators, lexer, and parser are automatically done at build time when `make` or `make all` are run. Additionally, a bootstrap build test of <b>peggy</b> itself is done where peggy rebuilds itself. These are very basic so coverage is wanting.
+Basic tests of the logic of the different types of operators, lexer, and parser are automatically done at build time when `make` or `make all` are run. Additionally, a bootstrap build test of <b>peg4c</b> itself is done where peg4c rebuilds itself. These are very basic so coverage is wanting.
 
 For the examples, I only have simple trivial examples of running them and no extensive testing. Where relevant, I provide some files under the directory `examples/*/sample_files`.

@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <peggy/hash_map.h>
+#include "peg4c/hash_map.h"
 
 #define HASH_MAP_N_MESSAGES 4
 char const * const hm_messages[HASH_MAP_N_MESSAGES] = {

@@ -1,5 +1,5 @@
-#ifndef PEGGY_PARSER_H
-#define PEGGY_PARSER_H
+#ifndef P4C_PARSER_H
+#define P4C_PARSER_H
 
 /* C std lib includes */
 #include <stddef.h>
@@ -8,13 +8,13 @@
 #include <stdio.h>
 
 /* lib includes */
-#include "peggy/mempool.h"
+#include "peg4c/mempool.h"
 
-/* peggy include */
-#include "peggy/utils.h"
-#include "peggy/token.h"
-#include "peggy/rule.h"
-#include "peggy/packrat_cache.h"
+/* peg4c include */
+#include "peg4c/utils.h"
+#include "peg4c/token.h"
+#include "peg4c/rule.h"
+#include "peg4c/packrat_cache.h"
 
 #define PARSER_DEFAULT_NTOKENS 256
 #define PARSER_DEFAULT_NNODES 4096
@@ -23,7 +23,7 @@
 
 #ifdef PACKRAT_HASH
 #define ELEMENT_TYPE pASTNode
-#include <peggy/stack.h>
+#include "peg4c/stack.h"
 #endif
 
 #define Parser_tell(pparser) (((Parser *)pparser)->token_cur)
@@ -208,7 +208,7 @@ int Parser_parse(Parser * parser, char const * string, size_t string_length);
  *      of parsing, may actually be one before ASTNode.token_start
  * @param[in] size This is used for the allocation size of the node. This 
  *      allows for the creation and memory management of custom nodes. To
- *      use the default ASTNode provided by peggy, this value may be 0 or
+ *      use the default ASTNode provided by peg4c, this value may be 0 or
  *      sizeof(ASTNode). For creating a custom node, the custom node MUST
  *      have an ASTNode instance as its firts member and pass the value
  *      sizeof(MyCustomASTNode). Any initializtion or overriding of variables
@@ -244,8 +244,8 @@ err_type Parser_print_ast(Parser * parser, FILE * stream);
 
 /**
  * @brief get the status of a call to Parser_parse
- * @returns PEGGY_TOKENIZE_FAILURE, PEGGY_PARSER_FAILURE on corresponding errors
- *      or 0/PEGGY_SUCCESS on success
+ * @returns P4C_TOKENIZE_FAILURE, P4C_PARSER_FAILURE on corresponding errors
+ *      or 0/P4C_SUCCESS on success
  */
 err_type Parser_parse_status(Parser * parser);
 
@@ -287,4 +287,4 @@ ASTNode * skip_token(Production * production, Parser * parser, ASTNode * node);
  */
 ASTNode * token_action(Production * production, Parser * parser, ASTNode * node);
 
-#endif // PEGGY_PARSER_H
+#endif // P4C_PARSER_H

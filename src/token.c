@@ -3,9 +3,9 @@
 #include <string.h>
 #include <stdio.h> // for Token_print only
 
-#include <peggy/utils.h>
+#include "peg4c/utils.h"
 //#include <peggy/type.h>
-#include <peggy/token.h>
+#include "peg4c/token.h"
 
 void Token_init(Token * self, size_t id, char const * string, size_t length, unsigned int line, unsigned int col) {
     self->coords.col = col;

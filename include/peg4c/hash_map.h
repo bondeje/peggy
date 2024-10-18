@@ -63,8 +63,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h> // for debug print statements
-#include <peggy/utils.h>
-#include "mempool.h"
+#include "peg4c/utils.h"
+#include "peg4c/mempool.h"
 
 typedef enum hash_map_err {
     HM_SUCCESS = 0,
@@ -86,7 +86,7 @@ typedef enum hash_map_err {
 #define HASH_MAP(k, v) CAT(CAT3(k, _, v), _map)
 #define HASH_MAP_CLASS(k, v) CAT(CAT3(k, _, v), _class)
 
-#include <peggy/hash_utils.h>
+#include <peg4c/hash_utils.h>
 
 #endif // HASH_MAP_H
 

@@ -1,4 +1,4 @@
-# Example use of <b>peggy</b> parser generater: a C parser in ~300 LoC
+# Example use of <b>peg4c</b> parser generater: a C parser in ~300 LoC
 
 ## Overview
 
@@ -8,9 +8,9 @@ I intend to use this to build my toy language and a transpiler to C. Let me know
 
 ## How to build
 
-1) build <b>peggy</b> at the top level of the repo
+1) build <b>peg4c</b> at the top level of the repo
 2) in this directory, run one of the following
-    - `make` - will build `c` binary in `/path/to/peggy/bin` and create a few sample ASTs from sample_files/ and put them in the same directory
+    - `make` - will build `c` binary in `/path/to/peg4c/bin` and create a few sample ASTs from sample_files/ and put them in the same directory
     - `make check_libc` - this will run through the C standard libraries in `sample_files/libc` and parse them. If any errors occur they will be printed
 
 Optionally change the compiler and C dialect by setting the make variable CC, e.g.
@@ -26,13 +26,13 @@ As of now (8/11/2024), I have checked `make check_libc` on Windows (Msys), Linux
 
 There are two ways to build the AST from a sample file (extentions don't matter):
 - pipe from stdin
-    - `/path/to/peggy/bin/c < my_preprocessed_c_file` or `cat my_preprocessed_c_file | /path/to/peggy/bin/c`
+    - `/path/to/peg4c/bin/c < my_preprocessed_c_file` or `cat my_preprocessed_c_file | /path/to/peg4c/bin/c`
 - pass file directly:
-    - `/path/to/peggy/bin/c my_preprocessed_c_file`
+    - `/path/to/peg4c/bin/c my_preprocessed_c_file`
 
 The first is especially useful to allow piping directly from the compiler after preprocessing:
 
-`echo -e "some code to try" | gcc -E -xc - | /path/to/peggy/bin/c > my_c_file.ast`
+`echo -e "some code to try" | gcc -E -xc - | /path/to/peg4c/bin/c > my_c_file.ast`
 
 If errors occur during parsing, messages right before any partial printing of the AST will provide information on how much of the input was tokenized and successfully parsed as well as which grammar rule was the last to fail before the parser stopped. If such an error occurred, the syntax error is between the final token and where this last rule failure occurred. Sorry, I have not included very detailed syntax error descriptions yet.
 
@@ -46,12 +46,12 @@ The output has 3 sections:
 
 As an example:
 ```
-echo -e "/* comment */int a = 4; " | /path/to/peggy/bin/c
+echo -e "/* comment */int a = 4; " | /path/to/peg4c/bin/c
 ```
 ![successful c parse](../../images/c_successful.jpg)
 
 ```
-echo -e "/* comment */int a = 4 " | /path/to/peggy/bin/c
+echo -e "/* comment */int a = 4 " | /path/to/peg4c/bin/c
 ```
 ![unsuccessful c parse](../../images/c_unsuccessful.jpg)
 

@@ -3,10 +3,10 @@
 
 #include <stddef.h>
 
-#include "peggy/hash_map.h"
-#include "peggy/parser.h" // should remove this
-#include "peggy/astnode.h"
-#include "peggy/token.h"
+#include "peg4c/hash_map.h"
+#include "peg4c/parser.h" // should remove this
+#include "peg4c/astnode.h"
+#include "peg4c/token.h"
 
 #include "jason.h"
 
@@ -60,7 +60,7 @@ static int pJSONValue_comp(pJSONValue a, pJSONValue b) {
 
 #define ELEMENT_TYPE pJSONValue
 #define ELEMENT_COMP pJSONValue_comp
-#include <peggy/stack.h>
+#include "peg4c/stack.h"
 
 typedef STACK(pJSONValue) JSONArray;
 
@@ -68,7 +68,7 @@ typedef STACK(pJSONValue) JSONArray;
 #define VALUE_TYPE pJSONValue
 #define KEY_COMP JSONString_comp
 #define HASH_FUNC JSONString_hash
-#include <peggy/hash_map.h>
+#include "peg4c/hash_map.h"
 typedef HASH_MAP(JSONString, pJSONValue) JSONObject;
 
 // default initialization will result in type == JSON_NOT_SET and .null == NULL

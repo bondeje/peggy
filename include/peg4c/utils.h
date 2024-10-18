@@ -1,5 +1,5 @@
-#ifndef PEGGY_UTILS_H
-#define PEGGY_UTILS_H
+#ifndef P4C_UTILS_H
+#define P4C_UTILS_H
 
 #if defined(__GNUC__) || defined(__clang__)
     #define FALLTHROUGH __attribute__((fallthrough));
@@ -46,22 +46,22 @@ extern unsigned char const CHAR_BIT_MOD_MASK;
 #define DEBUG_ASSERT(X, ...) assert((X) || !printf(__VA_ARGS__))
 
 typedef enum err_type {
-    PEGGY_SUCCESS = 0,
-    PEGGY_FAILURE,
-    PEGGY_MALLOC_FAILURE,
-    PEGGY_INIT_FAILURE,
-    PEGGY_NOT_IMPLEMENTED,
-    PEGGY_INDEX_OUT_OF_BOUNDS,
-    PEGGY_MALLOC_MAP_FAILURE,
-    PEGGY_MALLOC_PAIR_FAILURE,
-    PEGGY_EMPTY_STACK,
-    PEGGY_EMPTY_DEQUE,
-    PEGGY_REGEX_FAILURE,
-    PEGGY_FILE_IO_ERROR,
-    PEGGY_NO_ROOT_PRODUCTION_FOUND,
-    PEGGY_NO_TOKENIZER_FOUND,
-    PEGGY_TOKENIZE_FAILURE,
-    PEGGY_PARSE_FAILURE,
+    P4C_SUCCESS = 0,
+    P4C_FAILURE,
+    P4C_MALLOC_FAILURE,
+    P4C_INIT_FAILURE,
+    P4C_NOT_IMPLEMENTED,
+    P4C_INDEX_OUT_OF_BOUNDS,
+    P4C_MALLOC_MAP_FAILURE,
+    P4C_MALLOC_PAIR_FAILURE,
+    P4C_EMPTY_STACK,
+    P4C_EMPTY_DEQUE,
+    P4C_REGEX_FAILURE,
+    P4C_FILE_IO_ERROR,
+    P4C_NO_ROOT_PRODUCTION_FOUND,
+    P4C_NO_TOKENIZER_FOUND,
+    P4C_TOKENIZE_FAILURE,
+    P4C_PARSE_FAILURE,
 } err_type;
 
 typedef enum RuleTypeID {
@@ -102,4 +102,4 @@ bool isinstance(RuleTypeID const type, RuleTypeID const * types);
 
 unsigned char size_t_strlen(size_t val);
 
-#endif // PEGGY_UTILS_H
+#endif // P4C_UTILS_H

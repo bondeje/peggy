@@ -1,9 +1,9 @@
-// peggy.grmr
-export = peggy
-import = peggytransform
+// peg4c.grmr
+export = peg4c
+import = peg4ctransform
 
 whitespace(skip_token):
-    "([ \t\r\n\v\f]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+" // includes C-style comments as whitespace
+    "([ \t\r\n\v\f]+|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+" // includes C-style comments as whitespace, but not line continuation
     //"[ \t\r\n\v\f]+"
     
 
@@ -68,5 +68,5 @@ production:
 config: 
     identifier, '=', nonws_printable
 
-peggy(handle_peggy):
+peg4c(handle_peg4c):
     (config | special_production | production)+

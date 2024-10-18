@@ -3,7 +3,7 @@
 .OBJDIR: ./
 .SUFFIXES:
 CC = gcc
-NAME = peggy
+NAME = peg4c
 ASTNODE_ADD_PARENT = 0
 
 SUB_MAKE_ARGS = CC=$(CC) SANITIZE=$(SANITIZE) ASTNODE_ADD_PARENT=$(ASTNODE_ADD_PARENT)
@@ -18,14 +18,14 @@ DBG_IFLAGS = $(COMMON_IFLAGS)
 IFLAGS = $(COMMON_IFLAGS)
 COMMON_LFLAGS = -Lbin '-Wl,-rpath,$$ORIGIN/.'
 LIB_LFLAGS = $(COMMON_LFLAGS) -L/usr/local/lib
-DBG_LFLAGS = $(COMMON_LFLAGS) -lpeggyd
-LFLAGS = $(COMMON_LFLAGS) -lpeggy
+DBG_LFLAGS = $(COMMON_LFLAGS) -lpeg4cd
+LFLAGS = $(COMMON_LFLAGS) -lpeg4c
 
 EXT_LIB_OBJS = lib/TypeMemPools/src/mempool.o
 DBG_EXT_LIB_OBJS = lib/TypeMemPools/src/mempool.do
 LIB_OBJS = src/astnode.o src/hash_utils.o src/packrat_cache.o src/parser.o src/rule.o src/token.o src/utils.o
 DBG_LIB_OBJS = src/astnode.do src/hash_utils.do src/packrat_cache.do src/parser.do src/rule.do src/token.do src/utils.do
-EXE_OBJS = src/peggy.o src/peggyparser.o src/peggystring.o src/peggybuild.o src/peggytransform.o
+EXE_OBJS = src/peg4c.o src/peg4cparser.o src/peg4cstring.o src/peg4cbuild.o src/peg4ctransform.o
 
 all: build_paths bin/lib$(NAME).so bin/lib$(NAME)d.so bin/$(NAME) bin/test
 
@@ -36,22 +36,22 @@ install:
 	cp bin/lib*.so /usr/local/lib
 
 bin/test: bin/lib$(NAME)d.so
-	@touch examples/peggy/peggy.grmr
+	@touch examples/peg4c/peg4c.grmr
 	@(cd tests && unset MAKELEVEL && make $(SUB_MAKE_ARGS))
 	@(echo "running tests")
 	$@ --verbose
-	@(cd examples/peggy && touch peggy.grmr && unset MAKELEVEL && make $(SUB_MAKE_ARGS) test)
+	@(cd examples/peg4c && touch peg4c.grmr && unset MAKELEVEL && make $(SUB_MAKE_ARGS) test)
 
 ext_libs: $(EXT_LIB_OBJS) $(DBG_EXT_LIB_OBJS)
 	@(cd lib/TypeMemPools && unset MAKELEVEL && make $(SUB_MAKE_ARGS))
-	@cp lib/TypeMemPools/include/* include/peggy/
+	@cp lib/TypeMemPools/include/* include/peg4c/
 
 clean:
-	@rm -f src/*.o src/*.do src/*.ast include/peggy/mempool.h
+	@rm -f src/*.o src/*.do src/*.ast include/peg4c/mempool.h
 	@rm -rf bin
 	@(cd tests && unset MAKELEVEL && make clean)
 	@(cd lib/TypeMemPools && unset MAKELEVEL && make clean)
-	@(cd examples/peggy && unset MAKELEVEL && make clean)
+	@(cd examples/peg4c && unset MAKELEVEL && make clean)
 
 build_paths:
 	@mkdir -p bin
@@ -67,7 +67,7 @@ bin/lib$(NAME)d.so: build_paths ext_libs $(DBG_LIB_OBJS)
 	$(CC) -shared -fPIC $(DBG_LIB_OBJS) $(DBG_EXT_LIB_OBJS) -o $@ $(LIB_LFLAGS) $$USE_PCRE2
 
 bin/$(NAME): build_paths bin/lib$(NAME).so $(EXE_OBJS)
-	@echo building peggy executable $@
+	@echo building peg4c executable $@
 	@$(CC) $(CFLAGS) $(IFLAGS) $(EXE_OBJS) -o $@ $(LFLAGS)
 
 .SUFFIXES: .c .o .do

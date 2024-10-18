@@ -1,9 +1,9 @@
-#ifndef PEGGY_TOKEN_H
-#define PEGGY_TOKEN_H
+#ifndef P4C_TOKEN_H
+#define P4C_TOKEN_H
 
 #include <stddef.h>
 
-#include <peggy/utils.h>
+#include "peg4c/utils.h"
 
 typedef struct Token Token, * pToken;
 
@@ -31,5 +31,5 @@ void Token_insert_before(Token * tok, Token * sstart, Token * send);
 
 void Token_remove_tokens(Token * start, Token * end);
 
-#endif // PEGGY_TOKEN_H
+#endif // P4C_TOKEN_H
 

@@ -1,15 +1,15 @@
-# Example use of <b>peggy</b> parser generater: a JSON parser
+# Example use of <b>peg4c</b> parser generater: a JSON parser
 
 This is a very basic JSON parser (deserialization only, no serialization unfortunately)
 
 ## How to build
-1) build <b>peggy</b> at the top level of the repo
+1) build <b>peg4c</b> at the top level of the repo
 2) in this directory, run one of the following
-    - `make` - will build `jsv` binary in `/path/to/peggy/bin`
+    - `make` - will build `jsv` binary in `/path/to/peg4c/bin`
 
 ## How to use
 
-- `/path/to/peggy/bin/json -i=[/-separated indices] /path/to/file.json`
+- `/path/to/peg4c/bin/json -i=[/-separated indices] /path/to/file.json`
 
 For example, for a json (sample_files/basic.json):
 ```

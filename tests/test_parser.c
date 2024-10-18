@@ -1,15 +1,15 @@
 #include <string.h>
 
 // tokenizer
-#include "peggy/rule.h"
-#include "peggy/parser.h"
-#include "peggy/parser_gen.h"
-#include "peggy/utils.h"
-#include "peggy.h"
+#include "peg4c/rule.h"
+#include "peg4c/parser.h"
+#include "peg4c/parser_gen.h"
+#include "peg4c/utils.h"
+#include "peg4c.h"
 
 #include "test_utils.h"
 #include "test_parser.h"
-#include "test_peggy_utils.h"
+#include "test_peg4c_utils.h"
 
 enum rules {
     LETTER,

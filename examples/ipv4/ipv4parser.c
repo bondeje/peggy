@@ -4,10 +4,10 @@
 #include <string.h>
 #include <limits.h>
 
-#include "peggy/astnode.h"
-#include "peggy/rule.h"
-#include "peggy/parser.h"
-#include "peggy/token.h"
+#include "peg4c/astnode.h"
+#include "peg4c/rule.h"
+#include "peg4c/parser.h"
+#include "peg4c/token.h"
 
 #include "ipv4.h"
 #include "ipv4parser.h"

@@ -4,9 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "peggy/parser.h"
-#include "peggy/rule.h"
-#include "peggy/astnode.h"
+#include "peg4c/parser.h"
+#include "peg4c/rule.h"
+#include "peg4c/astnode.h"
 
 typedef struct CSVData {
     char const * data; // holds all the string data (with null terminators)

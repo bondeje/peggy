@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include "peggy/astnode.h"
+#include "peg4c/astnode.h"
 #include "test_parser.h"
 #include "test_rules.h"
 #include "test_utils.h"

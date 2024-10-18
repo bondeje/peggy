@@ -9,7 +9,7 @@ GRAMMAR = $(EXAMPLE_NAME).grmr
 DEFAULT_LOG_LEVEL = LOG_LEVEL_WARN
 CFLAGS = -Wall -Werror -Wextra -pedantic -Wno-unused -Wno-unused-parameter $(STDC_DIALECT) -O0 -g -fPIC
 IFLAGS = -I../../include -I../../lib/TypeMemPools/include
-LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeggy
+LFLAGS = '-Wl,-rpath,$$ORIGIN/.' -L$(BIN_DIR) -lpeg4c
 
 EXE_SRCS = cparser.c c.c cpp.c cstring.c token_.c
 
@@ -18,14 +18,14 @@ all: $(BIN_DIR)/c
 .MAIN: all
 
 $(BIN_DIR)/c: $(GRAMMAR)
-	$(BIN_DIR)/peggy $(GRAMMAR)
+	$(BIN_DIR)/peg4c $(GRAMMAR)
 	if [ -n "$(SANITIZE)" ] ; then export DBGOPT="-fsanitize=address,undefined"; else export DBGOPT="-DNDEBUG"; fi ; \
 	$(CC) $(CFLAGS) $$DBGOPT $(IFLAGS) $(EXE_SRCS) -o $@ $(LFLAGS)
 
 test: $(BIN_DIR)/c
 	@for file in sample_files/*.c; do echo $$file && $ $(BIN_DIR)/c $$file > $$file.ast; done
 
-check_peggy: $(BIN_DIR)/c
+check_peg4c: $(BIN_DIR)/c
 	@for file in ../../src/*.c; do echo $$file && $(CC) -E -I../../include $$file | $(BIN_DIR)/c > $$file.ast; done
 
 check_libc: $(BIN_DIR)/c

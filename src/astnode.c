@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "peggy/astnode.h"
-#include "peggy/rule.h"
+#include "peg4c/astnode.h"
+#include "peg4c/rule.h"
 
 struct ASTNodeType ASTNode_class = {
     .type_name = ASTNode_NAME,

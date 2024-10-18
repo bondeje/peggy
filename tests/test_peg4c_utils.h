@@ -1,9 +1,9 @@
 #include <stddef.h>
 
-#include <peggy/token.h>
-#include <peggy/rule.h>
-#include <peggy/astnode.h>
-#include "peggy/utils.h"
+#include "peg4c/token.h"
+#include "peg4c/rule.h"
+#include "peg4c/astnode.h"
+#include "peg4c/utils.h"
 
 int check_tokens(Token * cur, size_t ntokens, char const ** result_tokens, char const * file, char const * func, size_t line);
 

@@ -1,15 +1,15 @@
-# Example use of <b>peggy</b> parser generater: a csv parser
+# Example use of <b>peg4c</b> parser generater: a csv parser
 
 This will use the csv.grmr file as a walkthrough to explain the components of a typical grammar file
 
 ## How to build
-1) build <b>peggy</b> at the top level of the repo
+1) build <b>peg4c</b> at the top level of the repo
 2) in this directory, run one of the following
-    - `make` - will build `csv` binary in `/path/to/peggy/bin`
+    - `make` - will build `csv` binary in `/path/to/peg4c/bin`
 
 ## How to use
 
-- `/path/to/peggy/bin/csv -r=[row] -c=[col] /path/to/file.csv`
+- `/path/to/peg4c/bin/csv -r=[row] -c=[col] /path/to/file.csv`
 
 ## The CSV grammar
 
@@ -19,13 +19,13 @@ The csv.grmr file in this repository is mostly taken from the ABNF in [RFC4180](
 export = csv
 ```
 
-The export configuration entry should almost always be the very first entry in the grammar file. It explicitly tells peggy that the module(header/source pair) generated should be title "csv" + extensions. If this were not present, peggy would just trim the extension, which would also be "csv" in this case. The export config option merely gives the user the ability to change filenames or switch between files without changing the output header/source pair.
+The export configuration entry should almost always be the very first entry in the grammar file. It explicitly tells peg4c that the module(header/source pair) generated should be title "csv" + extensions. If this were not present, peg4c would just trim the extension, which would also be "csv" in this case. The export config option merely gives the user the ability to change filenames or switch between files without changing the output header/source pair.
 
 ```
 import = csvparser
 ```
 
-The import entry tells peggy that there are customization to the parser located in an external module. In this case, the csvparser header file.
+The import entry tells peg4c that there are customization to the parser located in an external module. In this case, the csvparser header file.
 
 ```
 punctuator:
@@ -39,7 +39,7 @@ csv(handle_csv):
     crlf.record, (crlf | whitespace)*
 ```
 
-The next production we see is the required entry point 'csv' production. Since the grammar file "exported" to "csv", it will look for a corresponding production with the name "csv" to act as the entry point. The parser can always choose a different entry point, but peggy will complain if you do not have this one. In the future, there might be a configuration option to control the name of the entry point.
+The next production we see is the required entry point 'csv' production. Since the grammar file "exported" to "csv", it will look for a corresponding production with the name "csv" to act as the entry point. The parser can always choose a different entry point, but peg4c will complain if you do not have this one. In the future, there might be a configuration option to control the name of the entry point.
 
 The csv production also is decorated with an attribute "handle_csv". The first attribute (in a to-be-expanded list) represents a "build_action". It is essentially a function mapped to the production that will be called every time a successful match to the corresponding production is found. It's responsibility is to take an `ASTNode` corresponding to its dependent rules (in this case `crlf.record, (crlf | whitespace)*`) and generate a new node or modify the node in place for future use in the parse. This is the appropriate place to update any context or create custom nodes to propagate through the parse. Beware, however, that most nodes do not ultimately make it into the final AST tree as higher level productions may fail. The parser's `PackratCache` will still store the resulting `ASTNode` so that if a different production depends on the one you just built, it will not call the build action again and simply retrieve your previous result. In the special case of the entry point for the parse, the build_action could (and in all my examples does) initiate the tree traversal before finalizing the AST.
 
@@ -67,7 +67,7 @@ token:
     whitespace | crlf | punctuator | field
 ```
 
-All productions that could match as distinct tokens should be present in a chained choice operation. The individual subrules should all constitute only a single token otherwise the tokenizer will fail. There currently is no check for this in peggy. In the case of csv, all tokens can be described as one of 'whitespace', 'crlf', 'punctuator', or a 'field'. As can be seen later in the grammar, a field is simply a 'string', here defined as any entry between commas that is enclosed in two unescaped double-quotes or a 'nonstring_field' that is everything else between two commas or crlf. 
+All productions that could match as distinct tokens should be present in a chained choice operation. The individual subrules should all constitute only a single token otherwise the tokenizer will fail. There currently is no check for this in peg4c. In the case of csv, all tokens can be described as one of 'whitespace', 'crlf', 'punctuator', or a 'field'. As can be seen later in the grammar, a field is simply a 'string', here defined as any entry between commas that is enclosed in two unescaped double-quotes or a 'nonstring_field' that is everything else between two commas or crlf. 
 
 ```
 string(process_string):
@@ -84,7 +84,7 @@ Both string and nonstring_field have build actions that do some record keeping.
 Some warnings about tokenizer productions:
 
 1) do not allow any tokens to be of zero length. i.e. "[]*" should not be a successful match in any of the regular expressions. This likely will cause the tokenizer to enter an infinite loop.
-2) The token production and its subrules should generally be the first productions defined. peggy traverses the productions like a tree and its dependencies like a tree, but has to stop at literals (literals do not have branches/leaves) If the literal is in a subrule but not previously defined, multiple declarations can be made or the production traversal can get stuck, especially if the punctuators or keywords have not appeared. One way around this is to do what was done with 'crlf' and wrap it in its special production. By doing this, production traversal will terminate at the name of the production, 'crlf', and just forward declare it.
+2) The token production and its subrules should generally be the first productions defined. peg4c traverses the productions like a tree and its dependencies like a tree, but has to stop at literals (literals do not have branches/leaves) If the literal is in a subrule but not previously defined, multiple declarations can be made or the production traversal can get stuck, especially if the punctuators or keywords have not appeared. One way around this is to do what was done with 'crlf' and wrap it in its special production. By doing this, production traversal will terminate at the name of the production, 'crlf', and just forward declare it.
 3) Do not have the `token` production depend on any productions that require more than one token to find a match. This will deadlock the tokenizer (how would you make a token by requiring two tokens?).
 4) as with any other PEG, the order of the rules in the Choice operator matters. Especially with punctuation, you can have cases where one punctuator starts with a substring that is another punctuator, e.g. "+" and "+=", which mean very different things. In some cases, the tokenizer will just fail while in otherwise it will successfully complete an unambiguous parse that you did not mean. A simple way around it is to order the punctuators, keywords, and token subrules by what you think will be the longest first. This may make parses longer, but will ensure you tokenize and parse correctly.
 
@@ -119,4 +119,4 @@ csv(handle_csv):
     '\r\n'.(','.(string | nonstring_field)), ('\r\n' | whitespace)*
 ```
 
-which will probably execute faster with about 1/3 less memory, but now we lost the ability to check the records on the fly to ensure compatibily to our target spec, we are limited on what we can do with fields, and the entry point rule is less readable. In the future, peggy might allow all `LiteralRule`s to exist on their own, which could reduce this further.
+which will probably execute faster with about 1/3 less memory, but now we lost the ability to check the records on the fly to ensure compatibily to our target spec, we are limited on what we can do with fields, and the entry point rule is less readable. In the future, peg4c might allow all `LiteralRule`s to exist on their own, which could reduce this further.

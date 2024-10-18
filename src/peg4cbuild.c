@@ -1,21 +1,21 @@
 #include <stdio.h>
 
-#include "peggy/utils.h"
-#include "peggy/mempool.h"
-#include "peggybuild.h"
-#include "peggystring.h"
-#include "peggyparser.h"
+#include "peg4c/utils.h"
+#include "peg4c/mempool.h"
+#include "peg4cbuild.h"
+#include "peg4cstring.h"
+#include "peg4cparser.h"
 
-PeggyString get_rule_resolution(char const * type_name) {
+P4CString get_rule_resolution(char const * type_name) {
     size_t N = strlen(type_name);
     char * first_period = strchr(type_name, '.');
-    return (PeggyString) {.len = N - (size_t)(first_period - type_name), .str = first_period};
+    return (P4CString) {.len = N - (size_t)(first_period - type_name), .str = first_period};
 }
 
-int PeggyProduction_write_arg(void * data, PeggyString arg) {
-    PeggyParser * parser = (PeggyParser *) data;
+int P4CProduction_write_arg(void * data, P4CString arg) {
+    P4CParser * parser = (P4CParser *) data;
     fwrite(",\n\t", 1, 3, parser->source_file);
-    PeggyString_fwrite(arg, parser->source_file, PSFO_NONE);
+    P4CString_fwrite(arg, parser->source_file, PSFO_NONE);
     return 0;
 }
 
@@ -97,56 +97,56 @@ char * unescape_string(char const * buffer, size_t buffer_size, size_t * buf_out
 }
 
 // signature is so that it can be used by for_each in the hash map
-int PeggyProduction_define(void * parser_, PeggyString name, PeggyProduction prod) {
-    PeggyParser * parser = (PeggyParser *)parser_;
+int P4CProduction_define(void * parser_, P4CString name, P4CProduction prod) {
+    P4CParser * parser = (P4CParser *)parser_;
 
     /* work here for generating static, compiled regex */
 
     char const * type_name_cstr = get_type_name(prod.type);
-    PeggyString type_main = {.len = strlen(type_name_cstr), .str = (char *)type_name_cstr};
-    PeggyString_fwrite(type_main, parser->source_file, PSFO_UPPER);
+    P4CString type_main = {.len = strlen(type_name_cstr), .str = (char *)type_name_cstr};
+    P4CString_fwrite(type_main, parser->source_file, PSFO_UPPER);
 
     fputc('(', parser->source_file);
-    PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_NONE);
+    P4CString_fwrite(prod.identifier, parser->source_file, PSFO_NONE);
     fputc(',', parser->source_file);
 
     unsigned int offset = 0;
     
-    PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER | PSFO_LOFFSET(offset));
+    P4CString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER | PSFO_LOFFSET(offset));
 
-    prod.args._class->for_each(&prod.args, &PeggyProduction_write_arg, (void*)parser);
+    prod.args._class->for_each(&prod.args, &P4CProduction_write_arg, (void*)parser);
 
     fwrite(");\n", 1, strlen(");\n"), parser->source_file);
 
     return 0;
 }
 
-int build_export_rules_resolved(void * parser_, PeggyString name, PeggyProduction prod) {
-    PeggyParser * parser = (PeggyParser *) parser_;
+int build_export_rules_resolved(void * parser_, P4CString name, P4CProduction prod) {
+    P4CParser * parser = (P4CParser *) parser_;
 	fwrite("[", 1, 1, parser->source_file);
-	PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER);
+	P4CString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER);
 
     size_t buf_len = (prod.identifier.len + 14);
-    PeggyString arg = {.str = MemPoolManager_malloc(parser->str_mgr, buf_len)};
+    P4CString arg = {.str = MemPoolManager_malloc(parser->str_mgr, buf_len)};
     arg.len = snprintf(arg.str, buf_len, "] = (Rule *)&%.*s", (int)prod.identifier.len, prod.identifier.str);
 
-    PeggyString_fwrite(arg, parser->source_file, PSFO_NONE);
+    P4CString_fwrite(arg, parser->source_file, PSFO_NONE);
     char * buffer = ",\n\t";
     fwrite(buffer, 1, strlen(buffer), parser->source_file);
 
     return 0;
 }
 
-void build_export_rules(PeggyParser * parser) {
+void build_export_rules(P4CParser * parser) {
     char const * buffer = NULL;
     FILE * file = parser->source_file;
     buffer = "\n\nRule * ";
     fwrite(buffer, 1, strlen(buffer), file);
-    PeggyString_fwrite(parser->export, file, PSFO_NONE);
+    P4CString_fwrite(parser->export, file, PSFO_NONE);
 
     buffer = "rules[";
     fwrite(buffer, 1, strlen(buffer), file);
-    PeggyString_fwrite(parser->export, file, PSFO_UPPER);
+    P4CString_fwrite(parser->export, file, PSFO_UPPER);
 
     buffer = "_NRULES + 1] = {\n\t";
     fwrite(buffer, 1, strlen(buffer), file);
@@ -154,38 +154,38 @@ void build_export_rules(PeggyParser * parser) {
     parser->productions._class->for_each(&parser->productions, &build_export_rules_resolved, (void*)parser);
 
 	fwrite("[", 1, 1, file);
-	PeggyString_fwrite(parser->export, file, PSFO_UPPER);
+	P4CString_fwrite(parser->export, file, PSFO_UPPER);
     buffer = "_NRULES] = NULL\n};\n\n";
     fwrite(buffer, 1, strlen(buffer), file);
     
 }
 
-void build_destructor(PeggyParser * parser) {
+void build_destructor(P4CParser * parser) {
     char const * buffer = NULL;
     FILE * file = parser->source_file;
     buffer = "void ";
     fwrite(buffer, 1, strlen(buffer), file);
-    PeggyString_fwrite(parser->export, file, PSFO_NONE);
+    P4CString_fwrite(parser->export, file, PSFO_NONE);
 
     buffer = "_dest(void) {\n\tint i = 0;\n\twhile (";
     fwrite(buffer, 1, strlen(buffer), file);
-    PeggyString_fwrite(parser->export, file, PSFO_NONE);
+    P4CString_fwrite(parser->export, file, PSFO_NONE);
 
     buffer = "rules[i]) {\n\t\t";
     fwrite(buffer, 1, strlen(buffer), file);
-    PeggyString_fwrite(parser->export, file, PSFO_NONE);
+    P4CString_fwrite(parser->export, file, PSFO_NONE);
 
     buffer = "rules[i]->_class->dest(";
     fwrite(buffer, 1, strlen(buffer), file);
-    PeggyString_fwrite(parser->export, file, PSFO_NONE);
+    P4CString_fwrite(parser->export, file, PSFO_NONE);
 
     buffer = "rules[i]);\n\t\ti++;\n\t}\n}\n";
     fwrite(buffer, 1, strlen(buffer), file);
 }
 
-PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, RuleTypeID type) {
-    PeggyProduction prod;
-    STACK_INIT(PeggyString)(&prod.args, 0);
+P4CProduction P4CProduction_build(P4CParser * parser, ASTNode * id, RuleTypeID type) {
+    P4CProduction prod;
+    STACK_INIT(P4CString)(&prod.args, 0);
 
     prod.name = get_string_from_parser(parser, id);
     size_t buf_len = (parser->export.len + prod.name.len + 2);
@@ -203,37 +203,37 @@ PeggyProduction PeggyProduction_build(PeggyParser * parser, ASTNode * id, RuleTy
     return prod;
 }
 
-void PeggyProduction_declare(PeggyParser * parser, PeggyProduction prod) {
+void P4CProduction_declare(P4CParser * parser, P4CProduction prod) {
     //printf("declaring type: %s\n", prod.type_name);
 
     char const * main_type_end = get_type_name(prod.type);
-    PeggyString type = {.len = strlen(main_type_end), .str = (char *)main_type_end};
-    PeggyString_fwrite(type, parser->source_file, PSFO_NONE);
+    P4CString type = {.len = strlen(main_type_end), .str = (char *)main_type_end};
+    P4CString_fwrite(type, parser->source_file, PSFO_NONE);
     fputc(' ', parser->source_file);
-    PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_NONE);
+    P4CString_fwrite(prod.identifier, parser->source_file, PSFO_NONE);
     // for testing
     fwrite("; // ", 1, strlen("; // "), parser->source_file);
     
     unsigned int offset = 0;
 
-    PeggyString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER | PSFO_LOFFSET(offset));
+    P4CString_fwrite(prod.identifier, parser->source_file, PSFO_UPPER | PSFO_LOFFSET(offset));
     fputc('\n', parser->source_file);
 
-    PeggyString_fwrite(prod.identifier, parser->header_file, PSFO_UPPER | PSFO_LOFFSET(offset));
+    P4CString_fwrite(prod.identifier, parser->header_file, PSFO_UPPER | PSFO_LOFFSET(offset));
     fwrite(",\n\t", 1, strlen(",\n\t"), parser->header_file);
     fflush(parser->header_file);
     fflush(parser->source_file);
 }
 
-void production_init(PeggyParser * parser, PeggyString name, PeggyProduction * prod) {
-    STACK_INIT(PeggyString)(&prod->args, 0);
+void production_init(P4CParser * parser, P4CString name, P4CProduction * prod) {
+    STACK_INIT(P4CString)(&prod->args, 0);
     prod->name = name;
 }
 
 
 
 #define PREP_OUTPUT_VAR_BUFFER_SIZE 256
-void prep_output_files(PeggyParser * parser) {
+void prep_output_files(P4CParser * parser) {
     char var_buffer[PREP_OUTPUT_VAR_BUFFER_SIZE];
     char const * buffer = NULL;
     int nbytes = 0;
@@ -242,30 +242,30 @@ void prep_output_files(PeggyParser * parser) {
     buffer = "/* this file is auto-generated, do not modify */\n#ifndef ";
     fwrite(buffer, 1, strlen(buffer), parser->header_file);
     
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
+    P4CString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
     buffer = "_H\n#define ";
     fwrite(buffer, 1, strlen(buffer), parser->header_file);
     
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
-    buffer = "_H\n\n#include <peggy/utils.h>\n#include <peggy/rule.h>\n#include <peggy/parser.h>\n\ntypedef enum ";
+    P4CString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
+    buffer = "_H\n\n#include \"peg4c/utils.h\"\n#include \"peg4c/rule.h\"\n#include \"peg4c/parser.h\"\n\ntypedef enum ";
     fwrite(buffer, 1, strlen(buffer), parser->header_file);
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_NONE);
+    P4CString_fwrite(parser->export, parser->header_file, PSFO_NONE);
     buffer = "rule {\n\t";
     fwrite(buffer, 1, strlen(buffer), parser->header_file);
 
     // write header in .c file
 
-    nbytes = snprintf(var_buffer, PREP_OUTPUT_VAR_BUFFER_SIZE, "/* this file is auto-generated, do not modify */\n#include <peggy/parser_gen.h>\n#include \"%s\"\n", parser->header_name);
+    nbytes = snprintf(var_buffer, PREP_OUTPUT_VAR_BUFFER_SIZE, "/* this file is auto-generated, do not modify */\n#include \"peg4c/parser_gen.h\"\n#include \"%s\"\n", parser->header_name);
     fwrite(var_buffer, 1, nbytes, parser->source_file);
     fflush(parser->header_file);
 }
 
-err_type open_output_files(PeggyParser * parser) {
+err_type open_output_files(P4CParser * parser) {
     size_t name_length = parser->export.len;
     size_t buf_len = 2* (sizeof(*parser->header_name) * (name_length + 3));
     parser->header_name = MemPoolManager_malloc(parser->str_mgr, buf_len);
     if (!parser->header_name) {
-        return PEGGY_MALLOC_FAILURE;
+        return P4C_MALLOC_FAILURE;
     }
     
     // +1 to go after the null-terminator
@@ -274,38 +274,38 @@ err_type open_output_files(PeggyParser * parser) {
     snprintf(parser->source_name, buf_len, "%.*s.c", (int)name_length, parser->export.str);
 
     if (!(parser->header_file = fopen(parser->header_name, "w"))) {
-        return PEGGY_FILE_IO_ERROR;
+        return P4C_FILE_IO_ERROR;
     }
     if (!(parser->source_file = fopen(parser->source_name, "w"))) {
-        return PEGGY_FILE_IO_ERROR;
+        return P4C_FILE_IO_ERROR;
     }
-    return PEGGY_SUCCESS;
+    return P4C_SUCCESS;
 }
 
-void cleanup_header_file(PeggyParser * parser) {
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
+void cleanup_header_file(P4CParser * parser) {
+    P4CString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
     char * buffer = "_NRULES\n} ";
     fwrite(buffer, 1, strlen(buffer), parser->header_file);
 
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_NONE);
+    P4CString_fwrite(parser->export, parser->header_file, PSFO_NONE);
     buffer = "rule;";
     fwrite(buffer, 1, strlen(buffer), parser->header_file);
 
 	buffer = "\n\nextern Rule * ";
     fwrite(buffer, 1, strlen(buffer), parser->header_file);
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_NONE);
+    P4CString_fwrite(parser->export, parser->header_file, PSFO_NONE);
 
 	buffer = "rules[";
     fwrite(buffer, 1, strlen(buffer), parser->header_file);
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
+    P4CString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
 
     buffer = "_NRULES + 1];\n\nvoid ";
     fwrite(buffer, 1, strlen(buffer), parser->header_file);
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_NONE);
+    P4CString_fwrite(parser->export, parser->header_file, PSFO_NONE);
 
     buffer = "_dest(void);\n\n#endif //";
     fwrite(buffer, 1, strlen(buffer), parser->header_file);
-    PeggyString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
+    P4CString_fwrite(parser->export, parser->header_file, PSFO_UPPER);
 
     buffer = "_H\n";
     fwrite(buffer, 1, strlen(buffer), parser->header_file);
@@ -313,7 +313,7 @@ void cleanup_header_file(PeggyParser * parser) {
     fflush(parser->header_file);
 }
 
-int PeggyProduction_cleanup(void * data, PeggyString name, PeggyProduction prod) {
+int P4CProduction_cleanup(void * data, P4CString name, P4CProduction prod) {
     prod.args._class->dest(&prod.args);
     return 0;
 }

@@ -626,7 +626,7 @@ CalcValue cproj_(CalcValue vals) {
 #define VALUE_TYPE REPLFunction
 #define KEY_COMP REPLFunctionKey_comp
 #define HASH_FUNC REPLFunctionKey_hash
-#include <peggy/hash_map.h>
+#include <peg4c/hash_map.h>
 
 HASH_MAP(REPLFunctionKey, REPLFunction) func_map = {0};
 
