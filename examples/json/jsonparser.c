@@ -234,7 +234,7 @@ JSONValue * handle_value(JSONParser * parser, ASTNode * node) {
 void JSONDoc_init(JSONDoc * json) {
     json->data.nvalues_used = 0;
     json->data.string_used = 0;
-    json->data.strings = calloc(json->data.string_size + 1024, sizeof(char));
+    json->data.strings = calloc(json->data.string_size + 1024, 1);
     json->data.values = calloc(json->data.nvalues, sizeof(JSONValue));
 }
 

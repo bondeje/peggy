@@ -141,6 +141,22 @@ int Parser_tokenize(Parser * self, char const * string, size_t string_length, To
 err_type Parser_add_token(Parser * self, ASTNode * node);
 
 /**
+ * @brief copy a token representation. Note that the id will still change as it must be unique to a parser
+ * @param[in] self Parser instance
+ * @param[in] tok Token pointer that is to be copied
+ * @returns a pointer to a new Token
+ */ 
+Token * Parser_copy_token(Parser * self, Token * tok);
+
+/**
+ * @brief copy a token representation. Note that the id and links will still change they must be unique to a parser. 
+ * @param[in] self Parser instance
+ * @param[inout] start the start of the token chain to copy and the resulting copy
+ * @param[inout] end the end of the token chain to copy and the resulting copy
+ */ 
+void Parser_copy_tokens(Parser * self, Token ** start, Token ** end);
+
+/**
  * @brief skip a token for the given node. Only used during tokenization
  * @param[in] self Parser instance
  * @param[in] node node encapsulating the token to be skipped in the stream

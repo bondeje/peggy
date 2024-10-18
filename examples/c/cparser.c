@@ -9,6 +9,7 @@
 #include "cparser.h"
 #include "c.h"
 #include "cstring.h"
+#include "cpp.h"
 
 #define BUFFER_SIZE 4096
 #define BUFFER_SIZE_SCALE 2
@@ -75,6 +76,7 @@ Scope * Scope_dest(Scope * self) {
 /* Thin wrapper around the default parser that adds scope context for parsing/disambiguating typedefs from other identifiers */
 typedef struct CParser {
     Parser parser;
+    CPP * cpp;
     Scope * scope;
 } CParser;
 
@@ -89,12 +91,15 @@ void CParser_init(CParser * self) {
         Scope_add_typedef(self->scope, BUILTIN_TYPES[i], builtin_type_node);
         i++;
     }
+
+    self->cpp = CPP_new();
 }
 void CParser_dest(CParser * self) {
     Parser_dest(&self->parser);
     while (self->scope) {
         self->scope = Scope_dest(self->scope);
     }
+    CPP_del(self->cpp);
 }
 
 size_t CParser_tokenize(Parser * self_, char const * string, size_t string_length, 
@@ -186,7 +191,7 @@ ASTNode * c_process_declaration(Production * decl, Parser * parser, ASTNode * no
         decl_specs = node->children[0]->children[1];
         init_declarators = node->children[0]->children[2];
     }
-    assert((decl_specs->rule == C_DECLARATION_SPECIFIERS) || !printf("c_process_declaration failed to find the declaration_specifiers: %s\n", decl_specs->rule->name));
+    assert((decl_specs->rule == C_DECLARATION_SPECIFIERS) || !printf("c_process_declaration failed to find the declaration_specifiers: %s\n", crules[decl_specs->rule]->name));
     assert((init_declarators == NULL) || (init_declarators->children[0]->rule == C_INIT_DECLARATOR));
     for (size_t i = 0; i < decl_specs->nchildren; i++) {
         ASTNode * child = decl_specs->children[i];
@@ -217,9 +222,10 @@ ASTNode * c_pp_lparen(Production * prod, Parser * parser, ASTNode * node) {
     Token * tok = node->token_start;
     static char const * whitespace = " \t\r\n\f\v";
     // technically this could be UB if tok->string - 1 is not within the object, 
-    // but the use of lparen should guarantee that the production is never 
-    // checked/succeeds at the beginning of a string
-    if (strchr(whitespace, *(tok->string -1))) { // if preceded by a whitespace, fail
+    // but the use of lparen should guarantee that the production can never 
+    // succeed at the beginning of a string object
+    if (strchr(whitespace, *(tok->string -1))) {
+        // if preceded by a whitespace, fail
         return Parser_fail_node(parser);
     }
     return build_action_default(prod, parser, node);
@@ -232,36 +238,50 @@ ASTNode * c_pp_line_expand(Production * prod, Parser * parser, ASTNode * node) {
     Token * line = node->token_start;
 
     Token * start = NULL, * end = NULL;
-    // tokenize the pp_line, but this time, remove the final \n so that it does not register as a pp_line on 2nd pass but gets broken up into separate tokens
-    size_t ntokens = parser->_class->tokenize(parser, line->string, length - 1, &start, &end);
-    // error condition if 0 == ntokens
-
-    // insert tokenized directive into token list
-    start->prev = line->prev;
-    line->prev->next = start;
+    // tokenize/consume pp line except for final \n
+    int status = parser->_class->tokenize(parser, line->string, length - 1, &start, &end);
+    if (status) { 
+        return Parser_fail_node(parser);
+    }
     
-    line->prev = end;
-    line->prev->next = line;
-
-    // re-arrange node so that it points to a newline production
-    node->str_length--; // skip everything in the current node->token_start except for \n
+    // make newline token and append it to tokenized list
+    Token * newline_ = Parser_copy_token(parser, line);
+    newline_->length = 1;
+    newline_->string = line->string + length - 1;
+    end->next = newline_;
+    newline_->prev = end;
+    Token_insert_before(line, start, newline_);
+    // skip over the pp line, removing it from token list
     Parser_skip_token(parser, node);
-    // build a NEWLINE_RE to allow for proper caching 
-    ASTNode * newline_ = Rule_check(crules[C_NEWLINE], parser);
-    Parser_add_token(parser, newline_);
 
-    // handle the pp directive
+    // parse and apply preprocessing directive
+    Parser_seek(parser, start);
+    bool tokenizing_ref = parser->tokenizing;
+    parser->tokenizing = false; // turn of tokenizing as the directive needs to parse
+    if (CPP_directive(parser, ((CParser *)parser)->cpp)) {
+        fprintf(stderr, "c_pp_line_expand: pp directive expect but not found\n");
+        exit(1);
+    }
+    // reset tokenizing
+    parser->tokenizing = tokenizing_ref;
 
     // terminate by triggering a recursive to generate a token
     line = Parser_tell(parser);
     if (line && line->length) {
         return Rule_check(((DerivedRule *)parser->token_rule)->rule, parser);
     }
+
+    // TODO: not sure this makes sense without allowing skip nodes to have zero size
     node->str_length = 0;
     return make_skip_node(node);
 }
 
 ASTNode * c_pp_identifier(Production * prod, Parser * parser, ASTNode * node) {
+    // only do a preprocessing check if in tokenizing stage
+    if (parser->tokenizing && !CPP_check(parser, ((CParser *)parser)->cpp, node)) {
+        // skip the node
+        return make_skip_node(node);
+    }
     return build_action_default(prod, parser, node);
 }
 

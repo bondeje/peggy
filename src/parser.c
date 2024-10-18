@@ -266,6 +266,42 @@ err_type Parser_add_token(Parser * self, ASTNode * node) {
 }
 
 /**
+ * @brief copy a token representation. Note that the id and links will still change they must be unique to a parser. 
+ * @param[in] self Parser instance
+ * @param[in] tok Token pointer that is to be copied
+ * @returns a pointer to a new Token
+ */ 
+Token * Parser_copy_token(Parser * self, Token * tok) {
+    Token * out = MemPoolManager_next(self->token_mgr);
+    *out = *tok;
+    out->prev = NULL;
+    out->next = NULL;
+    out->id = self->ntokens++;
+    return out;
+}
+
+/**
+ * @brief copy a token representation. Note that the id and links will still change they must be unique to a parser. 
+ * @param[in] self Parser instance
+ * @param[inout] start the start of the token chain to copy and the resulting copy
+ * @param[inout] end the end of the token chain to copy and the resulting copy
+ */ 
+void Parser_copy_tokens(Parser * self, Token ** start, Token ** end) {
+    Token * cur = *start;
+    Token * s = Parser_copy_token(self, cur);
+    Token * e = *end;
+    Token * c = s;
+    while (cur != e) {
+        cur = cur->next;
+        c->next = Parser_copy_token(self, cur);
+        c->next->prev = c;
+        c = c->next;
+    }
+    *start = s;
+    *end = c;
+}
+
+/**
  * @brief wrapper to retrieve number of tokens in parser. This is a more 
  *      accurate measure of the current state of the parser tokens than 
  *      Parser.ntokens
@@ -371,7 +407,7 @@ void Parser_generate_new_token(Parser * self, size_t token_length, Token * cur) 
  *      encompass one token.
  */
 err_type Parser_skip_token(Parser * self, ASTNode * node) {
-    //if (node->str_length) {
+    if (node->str_length) {
         Token * skipped = node->token_start;
         Parser_generate_new_token(self, node->str_length, skipped);
 
@@ -385,7 +421,7 @@ err_type Parser_skip_token(Parser * self, ASTNode * node) {
 
         // reset parse to token after skipped
         Parser_seek(self, skipped->next);
-    //}
+    }
     return PEGGY_SUCCESS;
 }
 

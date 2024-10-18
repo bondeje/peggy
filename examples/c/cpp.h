@@ -12,12 +12,14 @@ enum PPStatus {
     PP_OK
 };
 
-int CPP_directive(Parser * parser, CPP * cpp, ASTNode * directive);
+CPP * CPP_new(void);
 
-int CPP_check(Parser * parser, CPP * cpp, ASTNode * identifier);
 
-void CPP_init(CPP * cpp);
+int CPP_directive(Parser * parser, CPP * cpp);
 
-void CPP_dest(CPP * cpp);
+// return 0 if a macro was identified and thus id_re is invalidated, 1 otherwise
+int CPP_check(Parser * parser, CPP * cpp, ASTNode * id_re);
+
+void CPP_del(CPP * cpp);
 
 #endif

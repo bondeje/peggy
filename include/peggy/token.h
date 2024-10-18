@@ -24,5 +24,12 @@ struct Token {
 void Token_init(Token * self, size_t id, char const * string, size_t length, 
     unsigned int line, unsigned int col);
 
+void Token_replace_tokens(Token * dstart, Token * dend, Token * sstart, Token * send);
+
+void Token_insert_before(Token * tok, Token * sstart, Token * send);
+#define Token_insert_after(tok, sstart, send) Token_insert_before((tok)->next, sstart, send)
+
+void Token_remove_tokens(Token * start, Token * end);
+
 #endif // PEGGY_TOKEN_H
 

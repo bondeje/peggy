@@ -123,14 +123,14 @@ keyword:
     | '__attribute__'
 
 pp_line(c_pp_line_expand): // breaks line and executes the preprocessor
-	"#(\\\\\n|[^\n])*\n"
+	"#([^\\\\\n]+(\\\\\r?\n|\\\\[^\r\n])?)*\n"
 
 token:
     pp_line | whitespace | constant | punctuator | string_literal | identifier | keyword  
 	// keyword is basically unreachable. whitespace is added to remove comments. 
-	
+
 whitespace(skip_token):
-    "([ \t\r\n\v\f]+|(\\\\\n)|(//[^\n]*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+"
+    "([ \t\r\n\v\f]+|(\\\\\r?\n)|(//([^\\\\\n]+(\\\\\r?\n|\\\\[^\r\n])?)*\n)|(/\\*((\\*[^/])|[^*])*\\*/))+"
 	// ascii ws      line cont line comment multi-line comment
 
 identifier(c_pp_identifier): // build action checks for presence of a preprocessing macro and executes preprocessor appropriately
@@ -699,6 +699,12 @@ group_part:
 	| control_line
 	| text_line
 	| '#', non_directive
+
+pp_keyword:
+	'if' | 'ifdef' | 'ifndef' | 'elif' | 'elifdef' | 'elifndef' | 'else' | 'endif' | 'include' | 'embed' | 'define' | 'undef' | 'line' | 'error' | 'warning' | 'pragma'
+
+pp_check:
+	'#', pp_keyword
 
 if_section:
 	if_group, elif_group*, else_group?, endif_line

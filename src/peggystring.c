@@ -32,7 +32,7 @@ _Bool PeggyString_startswith(PeggyString a, PeggyString prefix) {
 
 void PeggyString_fwrite(PeggyString a, FILE * output, unsigned int flags) {
     if (!flags) {
-        fwrite(a.str, sizeof(char), a.len, output);
+        fwrite(a.str, 1, a.len, output);
         return;
     }
     size_t start = PSFO_GET_LOFFSET(flags);

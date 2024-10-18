@@ -40,7 +40,7 @@ void ASTNode_init(ASTNode * self, rule_id_type rule, Token * start, Token * end,
  */
 ASTNode * make_skip_node(ASTNode * node) {
     node->rule = -1;
-    node->str_length = node->str_length ? node->str_length : 1;
+    //node->str_length = node->str_length ? node->str_length : 1;
     return node;
 }
 
@@ -48,8 +48,8 @@ ASTNode * make_skip_node(ASTNode * node) {
  * @brief check if a node has been marked for skipping
  */
 _Bool is_skip_node(ASTNode * node) {
-    return node->str_length > 0 && -1 == node->rule;
-    //return -1 == node->rule;
+    //return node->str_length > 0 && -1 == node->rule;
+    return -1 == node->rule;
 }
 
 /**
