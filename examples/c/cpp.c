@@ -309,7 +309,7 @@ int CPP_check(Parser * parser, CPP * cpp, ASTNode * id_re) {
             } else {
                 Parser_copy_tokens(parser, &rep_start, &rep_end);
             }
-            id_re->str_length += length + 1; // so that we skip the whole macro function invocation
+            id_re->str_length += length; // so that we skip the whole macro function invocation
         } else {
             Parser_copy_tokens(parser, &rep_start, &rep_end); // non function macros simply copy the replacement list
         }

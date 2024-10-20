@@ -167,59 +167,53 @@ void Parser_del(Parser * self) {
 int Parser_tokenize(Parser * self, char const * string, size_t string_length, 
     Token ** start, Token ** end) {
 
+    int status = 0;
+
     static const unsigned int REMAINING_TOKEN_MAX_SIZE = 16;
     if (!string_length) {
-        return 0;
+        return status;
     }
 
+    // set up current state memo for returning later
     bool tokenizing_orig = self->tokenizing;
     self->tokenizing = true; // assert in tokenizing start regardless of current state
+    Token * reset = Parser_tell(self);
 
-    /*
-    to try to separate concerns of the tokenizer and parser but use the 
-    parser's Rules, insert the new tokens between the current and next Token
-    in the parser. This should not be NULL but checks are applied anyway.
-    */
-    Token * insert_left = Parser_tell(self);
-    Token * insert_right = insert_left->next;
-    MemPoolManager * token_mgr = self->token_mgr;
+    // set up doubly-linked terminals
+    Token * tail = &(Token){.string = "", .length = 0, .id = SIZE_MAX};
+    Token * head = &(Token){.id = SIZE_MAX, .next = tail};
+    tail->prev = head;
+    head->next = tail;
 
-    // generate a new Token
-    Token * cur = MemPoolManager_next(token_mgr);
+    // generate a new Token encapsulating the new string and insert into doubly-linked-list
+    Token * cur = MemPoolManager_next(self->token_mgr);
     Token_init(cur, self->ntokens, string, string_length, 1, 1);
     self->ntokens++; // this might be a bug. might have to reset the token count
-
-    // put new token to right of insert_left
-    insert_left->next = cur;
-    if (insert_right) {
-        insert_right->prev = cur;
-    }
-    cur->next = insert_right;
-    cur->prev = insert_left;
+    Token_insert_after(head, cur, cur);
 
     // seek to new token
     Parser_seek(self, cur);
     Rule * tokenizer = self->token_rule;
     *end = cur;
-    size_t ntokens = 0;
     /*
     Iterate until the current token has no string left to tokenize
     */
     while (cur && cur->length) {
         ASTNode * node = Rule_check(tokenizer, self);
         if (!node) { // this should never happen
-            printf("failed node\n");
-            return 0;
+            fprintf(stderr, "NULL node encountered in tokenizier\n");
+            status = 1;
+            break;
         }
 
         // check for failed node and handle
         if (Parser_is_fail_node(self, node)) {
-            return 1;
+            status = 1;
+            break;
         }
 
         // check for skip node. Still should increment ntokens
         if (!is_skip_node(node)) {
-            ntokens++;
             *end = cur; // only update *end if the token is being saved
         }        
 
@@ -227,42 +221,20 @@ int Parser_tokenize(Parser * self, char const * string, size_t string_length,
         cur = Parser_tell(self);
         
     }
-    cur = insert_left->next;
-    /*
-    reset Parser to original current position and remove the generated tokens 
-    from the parser. This may seen redundant but is necessary to allow 
-    tokenization outside of the parsing stage
-    */
-    Parser_seek(self, insert_left);
-    insert_left->next = insert_right;
-    if (insert_right) {
-        insert_right->prev = insert_left;
-    }
+    cur = cur->prev;
+    // cur points one after the last non-empty token
+
     // return to original state. Originally this was false, but it prevented 
     // re-entrant tokenization needed for preprocessing, e.g. C
-    self->tokenizing = tokenizing_orig; 
-    if (cur == insert_right) {
-        *start = NULL;
-        *end = NULL;
-        return 1;
-    }
-    cur->prev = NULL;
-    *start = cur;
-    (*end)->next = NULL;
-    return 0;
-}
 
-/**
- * @brief add a token for the given node. Only used during tokenization
- * @param[in] self Parser instance
- * @param[in] node node encapsulating the token to be added to the stream
- * @returns non-zero on error, else 0
- */
-err_type Parser_add_token(Parser * self, ASTNode * node) {
-    Parser_generate_new_token(self, node->str_length, node->token_start);
-    Parser_seek(self, node->token_end->next);
-    //self->token_tail->id = self->token_tail->prev->id + 1;
-    return P4C_SUCCESS;
+    Parser_seek(self, reset);
+    self->tokenizing = tokenizing_orig;
+    *start = head->next;
+    head->next->prev = NULL;
+    //(*end)->next = NULL;
+    *end = cur;
+    cur->next = NULL;
+    return status;
 }
 
 /**
@@ -375,9 +347,7 @@ void Parser_add_string(Parser * self, Token * cur, char const * string,
     self->ntokens++;
 
     // insert into linked list
-    new_token->next = cur->next;
-    cur->next = new_token;
-    new_token->prev = cur;
+    Token_insert_after(cur, new_token, new_token);
 }
 
 /**
@@ -393,9 +363,26 @@ void Parser_generate_new_token(Parser * self, size_t token_length, Token * cur) 
     if (!cur) {
         cur = self->token_cur;
     }
+    //assert(cur->length >= token_length)
     size_t length = cur->length - token_length;
     cur->length = token_length;
-    Parser_add_string(self, cur, cur->string + token_length, length);
+    // if there's any string left, add it as a new token to the end
+    if (length) {    
+        Parser_add_string(self, cur, cur->string + token_length, length);
+    }
+}
+
+/**
+ * @brief add a token for the given node. Only used during tokenization
+ * @param[in] self Parser instance
+ * @param[in] node node encapsulating the token to be added to the stream
+ * @returns non-zero on error, else 0
+ */
+err_type Parser_add_token(Parser * self, ASTNode * node) {
+    Parser_generate_new_token(self, node->str_length, node->token_start);
+    Parser_seek(self, node->token_end->next);
+    //self->token_tail->id = self->token_tail->prev->id + 1;
+    return P4C_SUCCESS;
 }
 
 /**
